@@ -54,8 +54,7 @@ Source = "https://github.com/mkcs28/evalsuite-python"
 Issues = "https://github.com/mkcs28/evalsuite-python/issues"
 Changelog = "https://github.com/mkcs28/evalsuite-python/blob/main/CHANGELOG.md"
 
-[project.scripts]
-evalsuite = "evalsuite.cli.main:main"
+# [project.scripts] evalsuite = "evalsuite.cli.main:main" is added together with the CLI itself.
 
 [tool.hatch.version]
 path = "src/evalsuite/version.py"
