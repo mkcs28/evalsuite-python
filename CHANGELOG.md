@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- 0.1.0a1 installed an `evalsuite` console command although the CLI is not implemented yet, so the command
+  failed with `ModuleNotFoundError`. The entry point is removed until the CLI ships.
+
 ## [0.1.0a1]
 
 First alpha, published to reserve the name and test the release pipeline. Distribution name
