@@ -1,0 +1,96 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "evalsuite"
+dynamic = ["version"]
+description = "A unified Python framework for machine-learning, clinical, statistical, segmentation, object-detection, uncertainty, and model evaluation."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "Manoj Kumar C S" }]
+maintainers = [{ name = "Manoj Kumar C S" }]
+keywords = ["evaluation", "metrics", "machine learning", "statistics", "classification", "regression", "reproducibility"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
+dependencies = ["numpy>=1.22", "scipy>=1.8", "pandas>=1.4"]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.5"]
+all = ["matplotlib>=3.5"]
+dev = [
+  "pytest>=7",
+  "pytest-cov>=4",
+  "hypothesis>=6.80",
+  "scikit-learn>=1.2",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "pandas-stubs",
+  "build",
+  "twine",
+  "pip-audit",
+]
+
+[project.urls]
+Homepage = "https://evalsuite-nine.vercel.app"
+Documentation = "https://evalsuite-nine.vercel.app/docs"
+Source = "https://github.com/mkcs28/evalsuite-python"
+Issues = "https://github.com/mkcs28/evalsuite-python/issues"
+Changelog = "https://github.com/mkcs28/evalsuite-python/blob/main/CHANGELOG.md"
+
+[project.scripts]
+evalsuite = "evalsuite.cli.main:main"
+
+[tool.hatch.version]
+path = "src/evalsuite/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evalsuite"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/evalsuite", "tests", "README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "pyproject.toml"]
+
+[tool.ruff]
+line-length = 115
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "NPY", "RUF", "S"]
+# UP007/UP045: keep Optional[...] and Union[...] for clarity alongside Python 3.9 support.
+ignore = ["N803", "N806", "RUF022", "UP007", "UP045", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "N802", "E501"]
+# Metric modules carry full literature references, which are not wrapped.
+"src/evalsuite/*/metrics.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/evalsuite"]
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "matplotlib.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::RuntimeWarning"]

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --upgrade pip setuptools
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --upgrade pip setuptools
+      - run: pip install -e ".[dev]"
+      - run: pytest --cov=evalsuite --cov-report=term-missing --cov-fail-under=95
+
+  package:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip setuptools build twine pip-audit
+      - run: python -m build
+      - run: twine check dist/*
+      - name: Install the wheel in a clean environment (no dev tools, no scikit-learn)
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+          cd /tmp && /tmp/clean/bin/python -c "import evalsuite as es; r = es.evaluate([0,1,1,0],[0,1,0,0]); assert abs(float(r['accuracy']) - 0.75) < 1e-12; print(es.__version__, len(es.list_metrics()), 'metrics')"
+      - name: Audit runtime dependencies
+        run: /tmp/clean/bin/pip install pip-audit && /tmp/clean/bin/pip-audit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
