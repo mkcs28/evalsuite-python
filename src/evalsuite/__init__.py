@@ -5,7 +5,7 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import classification, regression
+from . import classification, regression, stats
 from .api import evaluate
 from .classification import (
     accuracy,
@@ -59,9 +59,42 @@ from .regression import (
     rse,
     smape,
 )
+from .stats import (
+    ComparisonResult,
+    ConfidenceInterval,
+    TestResult,
+    accuracy_ci,
+    adjust_pvalues,
+    bootstrap_ci,
+    cliffs_delta,
+    cohens_d,
+    compare,
+    delong_test,
+    hedges_g,
+    mcnemar_test,
+    paired_bootstrap_test,
+    proportion_ci,
+    roc_auc_ci,
+)
 from .version import __version__
 
 __all__ = [
+    "stats",
+    "roc_auc_ci",
+    "proportion_ci",
+    "paired_bootstrap_test",
+    "mcnemar_test",
+    "hedges_g",
+    "delong_test",
+    "compare",
+    "cohens_d",
+    "cliffs_delta",
+    "bootstrap_ci",
+    "adjust_pvalues",
+    "accuracy_ci",
+    "TestResult",
+    "ConfidenceInterval",
+    "ComparisonResult",
     "EvalSuiteError",
     "EvaluationResult",
     "InputValidationError",
