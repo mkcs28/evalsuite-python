@@ -1,11 +1,28 @@
 # EvalSuite
 
+[![CI](https://github.com/mkcs28/evalsuite-python/actions/workflows/ci.yml/badge.svg)](https://github.com/mkcs28/evalsuite-python/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/evalsuite-python)](https://pypi.org/project/evalsuite-python/)
+[![Python](https://img.shields.io/pypi/pyversions/evalsuite-python)](https://pypi.org/project/evalsuite-python/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Unified, reproducible evaluation for machine learning and research.**
 
 EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: in development (v0.1.0 in progress).** Not yet on PyPI. The API may change before 0.1.0.
+> **Status: in development (v0.1.0 in progress).** The API may change before 0.1.0.
+
+## Installation
+
+```bash
+pip install evalsuite-python
+```
+
+The package is installed as `evalsuite-python` and imported as `evalsuite`:
+
+```python
+import evalsuite as es
+```
 
 ## Why EvalSuite
 
@@ -75,6 +92,7 @@ ruff check . && ruff format --check . && mypy
 
 ## Links
 
+- PyPI: https://pypi.org/project/evalsuite-python/
 - Website and documentation: https://evalsuite-nine.vercel.app
 - Website source: https://github.com/mkcs28/evalsuite
 

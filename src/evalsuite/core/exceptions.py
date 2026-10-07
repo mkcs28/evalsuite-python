@@ -38,7 +38,7 @@ class OptionalDependencyError(EvalSuiteError, ImportError):
     def __init__(self, package: str, extra: str, feature: str) -> None:
         super().__init__(
             f"{feature} requires the optional dependency '{package}'. "
-            f'Install it with: pip install "evalsuite[{extra}]"'
+            f'Install it with: pip install "evalsuite-python[{extra}]"'
         )
         self.package = package
         self.extra = extra
