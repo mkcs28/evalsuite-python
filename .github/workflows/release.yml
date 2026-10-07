@@ -1,7 +1,6 @@
-# Publish to TestPyPI, then PyPI, when a version tag is pushed (git tag v0.1.0a1 && git push origin v0.1.0a1).
-# Uses PyPI Trusted Publishing: no API tokens are stored. Configure a publisher on pypi.org and test.pypi.org
-# for project "evalsuite-python", owner "mkcs28", repository "evalsuite-python", workflow "release.yml",
-# environments "pypi" and "testpypi".
+# Publish to PyPI when a version tag is pushed (git tag v0.1.0a1 && git push origin v0.1.0a1).
+# Uses PyPI Trusted Publishing: no API tokens are stored. Configure a publisher on pypi.org for project
+# "evalsuite-python", owner "mkcs28", repository "evalsuite-python", workflow "release.yml", environment "pypi".
 name: Release
 
 on:
@@ -38,25 +37,8 @@ jobs:
           name: dist
           path: dist/
 
-  testpypi:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/project/evalsuite-python/
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-
   pypi:
-    needs: testpypi
+    needs: build
     runs-on: ubuntu-latest
     # Add a required reviewer to the "pypi" environment (Settings -> Environments) to approve each release.
     environment:
