@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0a2]
+
+### Added
+
+- Model comparison (`es.compare`): per-model confidence intervals from paired bootstrap resamples, pairwise
+  tests (McNemar for accuracy, DeLong for binary ROC AUC, paired bootstrap otherwise), multiple-comparison
+  correction, best model per metric, and summary/pandas/Markdown/LaTeX/JSON export.
+- Confidence intervals: `bootstrap_ci` (percentile, basic, BCa; stratified and reproducible),
+  `proportion_ci` and `accuracy_ci` (Wilson, Clopper-Pearson, normal), `roc_auc_ci` (DeLong).
+- Paired tests: `mcnemar_test`, `delong_test`, `paired_bootstrap_test`.
+- Effect sizes: `cohens_d` (independent and paired), `hedges_g`, `cliffs_delta`; `adjust_pvalues`
+  (Holm, Bonferroni, Benjamini-Hochberg, Benjamini-Yekutieli).
+- Reference tests against statsmodels and SciPy, brute-force DeLong checks and coverage simulations.
+- Python 3.14 support and CI.
+
 ### Fixed
 
 - 0.1.0a1 installed an `evalsuite` console command although the CLI is not implemented yet, so the command

@@ -60,6 +60,28 @@ es.metric_info("classification.mcc").formula  # documentation
 es.list_metrics("regression")
 ```
 
+## Comparing models
+
+```python
+result = es.compare(
+    y_true,
+    {"logistic": pred_lr, "forest": pred_rf, "boosting": pred_gb},
+    probabilities={"logistic": prob_lr, "forest": prob_rf, "boosting": prob_gb},
+    random_state=0,
+)
+print(result.summary())        # estimates with 95% CIs, paired tests, Holm-adjusted p-values
+result.to_latex(label="tab:models")
+
+es.bootstrap_ci("f1", y_true, y_pred, average="macro", random_state=0)   # BCa interval for any metric
+es.accuracy_ci(y_true, y_pred)                                            # Wilson interval
+es.delong_test(y_true, prob_a, prob_b)                                    # two correlated AUCs
+es.mcnemar_test(y_true, pred_a, pred_b)
+```
+
+Every model is evaluated on the same bootstrap resamples, so differences are paired. Accuracy is compared
+with McNemar's test, binary ROC AUC with DeLong's test and other metrics with a paired bootstrap test;
+p-values are adjusted for multiple comparisons (Holm by default).
+
 ## Metrics in this release
 
 **Classification** (binary, multiclass, multilabel; micro/macro/weighted/samples/per-class averaging;
