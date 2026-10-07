@@ -49,14 +49,14 @@ y_prob = [0.1, 0.9, 0.4, 0.2, 0.8, 0.6]
 result = es.evaluate(y_true, y_pred, y_prob=y_prob)
 print(result.summary())
 
-result["f1"]                 # MetricResult(f1=0.666667)
-f"{result['mcc']:.3f}"       # '0.333'
+result["f1"]  # MetricResult(f1=0.666667)
+f"{result['mcc']:.3f}"  # '0.333'
 result.to_latex(caption="Test-set performance")
 result.to_dataframe()
 
-es.f1(y_true, y_pred)                                  # individual metrics
+es.f1(y_true, y_pred)  # individual metrics
 es.roc_auc(y_true, y_prob)
-es.metric_info("classification.mcc").formula           # documentation
+es.metric_info("classification.mcc").formula  # documentation
 es.list_metrics("regression")
 ```
 
