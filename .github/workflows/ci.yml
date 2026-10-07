@@ -68,10 +68,14 @@ jobs:
       - name: Install the wheel in a clean environment (no dev tools, no scikit-learn)
         run: |
           python -m venv /tmp/clean
+          # A fresh venv ships the pip bundled with Python, which can have known advisories; upgrade it so the
+          # audit below reports on EvalSuite's dependencies, not on the bootstrap tooling.
+          /tmp/clean/bin/python -m pip install --upgrade pip setuptools
           /tmp/clean/bin/pip install dist/*.whl
           cd /tmp && /tmp/clean/bin/python -c "import evalsuite as es; r = es.evaluate([0,1,1,0],[0,1,0,0]); assert abs(float(r['accuracy']) - 0.75) < 1e-12; print(es.__version__, len(es.list_metrics()), 'metrics')"
       - name: Audit runtime dependencies
-        run: /tmp/clean/bin/pip install pip-audit && /tmp/clean/bin/pip-audit
+        # evalsuite-python itself is skipped until it is on PyPI; every runtime dependency is audited.
+        run: /tmp/clean/bin/pip install pip-audit && /tmp/clean/bin/pip-audit --skip-editable
       - uses: actions/upload-artifact@v4
         with:
           name: dist
