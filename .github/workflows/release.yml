@@ -1,0 +1,91 @@
+# Publish to TestPyPI, then PyPI, when a version tag is pushed (git tag v0.1.0a1 && git push origin v0.1.0a1).
+# Uses PyPI Trusted Publishing: no API tokens are stored. Configure a publisher on pypi.org and test.pypi.org
+# for project "evalsuite-python", owner "mkcs28", repository "evalsuite-python", workflow "release.yml",
+# environments "pypi" and "testpypi".
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tag must match the package version
+        run: |
+          version=$(python -c "import re;print(re.search(r'__version__ = \"(.+)\"', open('src/evalsuite/version.py').read()).group(1))")
+          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match src/evalsuite/version.py ($version)."
+            exit 1
+          fi
+      - run: python -m pip install --upgrade pip setuptools
+      - run: pip install -e ".[dev]"
+      - run: ruff check . && ruff format --check . && mypy
+      - run: pytest --cov=evalsuite --cov-fail-under=95
+      - run: python -m build
+      - run: twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/evalsuite-python/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    needs: testpypi
+    runs-on: ubuntu-latest
+    # Add a required reviewer to the "pypi" environment (Settings -> Environments) to approve each release.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/evalsuite-python/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create GitHub release with the built files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "${GITHUB_REF_NAME}" in *a*|*b*|*rc*) prerelease="--prerelease";; esac
+          gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" \
+            --title "evalsuite-python ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." $prerelease

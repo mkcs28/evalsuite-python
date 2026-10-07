@@ -199,7 +199,7 @@ class TestResultFormats:
 
     def test_optional_dependency_message(self) -> None:
         err = OptionalDependencyError("matplotlib", "plot", "Plotting")
-        assert 'pip install "evalsuite[plot]"' in str(err) and err.extra == "plot"
+        assert 'pip install "evalsuite-python[plot]"' in str(err) and err.extra == "plot"
 
 
 class TestEvaluateEdges:

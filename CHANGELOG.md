@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0a1]
+
+First alpha, published to reserve the name and test the release pipeline. Distribution name
+`evalsuite-python` (`pip install --pre evalsuite-python`), imported as `evalsuite`.
+
 ### Added
 
 - Core: input validation with actionable errors, exception hierarchy, immutable result objects with
