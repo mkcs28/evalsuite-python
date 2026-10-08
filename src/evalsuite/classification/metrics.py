@@ -26,6 +26,8 @@ from ._common import averaged, positive_index, resolve_average
 
 __all__ = [
     "accuracy",
+    "calibration_curve",
+    "expected_calibration_error",
     "average_precision",
     "balanced_accuracy",
     "brier_score",
@@ -870,3 +872,72 @@ def top_k_accuracy(
     return MetricResult(
         "top_k_accuracy", f"Top-{k} accuracy", float(np.average(hit, weights=ctx.weights)), {"k": int(k)}
     )
+
+
+# ---- calibration ----------------------------------------------------------------------------------
+def calibration_curve(
+    y_true: ArrayLike,
+    y_prob: ArrayLike,
+    *,
+    n_bins: int = 10,
+    strategy: Literal["uniform", "quantile"] = "uniform",
+    pos_label: Any = None,
+    sample_weight: Optional[ArrayLike] = None,
+) -> tuple[FloatArray, FloatArray, FloatArray]:
+    """Reliability diagram data for binary probabilities: ``(prob_true, prob_pred, bin_weight)`` per non-empty
+    bin, where ``prob_true`` is the observed positive rate and ``prob_pred`` the mean predicted probability.
+
+    ``strategy="uniform"`` uses equal-width bins on [0, 1]; ``"quantile"`` uses equal-count bins. Matches
+    scikit-learn's ``calibration_curve`` (unweighted), and also accepts sample weights.
+    """
+    ctx = _ctx(y_true, None, y_prob=y_prob, sample_weight=sample_weight)
+    if ctx.target_type != "binary":
+        raise UnsupportedTaskError("calibration_curve is for binary targets; use one-vs-rest per class.")
+    if not (isinstance(n_bins, (int, np.integer)) and n_bins >= 1):
+        raise InputValidationError("n_bins must be a positive integer.")
+    y = _binary_target(ctx, pos_label)
+    p, w = ctx.y_prob, ctx.weights
+    if strategy == "uniform":
+        edges = np.linspace(0.0, 1.0, n_bins + 1)
+    elif strategy == "quantile":
+        edges = np.quantile(p, np.linspace(0, 1, n_bins + 1))
+    else:
+        raise InputValidationError("strategy must be 'uniform' or 'quantile'.")
+    idx = np.searchsorted(edges[1:-1], p, side="right")
+    bin_w = np.bincount(idx, weights=w, minlength=len(edges))
+    bin_true = np.bincount(idx, weights=w * y, minlength=len(edges))
+    bin_pred = np.bincount(idx, weights=w * p, minlength=len(edges))
+    keep = bin_w > 0
+    return bin_true[keep] / bin_w[keep], bin_pred[keep] / bin_w[keep], bin_w[keep]
+
+
+@register(
+    category=_C,
+    task="binary",
+    name="Expected calibration error",
+    definition="Weighted average gap between observed frequency and mean predicted probability over probability "
+    "bins; 0 means perfectly calibrated.",
+    formula="ECE = Σ_b (n_b / n) |acc_b − conf_b|",
+    range="[0, 1]",
+    input_requirements=("y_true", "y_prob"),
+    references=(
+        "Naeini MP, Cooper GF, Hauskrecht M. Obtaining well calibrated probabilities using Bayesian binning. AAAI 2015:2901-2907.",
+        "Guo C, Pleiss G, Sun Y, Weinberger KQ. On calibration of modern neural networks. ICML 2017:1321-1330.",
+    ),
+    higher_is_better=False,
+)
+def expected_calibration_error(
+    y_true: ArrayLike,
+    y_prob: ArrayLike,
+    *,
+    n_bins: int = 10,
+    strategy: Literal["uniform", "quantile"] = "uniform",
+    pos_label: Any = None,
+    sample_weight: Optional[ArrayLike] = None,
+) -> MetricResult:
+    """Expected calibration error for binary probabilities (bins as in :func:`calibration_curve`)."""
+    prob_true, prob_pred, w = calibration_curve(
+        y_true, y_prob, n_bins=n_bins, strategy=strategy, pos_label=pos_label, sample_weight=sample_weight
+    )
+    ece = float(np.sum(w * np.abs(prob_true - prob_pred)) / w.sum())
+    return MetricResult("expected_calibration_error", "ECE", ece, {"n_bins": int(n_bins), "strategy": strategy})

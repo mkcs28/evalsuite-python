@@ -232,6 +232,28 @@ def _evaluate_regression(
                 f"Unknown regression metric(s): {', '.join(unknown)}. Available: {', '.join(_REGRESSION)}."
             )
     out: dict[str, MetricResult] = {}
+    shared = reg._Inputs(y_true, y_pred, sample_weight)  # validate once for every metric
+    token = reg._SHARED.set((id(y_true), id(y_pred), id(sample_weight), shared))
+    try:
+        _regression_loop(names, out, y_true, y_pred, sample_weight)
+    finally:
+        reg._SHARED.reset(token)
+    return EvaluationResult(
+        task="regression",
+        metrics=out,
+        n_samples=yt.shape[0],
+        target_type="continuous",
+        metadata=_metadata(weighted=sample_weight is not None, outputs=yt.shape[1] if multi else 1),
+    )
+
+
+def _regression_loop(
+    names: list[str],
+    out: dict[str, MetricResult],
+    y_true: ArrayLike,
+    y_pred: ArrayLike,
+    sample_weight: Optional[ArrayLike],
+) -> None:
     for name in names:
         fn = _REGRESSION[name]
         if name in _NO_WEIGHTS:
@@ -240,10 +262,3 @@ def _evaluate_regression(
             out[name] = fn(y_true, y_pred)
         else:
             out[name] = fn(y_true, y_pred, sample_weight=sample_weight)
-    return EvaluationResult(
-        task="regression",
-        metrics=out,
-        n_samples=yt.shape[0],
-        target_type="continuous",
-        metadata=_metadata(weighted=sample_weight is not None, outputs=yt.shape[1] if multi else 1),
-    )

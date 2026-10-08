@@ -195,3 +195,24 @@ class TestEvaluate:
         y = rng.normal(size=(30, 2))
         r = es.evaluate(y, y + 0.1)
         assert "max_error" not in r and r.metadata["outputs"] == 2
+
+
+def test_regression_evaluate_validates_once_and_does_not_leak(monkeypatch) -> None:
+    import evalsuite.regression.metrics as reg
+
+    calls = {"n": 0}
+    original = reg._Inputs.__init__
+
+    def counting(self, *a, **k):
+        calls["n"] += 1
+        original(self, *a, **k)
+
+    monkeypatch.setattr(reg._Inputs, "__init__", counting)
+    y = np.array([1.0, 2.5, 3.0, 4.5])
+    p = np.array([1.2, 2.4, 2.8, 4.9])
+    r = es.evaluate(y, p)
+    assert calls["n"] == 1 and len(r) == 8
+    assert reg._SHARED.get() is None  # nothing left behind
+    # a later call with different arrays must not reuse the shared inputs
+    other = es.mae(np.array([0.0, 0.0]), np.array([1.0, 3.0]))
+    assert float(other) == 2.0 and float(r["mae"]) == pytest.approx(0.225)

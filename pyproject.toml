@@ -14,7 +14,7 @@ authors = [{ name = "Manoj Kumar C S" }]
 maintainers = [{ name = "Manoj Kumar C S" }]
 keywords = ["evaluation", "metrics", "machine learning", "statistics", "classification", "regression", "reproducibility"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
@@ -41,6 +41,7 @@ dev = [
   "hypothesis>=6.80",
   "scikit-learn>=1.2",
   "statsmodels>=0.13",
+  "matplotlib>=3.5",
   "ruff>=0.6",
   "mypy>=1.10",
   "pandas-stubs",
@@ -56,7 +57,8 @@ Source = "https://github.com/mkcs28/evalsuite-python"
 Issues = "https://github.com/mkcs28/evalsuite-python/issues"
 Changelog = "https://github.com/mkcs28/evalsuite-python/blob/main/CHANGELOG.md"
 
-# [project.scripts] evalsuite = "evalsuite.cli.main:main" is added together with the CLI itself.
+[project.scripts]
+evalsuite = "evalsuite.cli.main:main"
 
 [tool.hatch.version]
 path = "src/evalsuite/version.py"

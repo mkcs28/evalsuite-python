@@ -5,15 +5,17 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import classification, regression, stats
+from . import classification, plot, regression, stats
 from .api import evaluate
 from .classification import (
     accuracy,
     average_precision,
     balanced_accuracy,
     brier_score,
+    calibration_curve,
     cohen_kappa,
     confusion_matrix,
+    expected_calibration_error,
     f1,
     fbeta,
     hamming_loss,
@@ -59,6 +61,7 @@ from .regression import (
     rse,
     smape,
 )
+from .reporting import ClassificationReport, classification_report
 from .stats import (
     ComparisonResult,
     ConfidenceInterval,
@@ -79,6 +82,11 @@ from .stats import (
 from .version import __version__
 
 __all__ = [
+    "plot",
+    "expected_calibration_error",
+    "calibration_curve",
+    "classification_report",
+    "ClassificationReport",
     "stats",
     "roc_auc_ci",
     "proportion_ci",

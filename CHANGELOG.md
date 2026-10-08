@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0b1]
+
+Feature-complete for 0.1.0.
+
+### Added
+
+- Plots (`es.plot`, optional `[plot]` extra): ROC, precision-recall, calibration, confusion matrix, residuals /
+  predicted-vs-true, and model-comparison forest plots. Values come from EvalSuite's metrics; several models
+  get distinct colours and line styles. Importing `evalsuite` never imports matplotlib.
+- Reporting: `classification_report` (per-class precision, recall, F1, specificity, support; accuracy, micro,
+  macro and weighted averages; matches scikit-learn); `to_html()` and `to_csv()` on every result; `save(path)`
+  choosing the format from the extension (.json .csv .md .tex .html .txt).
+- `calibration_curve` and `expected_calibration_error` (matches scikit-learn's calibration curve).
+- Command line: `evalsuite evaluate | report | compare | plot | metrics | info | benchmark`, and
+  `python -m evalsuite`. Reads CSV, TSV, Parquet and JSON; clear one-line errors with exit code 2.
+- Benchmarks (`evalsuite.benchmarks.run_benchmarks`, `evalsuite benchmark`): time and peak memory against
+  scikit-learn, with a check that both libraries return the same numbers. Results in `BENCHMARKS.md`.
+
+### Changed
+
+- Regression `evaluate()` validates inputs once for all metrics and uses a faster unweighted mean (2× faster
+  on large arrays).
+
 ## [0.1.0a2]
 
 ### Added

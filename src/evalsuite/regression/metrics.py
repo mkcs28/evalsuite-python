@@ -7,6 +7,8 @@ is ``"uniform_average"`` (default), ``"raw_values"`` (one value per output) or a
 from __future__ import annotations
 
 import warnings
+from contextvars import ContextVar
+from functools import cached_property
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -74,13 +76,28 @@ class _Inputs:
     def w(self) -> FloatArray:
         return np.ones(self.n) if self.weight is None else self.weight
 
-    @property
+    @cached_property
     def error(self) -> FloatArray:
         return self.y_pred - self.y_true
 
     def mean(self, values: FloatArray) -> FloatArray:
         """Weighted mean over observations, per output column."""
-        return np.average(values, axis=0, weights=self.w)
+        if self.weight is None:
+            return values.mean(axis=0)  # avoids multiplying by an array of ones
+        return np.average(values, axis=0, weights=self.weight)
+
+
+# evaluate() validates the inputs once and shares them with every metric it computes.
+_SHARED: ContextVar[Optional[tuple[int, int, int, _Inputs]]] = ContextVar(
+    "evalsuite_regression_inputs", default=None
+)
+
+
+def _inputs(y_true: ArrayLike, y_pred: ArrayLike, sample_weight: Optional[ArrayLike]) -> _Inputs:
+    shared = _SHARED.get()
+    if shared is not None and shared[:3] == (id(y_true), id(y_pred), id(sample_weight)):
+        return shared[3]
+    return _Inputs(y_true, y_pred, sample_weight)
 
 
 def _finish(
@@ -135,7 +152,7 @@ def mae(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Mean absolute error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(inp.mean(np.abs(inp.error)), inp, multioutput, "mae", "MAE")
 
 
@@ -158,7 +175,7 @@ def mse(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Mean squared error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(inp.mean(inp.error**2), inp, multioutput, "mse", "MSE")
 
 
@@ -184,7 +201,7 @@ def rmse(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Root mean squared error (square root taken per output, then averaged)."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(np.sqrt(inp.mean(inp.error**2)), inp, multioutput, "rmse", "RMSE")
 
 
@@ -226,7 +243,7 @@ def r2(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Coefficient of determination."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(_r2_per_output(inp), inp, multioutput, "r2", "R²")
 
 
@@ -244,7 +261,7 @@ def adjusted_r2(
     y_true: ArrayLike, y_pred: ArrayLike, *, n_features: int, sample_weight: Optional[ArrayLike] = None
 ) -> MetricResult:
     """Adjusted R². Needs ``n_features`` (number of predictors, excluding the intercept)."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     if inp.multi:
         raise InputValidationError("adjusted_r2 supports single-output targets only.")
     if not isinstance(n_features, (int, np.integer)) or n_features < 0:
@@ -277,7 +294,7 @@ def mape(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """MAPE as a fraction. Refuses zero targets (division by zero) instead of silently using a tiny epsilon."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     zeros = int((inp.y_true == 0).sum())
     if zeros:
         raise MetricInputError(
@@ -310,7 +327,7 @@ def smape(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Symmetric MAPE (fraction, range [0, 2])."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     den = np.abs(inp.y_true) + np.abs(inp.y_pred)
     terms = np.divide(2 * np.abs(inp.error), den, out=np.zeros_like(den), where=den != 0)
     return _finish(inp.mean(terms), inp, multioutput, "smape", "sMAPE")
@@ -340,7 +357,7 @@ def msle(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Mean squared logarithmic error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     _check_log_domain(inp, "MSLE")
     return _finish(inp.mean((np.log1p(inp.y_pred) - np.log1p(inp.y_true)) ** 2), inp, multioutput, "msle", "MSLE")
 
@@ -364,7 +381,7 @@ def rmsle(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Root mean squared logarithmic error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     _check_log_domain(inp, "RMSLE")
     per = np.sqrt(inp.mean((np.log1p(inp.y_pred) - np.log1p(inp.y_true)) ** 2))
     return _finish(per, inp, multioutput, "rmsle", "RMSLE")
@@ -389,7 +406,7 @@ def median_absolute_error(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Median absolute error (weighted median when ``sample_weight`` is given)."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     abs_err = np.abs(inp.error)
     if inp.weight is None:
         per = np.median(abs_err, axis=0)
@@ -416,7 +433,7 @@ def explained_variance(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Explained variance score."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     resid = inp.y_true - inp.y_pred
     var_res = inp.mean((resid - inp.mean(resid)) ** 2)
     var_true = inp.mean((inp.y_true - inp.mean(inp.y_true)) ** 2)
@@ -447,7 +464,7 @@ def explained_variance(
 )
 def max_error(y_true: ArrayLike, y_pred: ArrayLike) -> MetricResult:
     """Maximum absolute error (single output, unweighted)."""
-    inp = _Inputs(y_true, y_pred, None)
+    inp = _inputs(y_true, y_pred, None)
     if inp.multi:
         raise InputValidationError("max_error supports single-output targets only.")
     return MetricResult("max_error", "Max error", float(np.abs(inp.error).max()))
@@ -472,7 +489,7 @@ def mean_bias_error(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Mean bias error (prediction minus truth)."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(inp.mean(inp.error), inp, multioutput, "mean_bias_error", "Mean bias error")
 
 
@@ -498,7 +515,7 @@ def quantile_loss(
     """Pinball loss for the ``alpha`` quantile (alpha=0.5 gives half the MAE)."""
     if not (isinstance(alpha, (int, float)) and 0 < alpha < 1):
         raise InputValidationError("alpha must be strictly between 0 and 1.")
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     diff = inp.y_true - inp.y_pred
     loss = np.maximum(alpha * diff, (alpha - 1) * diff)
     return _finish(inp.mean(loss), inp, multioutput, "quantile_loss", "Quantile loss", {"alpha": float(alpha)})
@@ -526,7 +543,7 @@ def huber_loss(
     """Mean Huber loss."""
     if not (isinstance(delta, (int, float)) and delta > 0):
         raise InputValidationError("delta must be positive.")
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     a = np.abs(inp.error)
     loss = np.where(a <= delta, 0.5 * a**2, delta * (a - 0.5 * delta))
     return _finish(inp.mean(loss), inp, multioutput, "huber_loss", "Huber loss", {"delta": float(delta)})
@@ -560,7 +577,7 @@ def rae(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Relative absolute error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(_relative(inp, 1, "RAE"), inp, multioutput, "rae", "RAE")
 
 
@@ -583,5 +600,5 @@ def rse(
     multioutput: Multioutput = "uniform_average",
 ) -> MetricResult:
     """Relative squared error."""
-    inp = _Inputs(y_true, y_pred, sample_weight)
+    inp = _inputs(y_true, y_pred, sample_weight)
     return _finish(_relative(inp, 2, "RSE"), inp, multioutput, "rse", "RSE")
