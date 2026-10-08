@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-08
+
+First stable release. Everything from the 0.1.0 roadmap: classification and regression metrics, result
+system, input validation, metric registry, model comparison with confidence intervals and paired tests,
+plots, HTML/CSV/LaTeX/Markdown reports, classification report, command-line tool and benchmarks.
+
+### Changed
+- Development status: Production/Stable.
+- README (PyPI description) now includes the benchmark table against scikit-learn.
+
 ## [0.1.0b2]
 
 ### Changed

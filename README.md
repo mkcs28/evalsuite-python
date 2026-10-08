@@ -10,7 +10,7 @@
 EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: beta (0.1.0b2).** Feature-complete for 0.1.0; the stable release follows once this beta is verified.
+> **Status: stable (0.1.0).** Every item on the 0.1.0 roadmap is implemented and verified.
 
 ## Installation
 
@@ -133,8 +133,25 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-`evaluate()` validates inputs once and computes the confusion matrix once for all metrics: about 10× faster
-than the equivalent separate scikit-learn calls, with identical results. See [BENCHMARKS.md](BENCHMARKS.md).
+Benchmarked against scikit-learn on the same data (fastest of 5 runs; Python 3.12, NumPy 2.5,
+scikit-learn 1.9, Linux x86_64). Every result agrees with scikit-learn to floating-point rounding
+(largest difference 1.1e-16).
+
+| Case | n | EvalSuite (ms) | scikit-learn (ms) | Speed-up | Peak memory EvalSuite / sklearn (MiB) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 8 binary label metrics via `evaluate()` | 1,000 | 0.38 | 11.70 | **31.2×** | 0.04 / 0.05 |
+| 8 binary label metrics via `evaluate()` | 100,000 | 10.9 | 116.9 | **10.7×** | 3.2 / 3.1 |
+| 8 binary label metrics via `evaluate()` | 1,000,000 | 108.8 | 1043.6 | **9.6×** | 31.5 / 30.5 |
+| macro F1, 10 classes | 1,000,000 | 88.4 | 139.3 | **1.58×** | 30.5 / 21.8 |
+| ROC AUC, binary | 1,000,000 | 247.4 | 352.5 | **1.42×** | 91.6 / 76.3 |
+| MAE, MSE, RMSE, R² via `evaluate()` | 1,000 | 0.12 | 0.90 | **7.2×** | 0.03 / 0.02 |
+| MAE, MSE, RMSE, R² via `evaluate()` | 1,000,000 | 29.3 | 20.1 | 0.69× | 22.9 / 15.3 |
+
+`evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where the
+speed-up comes from. Large regression arrays are slower because EvalSuite checks every value for NaN,
+infinity, shape and dtype before computing. Reproduce on your machine with `evalsuite benchmark`; full
+table and notes in
+[BENCHMARKS.md](https://github.com/mkcs28/evalsuite-python/blob/main/BENCHMARKS.md).
 
 ## Metrics in this release
 
