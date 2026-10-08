@@ -434,7 +434,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _unicode_safe_streams() -> None:
+    """Results contain characters such as −, χ², ≥ and ×. On a stream whose encoding cannot represent them
+    (for example cp1252 when output is piped on Windows), write UTF-8 to files and pipes, and replace
+    unrepresentable characters on interactive consoles, instead of failing."""
+    for stream in (sys.stdout, sys.stderr):
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "").replace("_", "")
+        reconfigure = getattr(stream, "reconfigure", None)
+        if encoding == "utf8" or reconfigure is None:
+            continue
+        try:
+            if stream.isatty():
+                reconfigure(errors="replace")
+            else:
+                reconfigure(encoding="utf-8")
+        except (OSError, ValueError):  # pragma: no cover - exotic streams
+            pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    _unicode_safe_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):
