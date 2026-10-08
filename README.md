@@ -10,7 +10,7 @@
 EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: beta (0.1.0b1).** Feature-complete for 0.1.0; the stable release follows once this beta is verified.
+> **Status: beta (0.1.0b2).** Feature-complete for 0.1.0; the stable release follows once this beta is verified.
 
 ## Installation
 
