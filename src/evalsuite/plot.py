@@ -190,9 +190,13 @@ def calibration(
     strategy: str = "uniform",
     pos_label: Any = None,
     sample_weight: Optional[ArrayLike] = None,
+    legend_loc: str = "below",
 ) -> Axes:
     """Reliability diagram: observed frequency against mean predicted probability per bin, with ECE and Brier
-    score in the legend; the diagonal is perfect calibration."""
+    score in the legend; the diagonal is perfect calibration.
+
+    ``legend_loc="below"`` (default) puts the legend under the axes so it never covers the curves; any
+    matplotlib location (e.g. ``"upper left"``) places it inside instead."""
     from .classification.metrics import brier_score, calibration_curve, expected_calibration_error
 
     ax = _axes(ax)
@@ -218,7 +222,10 @@ def calibration(
         ylim=(-0.01, 1.01),
     )
     ax.set_aspect("equal")
-    ax.legend(loc="upper left", frameon=False)
+    if legend_loc == "below":
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), frameon=False, fontsize="small")
+    else:
+        ax.legend(loc=legend_loc, frameon=False)  # type: ignore[call-overload]
     return ax
 
 

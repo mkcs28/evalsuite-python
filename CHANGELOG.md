@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0b2]
+
+### Changed
+- `es.plot.calibration`: the legend now sits below the axes by default so it no longer covers the
+  curves; new `legend_loc` argument (`"below"` or any matplotlib location).
+
 ## [0.1.0b1]
 
 Feature-complete for 0.1.0.

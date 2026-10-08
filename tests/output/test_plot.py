@@ -121,3 +121,13 @@ def test_matplotlib_is_optional(monkeypatch) -> None:
     monkeypatch.setattr(builtins, "__import__", fake)
     with pytest.raises(es.OptionalDependencyError, match=r"evalsuite-python\[plot\]"):
         es.plot.roc([0, 1], [0.2, 0.8])
+
+
+def test_calibration_legend_below_by_default_and_configurable():
+    y = np.array([0, 1, 0, 1, 1, 0, 1, 0])
+    p = np.array([0.1, 0.8, 0.3, 0.7, 0.9, 0.2, 0.6, 0.4])
+    ax = es.plot.calibration(y, p)
+    anchor = ax.get_legend().get_bbox_to_anchor().transformed(ax.transAxes.inverted())
+    assert anchor.y0 < 0  # outside, under the axes
+    ax2 = es.plot.calibration(y, p, legend_loc="upper left")
+    assert ax2.get_legend()._loc == 2
