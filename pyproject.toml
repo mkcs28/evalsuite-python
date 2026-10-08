@@ -14,7 +14,7 @@ authors = [{ name = "Manoj Kumar C S" }]
 maintainers = [{ name = "Manoj Kumar C S" }]
 keywords = ["evaluation", "metrics", "machine learning", "statistics", "classification", "regression", "reproducibility"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
