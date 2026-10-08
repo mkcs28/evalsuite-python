@@ -165,6 +165,97 @@ class ComparisonResult:
         cap = caption or f"Model comparison: estimate ({level:g}% CI)."  # escaped once by _latex_table
         return _latex_table(header, rows, caption=cap, label=label)
 
+    def _csv_rows(self) -> tuple[list[str], list[list[Any]]]:
+        header = ["model", "metric", "estimate", "low", "high"]
+        return header, [[r["model"], r["metric"], r["estimate"], r["low"], r["high"]] for r in self.estimates]
+
+    def to_csv(self, path: Optional[str] = None, *, which: str = "estimates") -> str:
+        """CSV of the estimates (``which="estimates"``) or the pairwise tests (``which="tests"``)."""
+        from ..core.export import csv_text
+
+        if which == "estimates":
+            header, rows = self._csv_rows()
+        elif which == "tests":
+            header = [
+                "metric",
+                "model_a",
+                "model_b",
+                "difference",
+                "ci_low",
+                "ci_high",
+                "test",
+                "statistic",
+                "p_value",
+                "p_adjusted",
+                "significant",
+            ]
+            rows = [[t[h] for h in header] for t in self.tests]
+        else:
+            raise InputValidationError("which must be 'estimates' or 'tests'.")
+        text = csv_text(header, rows)
+        if path is not None:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+        return text
+
+    def to_html(self, *, digits: int = 3, full: bool = False) -> str:
+        """Estimates table (best value per metric in bold) and the pairwise tests table."""
+        from ..core.export import html_document, html_table
+
+        rows = [[m, *(self._cell(m, metric, digits) for metric in self.metrics)] for m in self.models]
+        bold = {
+            (i, j + 1)
+            for i, m in enumerate(self.models)
+            for j, metric in enumerate(self.metrics)
+            if self.best(metric) == m
+        }
+        level = round(self.settings["level"] * 100, 6)
+        parts = [
+            html_table(
+                ["Model", *self.metrics], rows, caption=f"Estimate ({level:g}% CI); best in bold", bold=bold
+            )
+        ]
+        test_rows = [
+            [
+                t["metric"],
+                f"{t['model_a']} − {t['model_b']}",
+                f"{t['difference']:+.{digits}f}",
+                f"{t['ci_low']:.{digits}f}–{t['ci_high']:.{digits}f}",
+                t["test"],
+                f"{t['p_value']:.4g}",
+                f"{t['p_adjusted']:.4g}",
+                "yes" if t["significant"] else "no",
+            ]
+            for t in self.tests
+        ]
+        parts.append(
+            html_table(
+                ["Metric", "Comparison", "Difference", f"{level:g}% CI", "Test", "p", "Adjusted p", "Significant"],
+                test_rows,
+                caption=f"Pairwise tests ({self.settings['correction']} correction, α = {self.settings['alpha']})",
+                numeric=[False, False, True, True, False, True, True, False],
+            )
+        )
+        body = "\n".join(parts)
+        meta = f"n = {self.settings['n_samples']}, {self.settings['n_resamples']} paired bootstrap resamples"
+        return html_document("EvalSuite model comparison", body, meta) if full else body
+
+    def save(self, path: str, *, digits: int = 3) -> str:
+        """Save as .json .csv .md .tex .html or .txt (chosen by the extension)."""
+        from ..core.export import save_as
+
+        return save_as(
+            path,
+            {
+                "json": self.to_json,
+                "csv": self.to_csv,
+                "markdown": lambda: self.to_markdown(digits=digits) + "\n",
+                "latex": lambda: self.to_latex(digits=digits) + "\n",
+                "html": lambda: self.to_html(digits=digits, full=True),
+                "text": lambda: self.summary(digits=digits) + "\n",
+            },
+        )
+
 
 def compare(
     y_true: ArrayLike,

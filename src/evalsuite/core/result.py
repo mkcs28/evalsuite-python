@@ -165,6 +165,33 @@ class MetricResult:
             else [[_latex_escape(str(lab)), _fmt(v, digits)] for lab, v in zip(self.labels or (), self.value)],
         )
 
+    def _rows(self) -> list[list[Any]]:
+        if isinstance(self.value, np.ndarray):
+            return [[self.metric, self.name, lab, float(v)] for lab, v in zip(self.labels or (), self.value)]
+        return [[self.metric, self.name, "", float(self.value)]]
+
+    def to_csv(self, path: Optional[str] = None) -> str:
+        """CSV with columns metric, name, label, value (one row per class for per-class results)."""
+        from .export import csv_text
+
+        text = csv_text(["metric", "name", "label", "value"], self._rows())
+        if path is not None:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+        return text
+
+    def to_html(self, *, digits: int = 4, full: bool = False) -> str:
+        """HTML table (``full=True``: a standalone page)."""
+        from .export import html_document, html_table
+
+        if isinstance(self.value, np.ndarray):
+            table = html_table(
+                ["Label", self.name], [[lab, _fmt(v, digits)] for lab, v in zip(self.labels or (), self.value)]
+            )
+        else:
+            table = html_table(["Metric", "Value"], [[self.name, _fmt(self.value, digits)]])
+        return html_document(self.name, table) if full else table
+
 
 def _latex_table(
     header: list[str], rows: list[list[str]], caption: Optional[str] = None, label: Optional[str] = None
@@ -275,3 +302,78 @@ class EvaluationResult(Mapping[str, MetricResult]):
     def to_latex(self, *, digits: int = 4, caption: Optional[str] = None, label: Optional[str] = None) -> str:
         rows = [[_latex_escape(m.name), _fmt(m.value, digits)] for m in self._scalar_rows()]
         return _latex_table(["Metric", "Value"], rows, caption=caption, label=label)
+
+    def _csv_rows(self) -> list[list[Any]]:
+        rows: list[list[Any]] = []
+        for m in self.metrics.values():
+            rows.extend(m._rows())
+        return rows
+
+    def to_csv(self, path: Optional[str] = None) -> str:
+        """CSV with columns metric, name, label, value; per-class metrics get one row per label."""
+        from .export import csv_text
+
+        text = csv_text(["metric", "name", "label", "value"], self._csv_rows())
+        if path is not None:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+        return text
+
+    def _meta_line(self) -> str:
+        return (
+            f"{self.task}, {self.target_type}, n = {self.n_samples}; EvalSuite "
+            f"{self.metadata.get('evalsuite_version', '')}"
+        )
+
+    def to_html(self, *, digits: int = 4, caption: Optional[str] = None, full: bool = False) -> str:
+        """HTML report: the metric table, per-class tables and the confusion matrix (``full=True``: standalone
+        page with inline CSS and no scripts)."""
+        from .export import html_document, html_table
+
+        parts = [
+            html_table(
+                ["Metric", "Value"],
+                [[m.name, _fmt(m.value, digits)] for m in self._scalar_rows()],
+                caption=caption or "Metrics",
+            )
+        ]
+        for m in self.metrics.values():
+            if isinstance(m.value, np.ndarray):
+                parts.append(
+                    html_table(
+                        ["Label", m.name],
+                        [[lab, _fmt(v, digits)] for lab, v in zip(m.labels or (), m.value)],
+                        caption=f"{m.name} per class",
+                    )
+                )
+        if self.confusion_matrix is not None and self.labels is not None:
+            cm = self.confusion_matrix
+            integral = bool(np.all(np.mod(cm, 1) == 0))
+            parts.append(
+                html_table(
+                    ["True \\ predicted", *(str(lab) for lab in self.labels)],
+                    [
+                        [lab, *(int(v) if integral else _fmt(v, digits) for v in row)]
+                        for lab, row in zip(self.labels, cm)
+                    ],
+                    caption="Confusion matrix (rows: true, columns: predicted)",
+                )
+            )
+        body = "\n".join(parts)
+        return html_document("EvalSuite evaluation report", body, self._meta_line()) if full else body
+
+    def save(self, path: str, *, digits: int = 4) -> str:
+        """Save in the format given by the extension: .json .csv .md .tex .html .txt."""
+        from .export import save_as
+
+        return save_as(
+            path,
+            {
+                "json": self.to_json,
+                "csv": self.to_csv,
+                "markdown": lambda: self.to_markdown(digits=digits) + "\n",
+                "latex": lambda: self.to_latex(digits=digits) + "\n",
+                "html": lambda: self.to_html(digits=digits, full=True),
+                "text": lambda: self.summary(digits=digits) + "\n",
+            },
+        )

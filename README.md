@@ -10,7 +10,7 @@
 EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: in development (v0.1.0 in progress).** The API may change before 0.1.0.
+> **Status: beta (0.1.0b1).** Feature-complete for 0.1.0; the stable release follows once this beta is verified.
 
 ## Installation
 
@@ -82,12 +82,67 @@ Every model is evaluated on the same bootstrap resamples, so differences are pai
 with McNemar's test, binary ROC AUC with DeLong's test and other metrics with a paired bootstrap test;
 p-values are adjusted for multiple comparisons (Holm by default).
 
+## Classification report
+
+```python
+report = es.classification_report(y_true, y_pred)
+print(report)  # per-class precision, recall, F1, specificity, support + averages
+report.save("report.html")  # also .csv .md .tex .json .txt
+```
+
+## Plots
+
+```bash
+pip install "evalsuite-python[plot]"   # adds matplotlib; importing evalsuite never loads it
+```
+
+```python
+es.plot.roc(y_true, {"logistic": prob_lr, "forest": prob_rf})  # AUC in the legend
+es.plot.pr(y_true, prob)  # AP and the prevalence line
+es.plot.calibration(y_true, prob)  # reliability diagram, ECE, Brier
+es.plot.confusion_matrix(y_true, y_pred, normalize="true")
+es.plot.residuals(y_reg, pred_reg)  # or kind="predicted"
+es.plot.comparison(es.compare(...))  # forest plot with CIs
+```
+
+Each function returns a matplotlib `Axes` (pass `ax=` to draw into your own figure). The numbers shown are
+computed with EvalSuite's metrics, so plots and tables always agree. Several models get distinct colours
+*and* line styles, so figures stay readable in greyscale print.
+
+## Exports
+
+Every result (`evaluate`, `classification_report`, `compare`, single metrics) exports to `summary()`,
+`to_json()`, `to_csv()`, `to_dataframe()`, `to_markdown()`, `to_latex()` and `to_html()`, and `save(path)` picks
+the format from the extension. HTML pages are standalone (inline CSS, no scripts) and escape all text.
+
+## Command line
+
+```bash
+evalsuite evaluate predictions.csv --y-true label --y-pred pred --y-prob prob
+evalsuite report predictions.csv --y-true label --y-pred pred -o report.html
+evalsuite compare predictions.csv --y-true label --pred lr=pred_lr --pred rf=pred_rf \
+    --prob lr=p_lr --prob rf=p_rf --plot comparison.png
+evalsuite plot roc predictions.csv --y-true label --y-prob prob -o roc.png
+evalsuite metrics --category classification
+evalsuite info classification.mcc
+evalsuite benchmark --quick
+```
+
+Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` or the `-o` extension
+(text, json, csv, markdown, latex, html). Errors are reported in one line with exit code 2.
+
+## Performance
+
+`evaluate()` validates inputs once and computes the confusion matrix once for all metrics: about 10× faster
+than the equivalent separate scikit-learn calls, with identical results. See [BENCHMARKS.md](BENCHMARKS.md).
+
 ## Metrics in this release
 
 **Classification** (binary, multiclass, multilabel; micro/macro/weighted/samples/per-class averaging;
 sample weights): accuracy, balanced accuracy, precision, recall, specificity, NPV, F1, F-beta, Jaccard,
 MCC, Cohen's kappa (unweighted, linear, quadratic), Hamming loss, confusion matrix, ROC AUC (binary,
-one-vs-rest, one-vs-one), average precision, ROC and PR curves, log loss, Brier score, top-k accuracy.
+one-vs-rest, one-vs-one), average precision, ROC and PR curves, log loss, Brier score, top-k accuracy,
+calibration curve and expected calibration error.
 
 **Regression** (single and multi-output; sample weights): MAE, MSE, RMSE, R², adjusted R², MAPE, sMAPE,
 MSLE, RMSLE, median absolute error, explained variance, max error, mean bias error, quantile (pinball)
