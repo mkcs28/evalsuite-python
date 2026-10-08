@@ -10,8 +10,8 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
-authors = [{ name = "Manoj Kumar C S" }]
-maintainers = [{ name = "Manoj Kumar C S" }]
+authors = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
+maintainers = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
 keywords = ["evaluation", "metrics", "machine learning", "statistics", "classification", "regression", "reproducibility"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",

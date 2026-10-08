@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-08
+
+### Changed
+- Credits: Manoj Kumar C S and Nikhil D Bharadwaj listed as authors and maintainers (README and package metadata).
+
 ## [0.1.0] - 2026-10-08
 
 First stable release. Everything from the 0.1.0 roadmap: classification and regression metrics, result

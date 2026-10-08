@@ -10,7 +10,7 @@
 EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: stable (0.1.0).** Every item on the 0.1.0 roadmap is implemented and verified.
+> **Status: stable (0.1.1).** Every item on the 0.1.0 roadmap is implemented and verified.
 
 ## Installation
 
@@ -189,6 +189,10 @@ ruff check . && ruff format --check . && mypy
 - PyPI: https://pypi.org/project/evalsuite-python/
 - Website and documentation: https://evalsuite-nine.vercel.app
 - Website source: https://github.com/mkcs28/evalsuite
+
+## Credits
+
+Authors and maintainers: **Manoj Kumar C S** and **Nikhil D Bharadwaj**.
 
 ## License
 
