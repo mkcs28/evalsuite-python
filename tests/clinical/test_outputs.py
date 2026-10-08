@@ -56,10 +56,26 @@ def test_decision_curve_useful_range_and_plot() -> None:
     assert ax.get_xlabel() == "Threshold probability"
 
 
-def _cli(*args: str) -> subprocess.CompletedProcess:
+def _cli(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "evalsuite", *args], capture_output=True, text=True, timeout=300
+        [sys.executable, "-m", "evalsuite", *args],
+        capture_output=True,
+        encoding="utf-8",
+        timeout=300,
+        env=env,
     )
+
+
+def test_cli_output_survives_a_non_utf8_console(tmp_path) -> None:
+    """Regression: '−' and 'χ²' crashed the CLI when stdout was cp1252 (Windows pipes)."""
+    import os
+
+    f = tmp_path / "d.csv"
+    f.write_text("y,p,q\n1,1,0.9\n1,0,0.4\n0,0,0.2\n0,1,0.6\n1,1,0.8\n0,0,0.1\n", encoding="utf-8")
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    out = _cli("diagnostic", str(f), "--y-true", "y", "--y-pred", "p", env=env)
+    assert out.returncode == 0, out.stderr
+    assert "LR−" in out.stdout
 
 
 def test_cli_diagnostic_calibration_and_decision_plot(tmp_path) -> None:
