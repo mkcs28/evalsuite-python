@@ -12,7 +12,7 @@ from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike
 from ..core.validation import check_finite, to_numpy
 
-__all__ = ["adjust_pvalues", "cliffs_delta", "cohens_d", "hedges_g"]
+__all__ = ["adjust_pvalues", "cliffs_delta", "cohens_d", "cramers_v", "hedges_g"]
 
 
 def _samples(a: ArrayLike, b: ArrayLike) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
@@ -79,17 +79,52 @@ def cliffs_delta(a: ArrayLike, b: ArrayLike) -> float:
     return float((less.sum() - greater.sum()) / (x.shape[0] * y.shape[0]))
 
 
+def cramers_v(table: ArrayLike, *, bias_correction: bool = False) -> float:
+    """Cramér's V for an r × c contingency table: √(χ² / (n · (min(r, c) − 1))), from the uncorrected
+    Pearson χ². ``bias_correction=True`` applies Bergsma's correction, which reduces the upward bias in small
+    samples.
+
+    References: Cramér H. Mathematical Methods of Statistics. Princeton; 1946. Bergsma W. A bias-correction for
+    Cramér's V and Tschuprow's T. J Korean Stat Soc. 2013;42(3):323-328.
+    """
+    from scipy import stats
+
+    t = np.asarray(table, dtype=np.float64)
+    if t.ndim != 2 or min(t.shape) < 2:
+        raise InputValidationError("Give a contingency table with at least 2 rows and 2 columns.")
+    if np.any(~np.isfinite(t)) or np.any(t < 0):
+        raise InputValidationError("Contingency table counts must be finite and non-negative.")
+    if np.any(t.sum(axis=0) == 0) or np.any(t.sum(axis=1) == 0):
+        raise StatisticalTestError("Cramér's V is undefined when a row or column total is zero.")
+    n = t.sum()
+    chi2 = stats.chi2_contingency(t, correction=False)[0]
+    r, k = t.shape
+    if not bias_correction:
+        return float(np.sqrt(chi2 / (n * (min(r, k) - 1))))
+    if n < 2:
+        raise StatisticalTestError("The bias-corrected Cramér's V needs at least two observations.")
+    phi2 = max(0.0, chi2 / n - (k - 1) * (r - 1) / (n - 1))
+    rc = r - (r - 1) ** 2 / (n - 1)
+    kc = k - (k - 1) ** 2 / (n - 1)
+    denom = min(rc - 1, kc - 1)
+    if denom <= 0:
+        raise StatisticalTestError("The bias-corrected Cramér's V is undefined for this table size.")
+    return float(np.sqrt(phi2 / denom))
+
+
 def adjust_pvalues(
-    p_values: ArrayLike, *, method: Literal["bonferroni", "holm", "bh", "by"] = "holm"
+    p_values: ArrayLike, *, method: Literal["bonferroni", "holm", "hochberg", "bh", "by"] = "holm"
 ) -> NDArray[np.float64]:
     """Adjust p-values for multiple comparisons (same order as the input).
 
     ``"holm"`` (default; controls the family-wise error rate, uniformly more powerful than Bonferroni),
-    ``"bonferroni"``, ``"bh"`` (Benjamini-Hochberg false discovery rate) or ``"by"``
-    (Benjamini-Yekutieli, FDR under arbitrary dependence).
+    ``"bonferroni"``, ``"hochberg"`` (step-up; controls the family-wise error rate under independence or
+    positive dependence, more powerful than Holm), ``"bh"`` (Benjamini-Hochberg false discovery rate) or
+    ``"by"`` (Benjamini-Yekutieli, FDR under arbitrary dependence).
 
-    References: Holm S. Scand J Stat. 1979;6(2):65-70. Benjamini Y, Hochberg Y. J R Stat Soc B.
-    1995;57(1):289-300. Benjamini Y, Yekutieli D. Ann Stat. 2001;29(4):1165-1188.
+    References: Holm S. Scand J Stat. 1979;6(2):65-70. Hochberg Y. Biometrika. 1988;75(4):800-802.
+    Benjamini Y, Hochberg Y. J R Stat Soc B. 1995;57(1):289-300. Benjamini Y, Yekutieli D. Ann Stat.
+    2001;29(4):1165-1188.
     """
     p = to_numpy(p_values, "p_values").astype(np.float64)
     check_finite(p, "p_values")
@@ -102,12 +137,15 @@ def adjust_pvalues(
         adj = np.minimum(ranked * m, 1)
     elif method == "holm":
         adj = np.minimum(np.maximum.accumulate(ranked * (m - np.arange(m))), 1)
+    elif method == "hochberg":
+        scaled = ranked * (m - np.arange(m))
+        adj = np.minimum(np.minimum.accumulate(scaled[::-1])[::-1], 1)
     elif method in ("bh", "by"):
         factor = np.sum(1.0 / np.arange(1, m + 1)) if method == "by" else 1.0
         scaled = ranked * m * factor / np.arange(1, m + 1)
         adj = np.minimum(np.minimum.accumulate(scaled[::-1])[::-1], 1)
     else:
-        raise InputValidationError("method must be 'holm', 'bonferroni', 'bh' or 'by'.")
+        raise InputValidationError("method must be 'holm', 'bonferroni', 'hochberg', 'bh' or 'by'.")
     out = np.empty(m)
     out[order] = adj
     return out

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
     from .stats.compare import ComparisonResult
 
-__all__ = ["calibration", "comparison", "confusion_matrix", "pr", "residuals", "roc"]
+__all__ = ["calibration", "comparison", "confusion_matrix", "decision_curve", "pr", "residuals", "roc"]
 
 Scores = Union[ArrayLike, Mapping[str, ArrayLike]]
 _STYLES = ("-", "--", "-.", ":")
@@ -293,4 +293,49 @@ def comparison(
     level = round(result.settings["level"] * 100, 6)
     ax.set(xlabel=f"Estimate with {level:g}% CI (filled: best per metric)", title="Model comparison")
     ax.grid(axis="x", color="0.9")
+    return ax
+
+
+def decision_curve(
+    y_true: ArrayLike,
+    y_prob: Scores,
+    *,
+    ax: Optional[Axes] = None,
+    label: Optional[str] = None,
+    thresholds: Optional[ArrayLike] = None,
+    pos_label: Any = None,
+    sample_weight: Optional[ArrayLike] = None,
+    ylim: Optional[tuple[float, float]] = None,
+) -> Axes:
+    """Decision curve: net benefit against threshold probability for each model, with *treat all* and
+    *treat none* references (Vickers & Elkin 2006). Values come from :func:`evalsuite.decision_curve`.
+
+    By default the y-axis runs from a little below 0 to a little above the prevalence, where the
+    clinically meaningful part of the curve lies; pass ``ylim`` to change it."""
+    from .clinical.report import decision_curve as _dc
+
+    models = dict(_models(y_prob, label))
+    names = [n if n is not None else "model" for n in models]
+    dc = _dc(
+        y_true,
+        dict(zip(names, models.values())),
+        thresholds=thresholds,
+        pos_label=pos_label,
+        sample_weight=sample_weight,
+    )
+    ax = _axes(ax)
+    t = dc.thresholds
+    for i, name in enumerate(dc.net_benefit):
+        ax.plot(t, dc.net_benefit[name], label=name, **_style(i))
+    ax.plot(t, dc.treat_all, color="0.45", linewidth=1.2, linestyle="--", label="treat all")
+    ax.plot(t, dc.treat_none, color="0.2", linewidth=1.2, linestyle=":", label="treat none")
+    top = max(dc.prevalence, max(float(np.nanmax(v)) for v in dc.net_benefit.values()))
+    ax.set(
+        xlabel="Threshold probability",
+        ylabel="Net benefit",
+        title="Decision curve",
+        xlim=(float(t[0]), float(t[-1])),
+        ylim=ylim if ylim is not None else (-0.05 * max(top, 0.05), top * 1.1 + 0.01),
+    )
+    ax.legend(loc="upper right", frameon=False)
     return ax
