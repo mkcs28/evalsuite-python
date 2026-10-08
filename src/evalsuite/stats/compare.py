@@ -284,7 +284,7 @@ def compare(
     * everything else: paired bootstrap test.
 
     Pairs are every model against ``baseline`` if given, otherwise all pairs. p-values are adjusted within
-    each metric (``correction``: "holm", "bonferroni", "bh", "by"); ``significant`` uses the adjusted
+    each metric (``correction``: "holm", "bonferroni", "hochberg", "bh", "by"); ``significant`` uses the adjusted
     p-value and ``alpha``. ``metric_kwargs`` passes options per metric, e.g. ``{"f1": {"average": "macro"}}``.
     """
     level = _check_level(level)

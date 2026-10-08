@@ -194,6 +194,38 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_diagnostic(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    df = read_table(args.file)
+    report = es.diagnostic_report(
+        column(df, args.y_true, "--y-true"),
+        column(df, args.y_pred, "--y-pred"),
+        pos_label=label_value(args.pos_label),
+        level=args.level,
+    )
+    emit(report, args)
+    return 0
+
+
+def cmd_calibration(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    df = read_table(args.file)
+    if not args.y_prob or len(args.y_prob) != 1:
+        raise CLIError("calibration needs exactly one --y-prob column (predicted risk of the positive class).")
+    report = es.calibration_report(
+        column(df, args.y_true, "--y-true"),
+        column(df, args.y_prob[0], "--y-prob"),
+        n_bins=args.bins,
+        strategy=args.strategy,
+        n_groups=args.groups,
+        pos_label=label_value(args.pos_label),
+    )
+    emit(report, args)
+    return 0
+
+
 def cmd_compare(args: argparse.Namespace) -> int:
     import evalsuite as es
 
@@ -239,11 +271,16 @@ def cmd_plot(args: argparse.Namespace) -> int:
     df = read_table(args.file)
     y = column(df, args.y_true, "--y-true")
     kind = args.kind
-    if kind in ("roc", "pr", "calibration"):
+    if kind in ("roc", "pr", "calibration", "decision"):
         if not args.y_prob:
             raise CLIError(f"'{kind}' needs --y-prob.")
         prob = columns(df, args.y_prob, "--y-prob")
-        fn: Any = {"roc": es.plot.roc, "pr": es.plot.pr, "calibration": es.plot.calibration}[kind]
+        fn: Any = {
+            "roc": es.plot.roc,
+            "pr": es.plot.pr,
+            "calibration": es.plot.calibration,
+            "decision": es.plot.decision_curve,
+        }[kind]
         _save_figure(lambda ax: fn(y, prob, ax=ax), args.output)
     else:
         if not args.y_pred:
@@ -342,21 +379,44 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--level", type=float, default=0.95, help="confidence level (default 0.95)")
     p.add_argument("--alpha", type=float, default=0.05, help="significance level (default 0.05)")
     p.add_argument("--resamples", type=int, default=1000, help="bootstrap resamples (default 1000)")
-    p.add_argument("--correction", default="holm", choices=("holm", "bonferroni", "bh", "by"))
+    p.add_argument("--correction", default="holm", choices=("holm", "bonferroni", "hochberg", "bh", "by"))
     p.add_argument("--seed", type=int, default=0, help="random seed (default 0, for reproducibility)")
     p.add_argument("--plot", metavar="PATH", help="also save a forest plot (needs matplotlib)")
     add_output(p, digits=3)
     p.set_defaults(func=cmd_compare)
 
-    p = sub.add_parser("plot", help="save a ROC, PR, calibration, confusion-matrix or residual plot")
-    p.add_argument("kind", choices=("roc", "pr", "calibration", "confusion", "residuals", "predicted"))
+    p = sub.add_parser(
+        "diagnostic",
+        help="diagnostic accuracy of a binary test: sensitivity, specificity, PPV, NPV, LR+, LR−, DOR with CIs",
+    )
+    add_targets(p, pred_required=True)
+    p.add_argument("--pos-label", help="positive class (default: 1)")
+    p.add_argument("--level", type=float, default=0.95, help="confidence level (default 0.95)")
+    add_output(p, digits=3)
+    p.set_defaults(func=cmd_diagnostic)
+
+    p = sub.add_parser(
+        "calibration", help="calibration of predicted risks: Brier, ECE, MCE, intercept, slope, Hosmer–Lemeshow"
+    )
+    add_targets(p)
+    p.add_argument("--bins", type=int, default=10, help="bins for the calibration curve, ECE and MCE")
+    p.add_argument("--strategy", choices=("uniform", "quantile"), default="uniform")
+    p.add_argument("--groups", type=int, default=10, help="Hosmer–Lemeshow risk groups (default 10)")
+    p.add_argument("--pos-label", help="positive class (default: 1)")
+    add_output(p)
+    p.set_defaults(func=cmd_calibration)
+
+    p = sub.add_parser(
+        "plot", help="save a ROC, PR, calibration, decision-curve, confusion-matrix or residual plot"
+    )
+    p.add_argument("kind", choices=("roc", "pr", "calibration", "decision", "confusion", "residuals", "predicted"))
     add_targets(p)
     p.add_argument("--normalize", choices=("true", "pred", "all"), help="confusion matrix normalisation")
     p.add_argument("--output", "-o", required=True, help="image file (.png, .pdf, .svg)")
     p.set_defaults(func=cmd_plot)
 
     p = sub.add_parser("metrics", help="list available metrics")
-    p.add_argument("--category", choices=("classification", "regression"))
+    p.add_argument("--category", choices=("classification", "regression", "clinical", "calibration"))
     p.set_defaults(func=cmd_metrics)
 
     p = sub.add_parser("info", help="show a metric's definition, formula, range and references")

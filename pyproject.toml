@@ -12,10 +12,12 @@ license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
 maintainers = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
-keywords = ["evaluation", "metrics", "machine learning", "statistics", "classification", "regression", "reproducibility"]
+keywords = ["evaluation", "metrics", "clinical", "diagnostic accuracy", "calibration", "statistical tests", "machine learning", "statistics", "classification", "regression", "reproducibility"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
+  "Intended Audience :: Healthcare Industry",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",

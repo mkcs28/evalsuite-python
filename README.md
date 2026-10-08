@@ -7,10 +7,10 @@
 
 **Unified, reproducible evaluation for machine learning and research.**
 
-EvalSuite brings classification and regression metrics (with clinical, statistical, segmentation and
+EvalSuite brings classification, regression, clinical and statistical evaluation (with segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: stable (0.1.2).** Every item on the 0.1.0 roadmap is implemented and verified.
+> **Status: stable (0.2.0).** Every item on the 0.1.0 and 0.2.0 roadmaps is implemented and verified.
 
 ## Installation
 
@@ -82,6 +82,51 @@ Every model is evaluated on the same bootstrap resamples, so differences are pai
 with McNemar's test, binary ROC AUC with DeLong's test and other metrics with a paired bootstrap test;
 p-values are adjusted for multiple comparisons (Holm by default).
 
+## Clinical evaluation
+
+```python
+report = es.diagnostic_report(y_true, y_pred)  # binary test vs reference standard
+print(report)
+# Sensitivity, specificity, PPV, NPV (Wilson CIs), LR+ and LR− (log CIs, Simel 1991),
+# diagnostic odds ratio (Woolf), Youden's J, accuracy and prevalence
+
+es.lr_positive(y_true, y_pred)
+es.youden_j(y_true, y_pred)
+
+dca = es.decision_curve(y_true, {"model": y_prob})  # net benefit vs treat all / treat none
+dca.useful_range()  # thresholds where the model beats both
+es.plot.decision_curve(y_true, {"model": y_prob})
+```
+
+Ratios that divide by zero are `inf` or NaN with a warning, never 0.
+
+## Calibration
+
+```python
+es.calibration_report(y_true, y_prob)  # Brier, ECE, MCE, intercept, slope, Hosmer–Lemeshow
+es.calibration_slope(y_true, y_prob)  # ideal 1; < 1 means predictions are too extreme
+es.calibration_intercept(y_true, y_prob)  # ideal 0 (calibration-in-the-large)
+es.hosmer_lemeshow(y_true, y_prob, n_groups=10)
+```
+
+## Statistical tests
+
+```python
+es.t_test(scores_a, scores_b)  # Welch by default; mean difference with CI and Cohen's d
+es.paired_t_test(fold_scores_a, fold_scores_b)
+es.wilcoxon_test(fold_scores_a, fold_scores_b)  # with matched-pairs rank-biserial r
+es.mann_whitney_test(a, b)  # with rank-biserial r
+es.friedman_test(scores_a, scores_b, scores_c)  # with Kendall's W
+es.kruskal_wallis_test(g1, g2, g3)
+es.shapiro_wilk_test(residuals)
+es.chi_square_test(table)  # with Cramér's V
+es.fisher_exact_test([[8, 2], [1, 5]])
+es.adjust_pvalues(p_values, method="hochberg")  # also holm, bonferroni, bh, by
+```
+
+Every test returns a `TestResult` with the statistic, p-value and an effect size, computed with SciPy and
+checked against SciPy and statsmodels in the test suite.
+
 ## Classification report
 
 ```python
@@ -123,7 +168,10 @@ evalsuite report predictions.csv --y-true label --y-pred pred -o report.html
 evalsuite compare predictions.csv --y-true label --pred lr=pred_lr --pred rf=pred_rf \
     --prob lr=p_lr --prob rf=p_rf --plot comparison.png
 evalsuite plot roc predictions.csv --y-true label --y-prob prob -o roc.png
-evalsuite metrics --category classification
+evalsuite diagnostic predictions.csv --y-true label --y-pred pred   # sensitivity, LR+, DOR... with CIs
+evalsuite calibration predictions.csv --y-true label --y-prob prob  # slope, intercept, ECE, HL
+evalsuite plot decision predictions.csv --y-true label --y-prob prob -o dca.png
+evalsuite metrics --category clinical
 evalsuite info classification.mcc
 evalsuite benchmark --quick
 ```
@@ -160,6 +208,19 @@ sample weights): accuracy, balanced accuracy, precision, recall, specificity, NP
 MCC, Cohen's kappa (unweighted, linear, quadratic), Hamming loss, confusion matrix, ROC AUC (binary,
 one-vs-rest, one-vs-one), average precision, ROC and PR curves, log loss, Brier score, top-k accuracy,
 calibration curve and expected calibration error.
+
+**Clinical** (binary; `pos_label`; sample weights): sensitivity, specificity, PPV, NPV, positive and
+negative likelihood ratios, diagnostic odds ratio, Youden's J, net benefit and decision curves, and a
+diagnostic report with confidence intervals for all of them.
+
+**Calibration**: calibration curve, Brier score, expected and maximum calibration error, calibration slope
+and intercept, Hosmer–Lemeshow test.
+
+**Statistics**: confidence intervals (bootstrap percentile/basic/BCa, Wilson, Clopper–Pearson, DeLong),
+paired tests (McNemar, DeLong, paired bootstrap), t-tests (Welch, Student, paired), Mann–Whitney, Wilcoxon,
+Kruskal–Wallis, Friedman, Shapiro–Wilk, χ², Fisher's exact; effect sizes (Cohen's d, Hedges' g, Cliff's
+delta, Cramér's V); multiple-testing corrections (Bonferroni, Holm, Hochberg, Benjamini–Hochberg,
+Benjamini–Yekutieli).
 
 **Regression** (single and multi-output; sample weights): MAE, MSE, RMSE, R², adjusted R², MAPE, sMAPE,
 MSLE, RMSLE, median absolute error, explained variance, max error, mean bias error, quantile (pinball)

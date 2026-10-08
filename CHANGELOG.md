@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-08
+
+Clinical and statistical evaluation (the v0.2.0 roadmap).
+
+### Added
+- Clinical: `sensitivity`, `ppv`, `lr_positive`, `lr_negative`, `diagnostic_odds_ratio`, `youden_j`,
+  `net_benefit`; `diagnostic_report` with confidence intervals for every measure (Wilson or Clopper–Pearson
+  for proportions, log method for likelihood ratios, Woolf for the DOR, Wald for Youden's J);
+  `decision_curve` (net benefit, treat all, treat none, useful threshold range).
+- Calibration: `maximum_calibration_error`, `calibration_slope`, `calibration_intercept`,
+  `hosmer_lemeshow`, `calibration_report`.
+- Statistical tests: `t_test` (Welch/Student), `paired_t_test`, `mann_whitney_test`, `wilcoxon_test`,
+  `kruskal_wallis_test`, `friedman_test`, `shapiro_wilk_test`, `chi_square_test`, `fisher_exact_test`, each
+  with an effect size; `cramers_v` (optional bias correction); Hochberg correction in `adjust_pvalues` and
+  `compare`.
+- `es.plot.decision_curve`; CLI commands `evalsuite diagnostic`, `evalsuite calibration` and
+  `evalsuite plot decision`.
+- Validated against statsmodels (GLM, Table2x2, proportion_confint, multipletests, CompareMeans) and SciPy.
+
 ## [0.1.2] - 2026-10-08
 
 ### Changed

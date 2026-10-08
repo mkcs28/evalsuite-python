@@ -5,8 +5,16 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import classification, plot, regression, stats
+from . import calibration, classification, clinical, plot, regression, stats
 from .api import evaluate
+from .calibration import (
+    CalibrationReport,
+    calibration_intercept,
+    calibration_report,
+    calibration_slope,
+    hosmer_lemeshow,
+    maximum_calibration_error,
+)
 from .classification import (
     accuracy,
     average_precision,
@@ -30,6 +38,19 @@ from .classification import (
     roc_curve,
     specificity,
     top_k_accuracy,
+)
+from .clinical import (
+    DecisionCurve,
+    DiagnosticReport,
+    decision_curve,
+    diagnostic_odds_ratio,
+    diagnostic_report,
+    lr_negative,
+    lr_positive,
+    net_benefit,
+    ppv,
+    sensitivity,
+    youden_j,
 )
 from .core.exceptions import (
     EvalSuiteError,
@@ -69,19 +90,58 @@ from .stats import (
     accuracy_ci,
     adjust_pvalues,
     bootstrap_ci,
+    chi_square_test,
     cliffs_delta,
     cohens_d,
     compare,
+    cramers_v,
     delong_test,
+    fisher_exact_test,
+    friedman_test,
     hedges_g,
+    kruskal_wallis_test,
+    mann_whitney_test,
     mcnemar_test,
     paired_bootstrap_test,
+    paired_t_test,
     proportion_ci,
     roc_auc_ci,
+    shapiro_wilk_test,
+    t_test,
+    wilcoxon_test,
 )
 from .version import __version__
 
 __all__ = [
+    "CalibrationReport",
+    "calibration_report",
+    "calibration",
+    "clinical",
+    "calibration_intercept",
+    "calibration_slope",
+    "hosmer_lemeshow",
+    "maximum_calibration_error",
+    "DecisionCurve",
+    "DiagnosticReport",
+    "decision_curve",
+    "diagnostic_odds_ratio",
+    "diagnostic_report",
+    "lr_negative",
+    "lr_positive",
+    "net_benefit",
+    "ppv",
+    "sensitivity",
+    "youden_j",
+    "chi_square_test",
+    "cramers_v",
+    "fisher_exact_test",
+    "friedman_test",
+    "kruskal_wallis_test",
+    "mann_whitney_test",
+    "paired_t_test",
+    "shapiro_wilk_test",
+    "t_test",
+    "wilcoxon_test",
     "plot",
     "expected_calibration_error",
     "calibration_curve",
