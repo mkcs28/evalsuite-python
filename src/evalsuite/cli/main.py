@@ -297,6 +297,24 @@ def cmd_detection(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_text(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    df = read_table(args.file)
+    preds = [str(v) for v in column(df, args.prediction, "--prediction")]
+    ref_cols = [column(df, c, "--reference") for c in args.reference]
+    refs = [[str(col[i]) for col in ref_cols if not _missing(col[i])] for i in range(len(preds))]
+    if any(not r for r in refs):
+        raise CLIError("Every row needs at least one non-empty reference.")
+    report = es.text_report(refs, preds, metrics=metric_list(args.metrics))
+    emit(report, args)
+    return 0
+
+
+def _missing(v: Any) -> bool:
+    return v is None or (isinstance(v, float) and v != v) or (isinstance(v, str) and not v.strip())
+
+
 def cmd_compare(args: argparse.Namespace) -> int:
     import evalsuite as es
 
@@ -507,6 +525,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_detection)
 
     p = sub.add_parser(
+        "text", help="text generation: BLEU, chrF, chrF++, TER, ROUGE, METEOR, exact match, token F1"
+    )
+    p.add_argument("file", help="CSV, TSV, Parquet or JSON-lines file with one example per row ('-' for stdin)")
+    p.add_argument("--prediction", required=True, help="column with the model output")
+    p.add_argument(
+        "--reference", required=True, action="append", help="column with a reference (repeat for several)"
+    )
+    p.add_argument("--metrics", help="comma-separated subset, e.g. bleu,chrf,rouge_l")
+    add_output(p)
+    p.set_defaults(func=cmd_text)
+
+    p = sub.add_parser(
         "plot", help="save a ROC, PR, calibration, decision-curve, confusion-matrix or residual plot"
     )
     p.add_argument("kind", choices=("roc", "pr", "calibration", "decision", "confusion", "residuals", "predicted"))
@@ -529,7 +559,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repeat", type=int, default=5, help="timed repetitions per case; the fastest is reported")
     p.add_argument(
         "--suite",
-        choices=("all", "core", "clinical", "vision"),
+        choices=("all", "core", "clinical", "vision", "llm"),
         default="all",
         help="core: classification/regression; clinical: clinical, calibration, tests; vision: segmentation, "
         "detection (default all)",

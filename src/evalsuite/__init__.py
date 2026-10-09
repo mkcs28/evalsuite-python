@@ -5,7 +5,7 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import calibration, classification, clinical, plot, regression, stats, vision
+from . import calibration, classification, clinical, plot, regression, stats, text, vision
 from .api import evaluate
 from .calibration import (
     CalibrationReport,
@@ -110,6 +110,8 @@ from .stats import (
     t_test,
     wilcoxon_test,
 )
+from .text import *  # noqa: F403  (every LLM-evaluation function, listed in text.__all__)
+from .text import __all__ as _text_all
 from .version import __version__
 from .vision import (
     DetectionReport,
@@ -134,6 +136,7 @@ from .vision import (
 )
 
 __all__ = [
+    "text",
     "SegmentationReport",
     "segmentation_report",
     "detection_pr_curve",
@@ -258,3 +261,4 @@ __all__ = [
     "specificity",
     "top_k_accuracy",
 ]
+__all__ += list(_text_all)

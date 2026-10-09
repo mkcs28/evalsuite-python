@@ -15,7 +15,7 @@ from ..core.exceptions import InputValidationError
 from ..core.registry import metric_info
 from ..core.result import _json_safe, _latex_escape, _latex_table
 from ..core.types import ArrayLike
-from ._resolve import MetricCall, as_observations, is_categorical, resolve_metric
+from ._resolve import MetricCall, as_items, as_observations, is_categorical, resolve_metric
 from .effect import adjust_pvalues
 from .intervals import _check_level, _check_resamples, bootstrap_distribution, resample_indices
 from .paired import delong_test, mcnemar_test
@@ -295,8 +295,12 @@ def compare(
         raise InputValidationError("compare() needs at least two models (a dict of name -> predictions).")
     if baseline is not None and baseline not in names:
         raise InputValidationError(f"baseline={baseline!r} is not one of the models: {', '.join(names)}.")
-    yt = as_observations(y_true, "y_true")
-    categorical = is_categorical(yt)
+    item_level = metrics is not None and any(
+        getattr(resolve_metric(m)[0], "__evalsuite_items__", False) for m in metrics
+    )
+    # Text, retrieval and other item-level metrics resample whole items and never stratify by value.
+    yt = as_items(y_true, "y_true") if item_level else as_observations(y_true, "y_true")
+    categorical = not item_level and is_categorical(yt)
     if metrics is None:
         if yt.ndim > 2 or (yt.dtype == object and yt.size and not isinstance(yt[0], (str, bytes))):
             is_detection = yt.dtype == object and isinstance(yt[0], Mapping)

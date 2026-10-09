@@ -213,8 +213,8 @@ def _vision_cases(n: int, rng: np.random.Generator) -> list[Case]:
         import contextlib as _ctx
         import io
 
-        from pycocotools.coco import COCO  # type: ignore[import-untyped]
-        from pycocotools.cocoeval import COCOeval  # type: ignore[import-untyped]
+        from pycocotools.coco import COCO
+        from pycocotools.cocoeval import COCOeval
 
         def coco_map() -> list[float]:
             images, anns, dets, aid = [], [], [], 1
@@ -259,6 +259,155 @@ def _vision_cases(n: int, rng: np.random.Generator) -> list[Case]:
         refs[cases[2][0]] = coco_map
     except ImportError:
         pass
+    return [(name, ref, es_fn, refs.get(name)) for name, ref, es_fn, _ in cases]
+
+
+_LLM_VOCAB = (  # noqa: SIM905
+    "the a cat dog sat on mat quickly model models data run running ran 2.5 3,000 well-known state-of-the-art "
+    "( ) , . ! ? don't U.S. e-mail Hello WORLD naive cafe results show improves baseline evaluation"
+).split()
+
+
+def _llm_cases(n: int, rng: np.random.Generator) -> list[Case]:
+    """v0.4.0: text generation, retrieval, rater agreement and structured output (n / 100 examples)."""
+    import evalsuite as es
+
+    m = max(10, n // 100)
+    preds, refs_ = [], []
+    for _ in range(m):
+        base = list(rng.choice(_LLM_VOCAB, int(rng.integers(5, 25))))
+        keep = [w for w in base if rng.random() > 0.2] + list(rng.choice(_LLM_VOCAB, int(rng.integers(0, 4))))
+        preds.append(" ".join(keep))
+        refs_.append(" ".join(base))
+    queries = [
+        (set(rng.choice(200, int(rng.integers(1, 6)), replace=False).tolist()), rng.permutation(200)[:20].tolist())
+        for _ in range(m)
+    ]
+    rel, ret = [q[0] for q in queries], [q[1] for q in queries]
+    ratings = rng.integers(1, 6, (4, m)).astype(float)
+    ratings[rng.random(ratings.shape) < 0.1] = np.nan
+    schema = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "tags": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
+        },
+        "required": ["name", "age"],
+        "additionalProperties": False,
+    }
+    docs = []
+    for i in range(m):
+        d: dict[str, Any] = {"name": f"n{i}", "age": int(rng.integers(-2, 90)), "tags": ["a", "b"]}
+        if rng.random() < 0.1:
+            d["extra"] = 1
+        if rng.random() < 0.1:
+            del d["name"]
+        docs.append(d)
+    import json as _json
+
+    docs_text = [_json.dumps(d) for d in docs]
+
+    cases: list[Case] = [
+        (
+            f"text: corpus BLEU and chrF ({m} sentences)",
+            "sacreBLEU",
+            lambda: [float(es.bleu(refs_, preds)), float(es.chrf(refs_, preds))],
+            None,
+        ),
+        (
+            f"text: ROUGE-1, ROUGE-2, ROUGE-L ({m} sentences)",
+            "rouge-score",
+            lambda: [
+                float(es.rouge_1(refs_, preds)),
+                float(es.rouge_2(refs_, preds)),
+                float(es.rouge_l(refs_, preds)),
+            ],
+            None,
+        ),
+        (
+            f"text: METEOR, exact and stem matches ({m} sentences)",
+            "NLTK",
+            lambda: [float(es.meteor(refs_, preds))],
+            None,
+        ),
+        (
+            f"retrieval: MRR, MAP@20, NDCG@10 ({m} queries)",
+            "ranx",
+            lambda: [
+                float(es.mrr(rel, ret)),
+                float(es.mean_average_precision_at_k(rel, ret, k=20)),
+                float(es.ndcg_at_k(rel, ret, k=10)),
+            ],
+            None,
+        ),
+        (
+            f"agreement: Krippendorff's alpha, interval (4 raters × {m} items)",
+            "krippendorff",
+            lambda: [float(es.krippendorff_alpha(ratings, level="interval"))],
+            None,
+        ),
+        (
+            f"structured: JSON Schema compliance ({m} documents)",
+            "jsonschema",
+            lambda: [float(es.json_schema_compliance(docs_text, schema))],
+            None,
+        ),
+    ]
+    refs: dict[str, Callable[[], Any]] = {}
+    with contextlib.suppress(ImportError):
+        import sacrebleu
+
+        refs[cases[0][0]] = lambda: [
+            sacrebleu.corpus_bleu(preds, [refs_], force=True).score,
+            sacrebleu.corpus_chrf(preds, [refs_]).score,
+        ]
+    with contextlib.suppress(ImportError):
+        from rouge_score import rouge_scorer
+
+        def rouge_ref() -> list[float]:
+            sc = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"])
+            out = [sc.score(r, p) for r, p in zip(refs_, preds)]
+            return [float(np.mean([o[k].fmeasure for o in out])) for k in ("rouge1", "rouge2", "rougeL")]
+
+        refs[cases[1][0]] = rouge_ref
+    with contextlib.suppress(ImportError):
+        from nltk.translate.meteor_score import meteor_score
+
+        class _NoWordNet:
+            def synsets(self, _w: str) -> list[Any]:
+                return []
+
+        refs[cases[2][0]] = lambda: [
+            float(
+                np.mean([meteor_score([r.split()], p.split(), wordnet=_NoWordNet()) for r, p in zip(refs_, preds)])
+            )
+        ]
+    with contextlib.suppress(ImportError):
+        from ranx import Qrels, Run
+        from ranx import evaluate as ranx_evaluate
+
+        def ranx_ref() -> list[float]:
+            qrels = Qrels({f"q{i}": {f"d{d}": 1 for d in r} for i, r in enumerate(rel)})
+            run = Run({f"q{i}": {f"d{d}": float(len(r) - j) for j, d in enumerate(r)} for i, r in enumerate(ret)})
+            res = ranx_evaluate(qrels, run, ["mrr", "map@20", "ndcg@10"])
+            return [float(res["mrr"]), float(res["map@20"]), float(res["ndcg@10"])]
+
+        refs[cases[3][0]] = ranx_ref
+    with contextlib.suppress(ImportError):
+        import krippendorff
+
+        refs[cases[4][0]] = lambda: [
+            float(krippendorff.alpha(reliability_data=ratings, level_of_measurement="interval"))
+        ]
+    with contextlib.suppress(ImportError):
+        import jsonschema
+
+        def jsonschema_ref() -> list[float]:
+            v = jsonschema.Draft202012Validator(schema)
+            return [float(np.mean([v.is_valid(_json.loads(t)) for t in docs_text]))]
+
+        refs[cases[5][0]] = jsonschema_ref
     return [(name, ref, es_fn, refs.get(name)) for name, ref, es_fn, _ in cases]
 
 
@@ -377,6 +526,7 @@ _GROUPS = (
     ("Classification and regression", ("binary", "10 classes", "regression")),
     ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
     ("Segmentation and object detection", ("segmentation", "detection")),
+    ("LLM evaluation", ("text", "retrieval", "agreement", "structured")),
 )
 MATCH_TOLERANCE = 1e-9
 
@@ -597,8 +747,8 @@ def run_benchmarks(
 
     if repeat < 1:
         raise ValueError("repeat must be at least 1.")
-    if suite not in ("all", "core", "clinical", "vision"):
-        raise ValueError("suite must be 'all', 'core', 'clinical' or 'vision'.")
+    if suite not in ("all", "core", "clinical", "vision", "llm"):
+        raise ValueError("suite must be 'all', 'core', 'clinical', 'vision' or 'llm'.")
     rng = np.random.default_rng(random_state)
     rows: list[dict[str, Any]] = []
     versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None, "pycocotools": None}
@@ -613,7 +763,8 @@ def run_benchmarks(
         "core": [_core_cases],
         "clinical": [_clinical_cases],
         "vision": [_vision_cases],
-        "all": [_core_cases, _clinical_cases, _vision_cases],
+        "llm": [_llm_cases],
+        "all": [_core_cases, _clinical_cases, _vision_cases, _llm_cases],
     }[suite]
     for n in sizes:
         for build in builders:

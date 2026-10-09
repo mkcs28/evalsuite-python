@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added (v0.4.0, LLM evaluation, in development)
+- `es.text` and top-level functions for language-model evaluation; 69 new registered metrics, each checked
+  against a reference implementation where one exists:
+  - Text generation: BLEU, sentence BLEU, chrF/chrF++, TER (sacreBLEU), ROUGE-1/2/L/Lsum (rouge-score),
+    METEOR (NLTK, synonyms pluggable), CIDEr-D (pycocoevalcap), perplexity, cross-entropy, Distinct-n,
+    Self-BLEU, MAUVE (mauve-text divergence frontier, NumPy k-means).
+  - Semantic: BERTScore, embedding cosine / Euclidean / Manhattan, MoverScore (exact transport, = POT), and
+    `model_score` to run COMET, BLEURT, BARTScore, AlignScore or any scorer with intervals and comparison.
+  - Factuality: faithfulness, hallucination (unsupported-claim) rate, groundedness, citation precision and
+    recall (ALCE), claim-verification accuracy, knowledge consistency, answer correctness and relevance
+    (RAGAS), abstention accuracy, exact match and token F1 (SQuAD).
+  - LLM-as-a-judge: win rate, Bradley–Terry (= choix), Elo, Krippendorff's alpha (= krippendorff), Fleiss'
+    kappa (= statsmodels), judge–human agreement, position consistency, verbosity and self-preference bias,
+    rubric scores.
+  - Reasoning: pass@k, majority-vote accuracy, answer extraction and benchmark accuracy (GSM8K, MATH,
+    multiple choice).
+  - RAG: Precision/Recall/Hit rate@k, MRR, MAP, NDCG (= ranx), context precision, recall and relevance,
+    latency summary, task success rate, failure attribution.
+  - Structured output: JSON validity, JSON Schema compliance (built-in validator, agrees with jsonschema),
+    XML validity, required-field accuracy, tool selection / argument accuracy and tool-call F1, API-call
+    success, instruction compliance, constraint satisfaction, format compliance, multi-turn retention,
+    extra-content rate.
+- `es.text_report` and `evalsuite text` (CLI) for the reference-based text metrics in one report.
+- `bootstrap_ci`, `compare` and the paired tests resample whole items (texts, reference lists, rankings) for
+  these metrics, so corpus metrics such as BLEU get proper intervals.
+- Benchmark suite `llm` against sacreBLEU, rouge-score, NLTK, ranx, krippendorff and jsonschema.
+- `llm` extra (`nltk`) for METEOR's default Porter stemmer.
+
 ## [0.3.1] - 2026-10-09
 
 Quality-assurance release: release pipeline, packaging checks, edge-case fixes and an overall benchmark.
