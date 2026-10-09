@@ -134,3 +134,13 @@ def test_vision_benchmarks_agree_with_references() -> None:
     for row in b.rows:
         if row["reference_ms"] is not None:
             assert row["max_abs_diff"] < 1e-9, row["case"]
+
+
+def test_report_headers_use_singular_for_one_image():
+    yt = [{"boxes": [[0, 0, 10, 10]], "labels": [1]}]
+    yp = [{"boxes": [[0, 0, 10, 10]], "labels": [1], "scores": [0.9]}]
+    text = str(es.detection_report(yt, yp))
+    assert "1 image, 1 class," in text
+    mask = np.zeros((8, 8), dtype=int)
+    mask[2:5, 2:5] = 1
+    assert "1 image, 2 classes" in str(es.segmentation_report(mask, mask))

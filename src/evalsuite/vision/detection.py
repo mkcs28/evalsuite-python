@@ -85,6 +85,11 @@ def _to_xyxy(boxes: Any, fmt: BoxFormat, name: str) -> NDArray[np.float64]:
     return np.asarray(out, dtype=np.float64)
 
 
+def _count(n: int, noun: str) -> str:
+    plural = noun + ("es" if noun.endswith("s") else "s")
+    return f"{n} {noun if n == 1 else plural}"
+
+
 def _area(b: NDArray[np.float64]) -> NDArray[np.float64]:
     out: NDArray[np.float64] = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
     return out
@@ -343,7 +348,8 @@ class DetectionReport:
     def summary(self, *, digits: int = 3) -> str:
         p = self.params
         lines = [
-            f"EvalSuite detection evaluation (COCO protocol, {p['n_images']} images, {p['n_classes']} classes, "
+            f"EvalSuite detection evaluation (COCO protocol, {_count(p['n_images'], 'image')}, "
+            f"{_count(p['n_classes'], 'class')}, "
             f"max {p['max_detections']} detections per image)"
         ]
         width = max(len(label) for _, label in _SUMMARY)
