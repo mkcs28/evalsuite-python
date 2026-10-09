@@ -128,7 +128,7 @@ def logistic_fit(
     beta = np.zeros(design.shape[1])
     for _ in range(max_iter):
         eta = design @ beta + off
-        mu = 1 / (1 + np.exp(-eta))
+        mu = 1 / (1 + np.exp(-np.clip(eta, -700, 700)))
         grad = design.T @ (w * (y - mu))
         hess = (design * (w * mu * (1 - mu))[:, None]).T @ design
         try:

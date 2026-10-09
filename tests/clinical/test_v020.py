@@ -267,3 +267,12 @@ def test_new_metrics_registered_and_documented() -> None:
         warnings.simplefilter("ignore")
         ci = es.bootstrap_ci("youden_j", Y * 10, P * 10, random_state=0)
     assert ci.low <= float(es.youden_j(Y, P)) <= ci.high
+
+
+def test_separated_outcome_raises_without_overflow_warning():
+    y = np.array([0] * 50 + [1] * 50)
+    p = np.concatenate([np.full(50, 0.01), np.full(50, 0.99)])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        with pytest.raises(es.StatisticalTestError):
+            es.calibration_slope(y, p)
