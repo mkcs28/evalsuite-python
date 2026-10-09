@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical and statistical evaluation (with segmentation and
 object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
 
-> **Status: stable (0.2.0).** Every item on the 0.1.0 and 0.2.0 roadmaps is implemented and verified.
+> **Status: stable (0.2.1).** Every item on the 0.1.0 and 0.2.0 roadmaps is implemented and verified.
 
 ## Installation
 
@@ -181,24 +181,27 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against scikit-learn on the same data (fastest of 5 runs; Python 3.12, NumPy 2.5,
-scikit-learn 1.9, Linux x86_64). Every result agrees with scikit-learn to floating-point rounding
-(largest difference 1.1e-16).
+Benchmarked against reference implementations on the same data (fastest of 5 runs; Python 3.12, NumPy 2.5,
+Linux x86_64). Every result agrees with the reference to floating-point rounding (largest difference
+1.4e-14).
 
-| Case | n | EvalSuite (ms) | scikit-learn (ms) | Speed-up | Peak memory EvalSuite / sklearn (MiB) |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 8 binary label metrics via `evaluate()` | 1,000 | 0.38 | 11.70 | **31.2×** | 0.04 / 0.05 |
-| 8 binary label metrics via `evaluate()` | 100,000 | 10.9 | 116.9 | **10.7×** | 3.2 / 3.1 |
-| 8 binary label metrics via `evaluate()` | 1,000,000 | 108.8 | 1043.6 | **9.6×** | 31.5 / 30.5 |
-| macro F1, 10 classes | 1,000,000 | 88.4 | 139.3 | **1.58×** | 30.5 / 21.8 |
-| ROC AUC, binary | 1,000,000 | 247.4 | 352.5 | **1.42×** | 91.6 / 76.3 |
-| MAE, MSE, RMSE, R² via `evaluate()` | 1,000 | 0.12 | 0.90 | **7.2×** | 0.03 / 0.02 |
-| MAE, MSE, RMSE, R² via `evaluate()` | 1,000,000 | 29.3 | 20.1 | 0.69× | 22.9 / 15.3 |
+| Case | n | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
+| --- | ---: | --- | ---: | ---: | ---: |
+| 8 binary label metrics via `evaluate()` | 1,000,000 | scikit-learn | 30.2 | 1020.2 | **33.8×** |
+| macro F1, 10 classes | 1,000,000 | scikit-learn | 22.4 | 128.7 | **5.8×** |
+| ROC AUC, binary | 1,000,000 | scikit-learn | 173.2 | 300.6 | **1.7×** |
+| MAE, MSE, RMSE, R² via `evaluate()` | 1,000,000 | scikit-learn | 19.1 | 9.7 | 0.51× |
+| sensitivity, specificity, LR+, LR− | 1,000,000 | scikit-learn | 66.2 | 392.8 | **5.9×** |
+| calibration slope and intercept | 1,000,000 | statsmodels | 178.0 | 1014.8 | **5.7×** |
+| decision curve, 99 thresholds | 1,000,000 | NumPy loop | 155.2 | 174.3 | **1.1×** |
+| diagnostic report (7 CIs) | 1,000,000 | statsmodels | 16.6 | 4.6 | 0.28× |
+| Welch t-test | 1,000,000 | SciPy | 14.5 | 7.3 | 0.51× |
+| Hochberg correction | 1,000,000 | statsmodels | 75.4 | 81.9 | **1.1×** |
 
-`evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where the
-speed-up comes from. Large regression arrays are slower because EvalSuite checks every value for NaN,
-infinity, shape and dtype before computing. Reproduce on your machine with `evalsuite benchmark`; full
-table and notes in
+`evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where most
+of the speed-up comes from. Hypothesis tests use SciPy underneath, so they match its speed at best; rows
+below 1× pay for input validation and the extra intervals and effect sizes EvalSuite reports. Reproduce on
+your machine with `evalsuite benchmark`; full table (1k, 100k and 1M samples, peak memory) and notes in
 [BENCHMARKS.md](https://github.com/mkcs28/evalsuite-python/blob/main/BENCHMARKS.md).
 
 ## Metrics in this release

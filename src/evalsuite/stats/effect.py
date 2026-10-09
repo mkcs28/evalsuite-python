@@ -131,7 +131,7 @@ def adjust_pvalues(
     if np.any((p < 0) | (p > 1)):
         raise InputValidationError("p-values must be between 0 and 1.")
     m = p.shape[0]
-    order = np.argsort(p, kind="mergesort")
+    order = np.argsort(p)  # ties get the same adjusted value whatever their order
     ranked = p[order]
     if method == "bonferroni":
         adj = np.minimum(ranked * m, 1)

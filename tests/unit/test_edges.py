@@ -229,3 +229,21 @@ class TestEvaluateEdges:
         assert {"roc_auc", "average_precision", "hamming_loss"} <= set(r)
         r2 = es.evaluate([0, 1, 2], [0, 2, 2], metrics=["hamming_loss", "npv", "jaccard"], zero_division=0)
         assert float(r2["hamming_loss"]) == pytest.approx(1 / 3)
+
+
+def test_unique_labels_matches_numpy_for_every_integer_kind() -> None:
+    from evalsuite.core.validation import unique_labels
+
+    cases = [
+        np.array([-128, 127, 0], dtype=np.int8),
+        np.array([2**64 - 1, 2**64 - 3], dtype=np.uint64),
+        np.array([5, 3, 5], dtype=np.uint8),
+        np.array([10**15, -(10**15)]),
+        np.array([], dtype=np.int64),
+        np.array([[1, 0], [0, 1]]),
+        np.array([1.5, 0.5]),
+        np.array(["b", "a", "b"]),
+    ]
+    for a in cases:
+        u = unique_labels(a)
+        assert np.array_equal(u, np.unique(a)) and u.dtype == np.unique(a).dtype
