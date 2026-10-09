@@ -168,9 +168,6 @@ def test_rouge_matches_rouge_score(seed: int, n_refs: int, stem: bool) -> None:
             np.testing.assert_allclose(ours, theirs, atol=1e-12, err_msg=f"{key} {measure}")
 
 
-ranx = pytest.importorskip("ranx")
-
-
 def _runs(seed: int, n_queries: int = 30, graded: bool = False):
     rng = np.random.default_rng(seed)
     relevant, retrieved = [], []
@@ -184,6 +181,7 @@ def _runs(seed: int, n_queries: int = 30, graded: bool = False):
 
 
 def _ranx(relevant, retrieved, metric: str) -> float:
+    ranx = pytest.importorskip("ranx")  # not available on every Python version; skip only these tests
     qrels = ranx.Qrels(
         {
             f"q{i}": ({d: int(g) for d, g in r.items()} if isinstance(r, dict) else {d: 1 for d in r})
