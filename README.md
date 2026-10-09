@@ -167,6 +167,21 @@ Models can be compared over the same images with intervals and paired tests, as 
 `es.compare(y_true, {"unet": masks_a, "deeplab": masks_b})` resamples images; for detection it compares
 mAP.
 
+## LLM evaluation (v0.4.0, in development)
+
+```python
+es.bleu(references, predictions)                  # sacreBLEU-identical; also chrf, ter, rouge_l, meteor, cider
+es.text_report(references, predictions)           # BLEU, chrF(++), TER, ROUGE, METEOR, EM, token F1 at once
+es.bertscore(ref_token_embs, pred_token_embs)     # from your encoder's embeddings; also mauve, moverscore
+es.model_score(refs, preds, scorer=comet_fn)      # any learned metric or judge, with intervals and compare
+es.faithfulness(claim_verdicts)                   # also hallucination_rate, citation_recall, answer_correctness
+es.bradley_terry(comparisons, scale="elo")        # also win_rate, elo_ratings, krippendorff_alpha
+es.ndcg_at_k(relevant, retrieved, k=10)           # also mrr, context_precision, context_recall
+es.json_schema_compliance(outputs, schema)        # also tool_call_f1, instruction_compliance_rate
+es.pass_at_k(n_samples, n_correct, k=10)          # also benchmark_accuracy(..., style="gsm8k")
+es.compare(references, {"a": preds_a, "b": preds_b}, metrics=["bleu", "rouge_l"])  # paired over examples
+```
+
 ## Classification report
 
 ```python

@@ -111,6 +111,31 @@ def test_readme_example_runs(heading: str, code: str, tmp_path, monkeypatch) -> 
         ns["y_true"], ns["y_pred"] = vision["masks"], np.roll(vision["masks"], 1, axis=2)
     if heading.lower().startswith("object detection"):
         ns["y_true"], ns["y_pred"] = vision["boxes"], vision["dets"]
+    if heading.lower().startswith("llm evaluation"):
+        rng = np.random.default_rng(1)
+        refs = ["the cat sat on the mat", "a dog ran in the park", "hello world"] * 4
+        preds = ["the cat sat on a mat", "dog ran in park", "hello there world"] * 4
+        ns.update(
+            references=refs,
+            predictions=preds,
+            refs=refs,
+            preds=preds,
+            preds_a=preds,
+            preds_b=[p + " today" for p in preds],
+            ref_token_embs=[rng.normal(size=(5, 8)) for _ in refs],
+            pred_token_embs=[rng.normal(size=(4, 8)) for _ in refs],
+            comet_fn=lambda r, p: [
+                len(set(a.split()) & set(b.split())) / len(set(a.split())) for a, b in zip(r, p)
+            ],
+            claim_verdicts=[["supported", "unsupported"], [True, True]],
+            comparisons=[("a", "b", "win"), ("b", "c", "win"), ("c", "a", "win"), ("a", "c", "tie")],
+            relevant=[{1, 2}, {3}],
+            retrieved=[[1, 5, 2], [4, 3]],
+            outputs=['{"x": 1}', "not json"],
+            schema={"type": "object", "required": ["x"]},
+            n_samples=[10, 10],
+            n_correct=[3, 0],
+        )
     if heading.lower().startswith("classification report") or heading.lower().startswith("plots"):
         ns["y_pred"] = (ns["y_prob"] >= 0.5).astype(int)
     with warnings.catch_warnings():

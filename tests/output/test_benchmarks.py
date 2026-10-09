@@ -45,7 +45,7 @@ def test_v020_benchmarks_agree_with_their_references() -> None:
     for row in b.rows:
         assert row["reference_ms"] > 0 and row["max_abs_diff"] < 1e-9, row["case"]
     assert "statsmodels" in b.summary().splitlines()[0]
-    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 15
+    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 21
 
 
 def test_overall_summary_and_alphabetical_rows() -> None:
@@ -54,11 +54,12 @@ def test_overall_summary_and_alphabetical_rows() -> None:
     assert [o["group"] for o in overall] == [
         "Classification and regression",
         "Clinical, calibration and statistics",
+        "LLM evaluation",
         "Segmentation and object detection",
         "Overall",
     ]
     total = overall[-1]
-    assert total["rows"] == 15 == sum(o["rows"] for o in overall[:-1])
+    assert total["rows"] == 21 == sum(o["rows"] for o in overall[:-1])
     assert total["matching"] == total["compared"]  # every compared case agrees with its reference
     if total["compared"]:
         assert total["min_speedup"] <= total["geomean_speedup"] <= total["max_speedup"]
@@ -68,3 +69,14 @@ def test_overall_summary_and_alphabetical_rows() -> None:
     assert text.index("Overall") < text.index("Case")  # the overall table comes first
     assert b.overall_markdown().startswith("| Suite |")
     assert json.loads(b.to_json())["overall"][-1]["group"] == "Overall"
+
+
+def test_llm_benchmarks_agree_with_their_references() -> None:
+    b = run_benchmarks(sizes=(2000,), repeat=1, suite="llm")
+    assert len(b.rows) == 6
+    refs = {r["case"].split(" (")[0]: r["reference"] for r in b.rows}
+    assert refs["text: corpus BLEU and chrF"] == "sacreBLEU"
+    assert refs["structured: JSON Schema compliance"] == "jsonschema"
+    for row in b.rows:
+        if row["reference_ms"] is not None:
+            assert row["max_abs_diff"] < 1e-9, row["case"]
