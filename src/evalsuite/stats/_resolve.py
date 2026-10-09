@@ -10,7 +10,7 @@ from typing import Any, Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.exceptions import InputValidationError
+from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.validation import target_type, to_numpy
 
 MetricFn = Callable[..., Any]
@@ -89,6 +89,11 @@ class MetricCall:
                 f"observations. Received {self.y_true.shape[0]} and {self.second.shape[0]}."
             )
         self.n = self.y_true.shape[0]
+        if self.n < 2:
+            raise StatisticalTestError(
+                f"Resampling needs at least 2 observations; got {self.n}. An interval or test from a single "
+                "observation would have zero width and no meaning."
+            )
         self.weight = None if sample_weight is None else to_numpy(sample_weight, "sample_weight")
         self.kwargs = dict(kwargs or {})
         params = inspect.signature(fn).parameters

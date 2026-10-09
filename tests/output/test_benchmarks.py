@@ -46,3 +46,25 @@ def test_v020_benchmarks_agree_with_their_references() -> None:
         assert row["reference_ms"] > 0 and row["max_abs_diff"] < 1e-9, row["case"]
     assert "statsmodels" in b.summary().splitlines()[0]
     assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 15
+
+
+def test_overall_summary_and_alphabetical_rows() -> None:
+    b = run_benchmarks(sizes=(300,), repeat=1, suite="all")
+    overall = b.overall()
+    assert [o["group"] for o in overall] == [
+        "Classification and regression",
+        "Clinical, calibration and statistics",
+        "Segmentation and object detection",
+        "Overall",
+    ]
+    total = overall[-1]
+    assert total["rows"] == 15 == sum(o["rows"] for o in overall[:-1])
+    assert total["matching"] == total["compared"]  # every compared case agrees with its reference
+    if total["compared"]:
+        assert total["min_speedup"] <= total["geomean_speedup"] <= total["max_speedup"]
+    cases = [r["case"].lower() for r in b.sorted_rows()]
+    assert cases == sorted(cases)
+    text = b.summary()
+    assert text.index("Overall") < text.index("Case")  # the overall table comes first
+    assert b.overall_markdown().startswith("| Suite |")
+    assert json.loads(b.to_json())["overall"][-1]["group"] == "Overall"

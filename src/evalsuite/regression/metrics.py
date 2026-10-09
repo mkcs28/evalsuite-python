@@ -202,7 +202,15 @@ def rmse(
 ) -> MetricResult:
     """Root mean squared error (square root taken per output, then averaged)."""
     inp = _inputs(y_true, y_pred, sample_weight)
-    return _finish(np.sqrt(inp.mean(inp.error**2)), inp, multioutput, "rmse", "RMSE")
+    with np.errstate(over="ignore"):
+        per_output = np.sqrt(inp.mean(inp.error**2))
+    if not np.all(np.isfinite(per_output)):
+        # Errors above ~1e154 overflow when squared although the RMSE itself is representable:
+        # rescale by the largest error and square again.
+        scale = np.abs(inp.error).max(axis=0)
+        scale = np.where(np.isfinite(scale) & (scale > 0), scale, 1.0)
+        per_output = scale * np.sqrt(inp.mean((inp.error / scale) ** 2))
+    return _finish(per_output, inp, multioutput, "rmse", "RMSE")
 
 
 def _r2_per_output(inp: _Inputs) -> FloatArray:

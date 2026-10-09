@@ -45,7 +45,23 @@ def to_numpy(x: ArrayLike, name: str, *, allow_2d: bool = False) -> NDArray[Any]
         raise InputValidationError(f"{name} must be {expected}; received an array with shape {arr.shape}.")
     if arr.shape[0] == 0:
         raise InputValidationError(f"{name} is empty. Provide at least one observation.")
+    if (
+        arr.ndim == 1
+        and arr.dtype.kind in "US"
+        and isinstance(x, (list, tuple))
+        and not all(isinstance(v, (str, bytes)) for v in x)
+    ):
+        # NumPy silently turns [0, "a"] into ["0", "a"]; a mix of numbers and strings is almost always a bug.
+        raise InputValidationError(f"{name} mixes numbers and strings; use one label type throughout.")
     return arr
+
+
+def _label_kind(arr: NDArray[Any]) -> str:
+    if arr.dtype.kind in "US":
+        return "string"
+    if arr.dtype.kind in "biuf":
+        return "number"
+    return "other"
 
 
 def check_finite(arr: NDArray[Any], name: str) -> None:
@@ -126,6 +142,11 @@ def resolve_labels(
         if np.unique(lab).shape[0] != lab.shape[0]:
             raise InputValidationError("labels contains duplicates.")
         return lab
+    if y_pred is not None and {_label_kind(y_true), _label_kind(y_pred)} == {"string", "number"}:
+        raise InputValidationError(
+            f"y_true has {_label_kind(y_true)} labels but y_pred has {_label_kind(y_pred)} labels; "
+            "use the same label type in both (for example map class names to integers first)."
+        )
     present = y_true if y_pred is None else np.concatenate([y_true, y_pred])
     try:
         return unique_labels(present)

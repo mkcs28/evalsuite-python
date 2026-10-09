@@ -84,9 +84,17 @@ _REF_HD = (
 
 # ---- input handling ------------------------------------------------------------------------------
 def _as_images(masks: Masks, name: str) -> list[NDArray[Any]]:
+    images = None
     if isinstance(masks, (list, tuple)) or (isinstance(masks, np.ndarray) and masks.dtype == object):
         images = [np.asarray(m) for m in masks]
-    else:
+        if (
+            images
+            and isinstance(masks, (list, tuple))
+            and all(m.ndim == 1 for m in images)
+            and not any(isinstance(m, np.ndarray) for m in masks)
+        ):
+            images = None  # a nested Python list of rows, e.g. [[1, 1], [0, 0]], is one 2-D mask
+    if images is None:
         arr = np.asarray(masks)
         if arr.ndim < 2:
             raise InputValidationError(

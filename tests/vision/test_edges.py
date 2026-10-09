@@ -124,3 +124,13 @@ def test_evaluate_points_vision_inputs_to_the_right_function() -> None:
         es.evaluate([{"boxes": [[0, 0, 1, 1]], "labels": [1]}], [{"boxes": [], "labels": []}])
     with pytest.raises(es.UnsupportedTaskError, match="segmentation_report"):
         es.evaluate(np.zeros((2, 3, 3), int), np.zeros((2, 3, 3), int))
+
+
+def test_nested_list_is_one_2d_mask() -> None:  # 0.3.1 fix
+    as_list = es.dice([[1, 1], [0, 0]], [[1, 0], [0, 0]], average=None).value
+    as_array = es.dice(np.array([[1, 1], [0, 0]]), np.array([[1, 0], [0, 0]]), average=None).value
+    np.testing.assert_array_equal(as_list, as_array)
+    stacked = es.dice([[[1, 1], [0, 0]], [[1, 0], [0, 0]]], [[[1, 1], [0, 0]], [[1, 0], [0, 0]]])
+    assert float(stacked) == 1.0  # a list of 2-D masks is still a list of images
+    with pytest.raises(es.InputValidationError):
+        es.dice([1, 0, 1], [1, 0, 1])

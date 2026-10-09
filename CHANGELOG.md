@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-09
+
+Quality-assurance release: release pipeline, packaging checks, edge-case fixes and an overall benchmark.
+No API was removed or renamed; code written for 0.3.0 runs unchanged.
+
+### Fixed
+- Labels that mix numbers and strings (`[0, "a"]`, or string `y_true` with integer `y_pred`) now raise
+  `InputValidationError` instead of being silently compared as text.
+- `rmse` no longer overflows to `inf` when errors exceed ~1e154; the value is computed with rescaling.
+- `bootstrap_ci`, `paired_bootstrap_test` and `compare` raise `StatisticalTestError` for fewer than two
+  observations instead of returning a zero-width interval.
+- A 2-D mask given as a nested Python list (`[[1, 1], [0, 0]]`) is read as one image, as a NumPy array is.
+- Release workflow: the GitHub release step no longer fails when the release already exists (for example
+  when the tag was created from the GitHub UI); it attaches the files instead.
+
+### Added
+- Benchmarks: an overall summary first (per suite and in total: cases, agreement with the reference,
+  how many are faster, geometric-mean and range of speed-ups) and rows in alphabetical order;
+  `BenchmarkResult.overall()`, `overall_markdown()` and `sorted_rows()`; `overall` in the JSON export.
+- Release workflow: refuses a tag that does not match the package version or a version already on PyPI,
+  checks the built files, uses `--verify-tag`, and can be run by hand to attach a version's PyPI files
+  (hash-verified) to its GitHub release.
+- CI: wheel and sdist installed in clean environments with `pip check` and a smoke test that must give the
+  same results for both, a distribution check (metadata, forbidden files, credentials), a minimum-dependency
+  job (NumPy 1.22, SciPy 1.8, pandas 1.4), README examples run as tests, and repository hygiene tests
+  (no credentials, no unsafe calls, least-privilege workflows, single version source).
+- QA tests against scikit-learn and statsmodels for the edge cases in the release checklist.
+- `SECURITY.md` with the reporting process.
+
 ## [0.3.0] - 2026-10-09
 
 Computer vision (the v0.3.0 roadmap), with comparison, plots, reporting and benchmarks extended to it.
