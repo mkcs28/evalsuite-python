@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 
+from ._bench_metrics import metric_cases
+from .core.exceptions import OptionalDependencyError
 from .core.result import _json_safe, _latex_escape, _latex_table
 
 if TYPE_CHECKING:
@@ -523,10 +525,10 @@ def _clinical_cases(n: int, rng: np.random.Generator) -> list[Case]:
 
 
 _GROUPS = (
-    ("Classification and regression", ("binary", "10 classes", "regression")),
+    ("Classification and regression", ("binary", "10 classes", "regression", "classification")),
     ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
     ("Segmentation and object detection", ("segmentation", "detection")),
-    ("LLM evaluation", ("text", "retrieval", "agreement", "structured")),
+    ("LLM evaluation", ("text", "retrieval", "agreement", "structured", "qa.", "rag.", "reasoning.")),
 )
 MATCH_TOLERANCE = 1e-9
 
@@ -737,7 +739,10 @@ def run_benchmarks(
 
     ``suite``: ``"core"`` (classification and regression vs scikit-learn), ``"clinical"`` (v0.2.0 clinical,
     calibration and statistics vs scikit-learn, statsmodels, SciPy), ``"vision"`` (segmentation and COCO
-    detection vs scikit-learn, SciPy, pycocotools) or ``"all"`` (default).
+    detection vs scikit-learn, SciPy, pycocotools), ``"llm"`` (v0.4.0 text, retrieval, agreement and structured
+    output vs sacreBLEU, rouge-score, NLTK, ranx, krippendorff, jsonschema), ``"all"`` (default: the four
+    workload suites) or ``"metrics"`` (one row for every registered metric and statistics function, against a
+    reference library or the textbook formula where one exists; see ``evalsuite._bench_metrics``).
     ``compare_sklearn=False`` times EvalSuite alone. Rows keep ``sklearn_ms``/``sklearn_peak_mb`` for rows
     whose reference is scikit-learn, for compatibility with 0.1.x.
     """
@@ -747,8 +752,8 @@ def run_benchmarks(
 
     if repeat < 1:
         raise ValueError("repeat must be at least 1.")
-    if suite not in ("all", "core", "clinical", "vision", "llm"):
-        raise ValueError("suite must be 'all', 'core', 'clinical', 'vision' or 'llm'.")
+    if suite not in ("all", "core", "clinical", "vision", "llm", "metrics"):
+        raise ValueError("suite must be 'all', 'core', 'clinical', 'vision', 'llm' or 'metrics'.")
     rng = np.random.default_rng(random_state)
     rows: list[dict[str, Any]] = []
     versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None, "pycocotools": None}
@@ -765,11 +770,16 @@ def run_benchmarks(
         "vision": [_vision_cases],
         "llm": [_llm_cases],
         "all": [_core_cases, _clinical_cases, _vision_cases, _llm_cases],
+        "metrics": [metric_cases],
     }[suite]
     for n in sizes:
         for build in builders:
             for name, ref_name, es_fn, ref_fn in build(int(n), rng):
-                es_t, es_mem, es_val = _measure(es_fn, repeat)
+                try:
+                    es_t, es_mem, es_val = _measure(es_fn, repeat)
+                except OptionalDependencyError:
+                    continue  # e.g. METEOR's default stemmer without nltk: nothing to time
+
                 row: dict[str, Any] = {
                     "case": name,
                     "n": int(n),
@@ -802,7 +812,7 @@ def run_benchmarks(
         "scipy": scipy.__version__ if suite != "core" else None,
         "sklearn": versions["sklearn"],
         "statsmodels": versions["statsmodels"] if suite != "core" else None,
-        "pycocotools": versions["pycocotools"] if suite in ("all", "vision") else None,
+        "pycocotools": versions["pycocotools"] if suite in ("all", "vision", "metrics") else None,
         "machine": f"{platform.system()} {platform.machine()}",
         "repeat": repeat,
         "suite": suite,

@@ -333,7 +333,10 @@ def net_benefit(
     t = _check_thresholds(threshold)
     if t.size != 1:
         raise InputValidationError("threshold must be a single probability; use decision_curve() for many.")
-    model, _ = net_benefit_curve(y, p, w, t)
-    return MetricResult(
-        "net_benefit", "Net benefit", float(model[0]), {**_params(pos_label), "threshold": float(t[0])}
-    )
+    # one threshold: a single pass, no sort (net_benefit_curve sorts once for many thresholds)
+    treat = p >= t[0]
+    n = w.sum()
+    tp = float(np.sum(w * y, where=treat))
+    fp = float(np.sum(w * (1 - y), where=treat))
+    value = float(tp / n - fp / n * float(t[0] / (1 - t[0])))
+    return MetricResult("net_benefit", "Net benefit", value, {**_params(pos_label), "threshold": float(t[0])})

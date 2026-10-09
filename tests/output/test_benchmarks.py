@@ -80,3 +80,37 @@ def test_llm_benchmarks_agree_with_their_references() -> None:
     for row in b.rows:
         if row["reference_ms"] is not None:
             assert row["max_abs_diff"] < 1e-9, row["case"]
+
+
+def test_every_metric_has_a_benchmark_row_that_agrees_with_its_reference() -> None:
+    import evalsuite as es
+    import evalsuite.stats as st
+
+    b = run_benchmarks(sizes=(3_000,), repeat=1, suite="metrics")
+    cases = {r["case"] for r in b.rows}
+    stats_fns = {f"statistics.{n}" for n in st.__all__ if n[0].islower()}
+    assert set(es.list_metrics()) | stats_fns == cases
+    for row in b.rows:
+        assert row["evalsuite_ms"] > 0
+        if row["max_abs_diff"] is not None:
+            assert row["max_abs_diff"] < 1e-9, row["case"]
+    groups = {g["group"] for g in b.overall()}
+    assert {"Classification and regression", "LLM evaluation", "Segmentation and object detection"} <= groups
+    assert "Other" not in groups
+
+
+def test_metrics_suite_without_references() -> None:
+    b = run_benchmarks(sizes=(1_000,), repeat=1, suite="metrics", compare_sklearn=False)
+    assert all(r["reference"] is None for r in b.rows)
+
+
+def test_cases_needing_a_missing_optional_dependency_are_skipped(monkeypatch) -> None:
+    import evalsuite as es
+    from evalsuite import benchmarks
+
+    def missing(*_a, **_k):
+        raise es.OptionalDependencyError("nltk", "llm", "METEOR")
+
+    monkeypatch.setattr(es, "meteor", missing)
+    b = benchmarks.run_benchmarks(sizes=(500,), repeat=1, suite="llm")
+    assert not any("METEOR" in r["case"] for r in b.rows) and b.rows

@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.4.0).** Every item on the 0.1.0, 0.2.0, 0.3.0 and 0.4.0 roadmaps is implemented and verified
+> **Status: stable (0.4.1).** Every item on the 0.1.0, 0.2.0, 0.3.0 and 0.4.0 roadmaps is implemented and verified
 > (except SPICE, which needs a Java scene-graph parser).
 > **LLM evaluation is available from 0.4.0**; LLM systems, safety and operations are planned for 0.5.0.
 
@@ -270,6 +270,12 @@ alphabetical order:
 | text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 2789.8 | 3051.8 | **1.1×** |
 | text: METEOR, exact and stem matches (10000 sentences) | NLTK | 488.1 | 626.7 | **1.3×** |
 | text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1290.1 | 1095.6 | 0.85× |
+
+**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 147 registered metrics and
+statistics functions at 10,000 and 100,000 samples. 79 are compared with a reference library, 49 with an
+independent textbook formula and 19 (learned, judge-dependent or randomised) are timed alone; **all 128
+comparisons agree**, and against the libraries the geometric-mean speed-up is **2.76×** (123 of 158
+measurements faster). Per-metric table in BENCHMARKS.md.
 
 `evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where most
 of the speed-up comes from. Hypothesis tests use SciPy underneath, so they match its speed at best; rows
