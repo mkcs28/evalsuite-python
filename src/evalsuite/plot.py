@@ -503,3 +503,149 @@ def detection_pr(
     )
     ax.legend(loc="lower left", frameon=False, fontsize="small")
     return ax
+
+
+# ---------------------------------------------------------------- v0.4.0: preferences and text
+def _rating_fit(method: str, rows: list[Any]) -> Any:
+    from .text.judge import bradley_terry, elo_ratings
+
+    if method == "bradley_terry":
+        return bradley_terry(rows, scale="elo")
+    if method == "elo":
+        return elo_ratings(rows)
+    raise InputValidationError("method must be 'bradley_terry' or 'elo'.")
+
+
+def ratings(
+    comparisons: Any,
+    *,
+    method: str = "bradley_terry",
+    n_resamples: int = 200,
+    level: float = 0.95,
+    random_state: Optional[int] = 0,
+    ax: Optional[Axes] = None,
+) -> Axes:
+    """Leaderboard of model ratings from pairwise ``(model_a, model_b, outcome)`` comparisons, with percentile
+    bootstrap intervals over comparisons (Chatbot Arena style). ``method``: ``"bradley_terry"`` (Elo scale) or
+    ``"elo"`` (online Elo). Resamples on which the Bradley–Terry fit does not exist are skipped and counted in
+    the x-axis label."""
+    rows = list(comparisons)
+    point = _rating_fit(method, rows)
+    names = list(point.labels or ())
+    est = np.asarray(point.value, dtype=float)
+    rng = np.random.default_rng(random_state)
+    boot, failed = [], 0
+    for _ in range(int(n_resamples)):
+        sample = [rows[i] for i in rng.integers(0, len(rows), len(rows))]
+        try:
+            r = _rating_fit(method, sample)
+        except InputValidationError:
+            failed += 1
+            continue
+        lookup = dict(zip(r.labels or (), np.asarray(r.value, dtype=float)))
+        boot.append([lookup.get(n, np.nan) for n in names])
+    order = np.argsort(est)
+    ax = _axes(ax, (5.5, max(2.6, 0.45 * len(names) + 1.2)))
+    y = np.arange(len(names))
+    if boot:
+        b = np.asarray(boot)
+        a = (1 - level) / 2
+        lo, hi = np.nanquantile(b, a, axis=0), np.nanquantile(b, 1 - a, axis=0)
+        ax.errorbar(
+            est[order],
+            y,
+            xerr=[est[order] - lo[order], hi[order] - est[order]],
+            fmt="o",
+            color="#2a6fb0",
+            ecolor="0.45",
+            capsize=3,
+        )
+    else:
+        ax.plot(est[order], y, "o", color="#2a6fb0")
+    ax.set_yticks(y, [str(names[i]) for i in order])
+    title = "Bradley–Terry rating" if method == "bradley_terry" else "Elo rating"
+    note = f"{int(level * 100)}% bootstrap CI, {len(boot)} resamples" + (f", {failed} skipped" if failed else "")
+    ax.set(xlabel=f"{title} ({note})", title=f"{title}s from {len(rows)} comparisons")
+    ax.grid(axis="x", alpha=0.3)
+    return ax
+
+
+def win_matrix(comparisons: Any, *, ax: Optional[Axes] = None, annotate: bool = True) -> Axes:
+    """Heatmap of pairwise win rates: cell (row, column) is how often the row model beat the column model (ties
+    count half); blank where the two were never compared."""
+    from .text.judge import _comparisons
+
+    names, rows = _comparisons(comparisons)
+    m = len(names)
+    wins, games = np.zeros((m, m)), np.zeros((m, m))
+    for a, b, o in rows:
+        wins[a, b] += o
+        wins[b, a] += 1 - o
+        games[a, b] += 1
+        games[b, a] += 1
+    with np.errstate(invalid="ignore", divide="ignore"):
+        rate = np.where(games > 0, wins / np.where(games > 0, games, 1), np.nan)
+    order = np.argsort(-np.nanmean(np.where(np.eye(m, dtype=bool), np.nan, rate), axis=1))  # strongest first
+    rate = rate[np.ix_(order, order)]
+    names = [names[i] for i in order]
+    ax = _axes(ax, (1.2 + 0.7 * m, 0.9 + 0.6 * m))
+    im = ax.imshow(rate, cmap="RdBu", vmin=0, vmax=1)
+    ax.set_xticks(range(m), [str(n) for n in names], rotation=45, ha="right")
+    ax.set_yticks(range(m), [str(n) for n in names])
+    if annotate:
+        for i in range(m):
+            for j in range(m):
+                if not np.isnan(rate[i, j]):
+                    ax.text(
+                        j,
+                        i,
+                        f"{rate[i, j]:.2f}",
+                        ha="center",
+                        va="center",
+                        fontsize=8,
+                        color="white" if abs(rate[i, j] - 0.5) > 0.3 else "black",
+                    )
+    ax.figure.colorbar(im, ax=ax, label="win rate (row vs column)")
+    ax.set_title("Pairwise win rates")
+    return ax
+
+
+def text_scores(
+    references: Any,
+    predictions: Mapping[str, Any],
+    *,
+    metric: Any = "token_f1",
+    ax: Optional[Axes] = None,
+    **metric_kwargs: Any,
+) -> Axes:
+    """Distribution of a per-example text metric for several systems (box plots with the mean marked), e.g.
+    ``metric="rouge_l"``, ``"token_f1"``, ``"meteor"``, ``"sentence_bleu"`` or ``"bertscore"`` (with
+    embeddings). Pair it with ``es.compare`` for intervals and tests."""
+    from .stats._resolve import resolve_metric
+
+    fn, name = resolve_metric(metric)
+    import inspect
+
+    if "average" not in inspect.signature(fn).parameters:
+        raise InputValidationError(
+            f"{name} is a corpus-level metric without per-example scores; use e.g. sentence_bleu, rouge_l, "
+            "token_f1 or meteor, or es.compare for corpus metrics."
+        )
+    if not isinstance(predictions, Mapping) or not predictions:
+        raise InputValidationError("predictions must be a dict of system name -> predictions.")
+    data, labels = [], []
+    for sys_name, preds in predictions.items():
+        res = fn(references, preds, average=None, **metric_kwargs)
+        vals = np.asarray(res.value, dtype=float)
+        if vals.ndim != 1:
+            raise InputValidationError(f"{name} does not give one score per example.")
+        data.append(vals[~np.isnan(vals)])
+        labels.append(str(sys_name))
+    ax = _axes(ax, (1.6 + 1.1 * len(labels), 4.2))
+    ax.boxplot(
+        data, showmeans=True, meanprops={"marker": "D", "markerfacecolor": "#d9822b", "markeredgecolor": "#d9822b"}
+    )
+    ax.set_xticks(range(1, len(labels) + 1), labels)
+    ax.set(ylabel=f"{res.name} per example", title=f"{res.name} by system (diamond = mean)")
+    ax.grid(axis="y", alpha=0.3)
+    return ax

@@ -569,7 +569,7 @@ class BenchmarkResult:
             speedups = [r["speedup"] for r in compared]
             return {
                 "group": name,
-                "cases": len({re.sub(r"\s*\(\d+ images?\)", "", r["case"]) for r in rows}),
+                "cases": len({re.sub(r"\s*\((?=[^)]*\d)[^)]*\)$", "", r["case"]) for r in rows}),
                 "rows": len(rows),
                 "compared": len(compared),
                 "matching": sum(

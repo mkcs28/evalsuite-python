@@ -785,3 +785,51 @@ def test_cli_text_command(tmp_path) -> None:
         text=True,
     )
     assert bad.returncode == 2 and "nope" in bad.stderr
+
+
+# ---------------------------------------------------------------- plots
+def _arena(seed: int = 0, n: int = 300):
+    rng = np.random.default_rng(seed)
+    strength = {"alpha": 1.0, "beta": 0.3, "gamma": -0.4, "delta": -0.9}
+    names = list(strength)
+    rows = []
+    for _ in range(n):
+        a, b = rng.choice(names, 2, replace=False)
+        p = 1 / (1 + np.exp(strength[b] - strength[a]))
+        u = rng.random()
+        rows.append((a, b, "win" if u < p * 0.9 else "tie" if u < p * 0.9 + 0.1 else "loss"))
+    return rows
+
+
+def test_rating_and_win_matrix_plots() -> None:
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    rows = _arena()
+    ax = es.plot.ratings(rows, n_resamples=60)
+    labels = [t.get_text() for t in ax.get_yticklabels()]
+    assert labels[-1] == "alpha" and labels[0] == "delta"  # sorted, best at the top
+    assert "Bradley–Terry" in ax.get_title()
+    assert "Elo" in es.plot.ratings(rows, method="elo", n_resamples=20).get_title()
+    with pytest.raises(es.InputValidationError):
+        es.plot.ratings(rows, method="glicko")
+    wm = es.plot.win_matrix(rows)
+    assert wm.get_title() == "Pairwise win rates" and len(wm.texts) == 12
+    assert wm.get_yticklabels()[0].get_text() == "alpha"  # strongest first
+
+
+def test_text_scores_plot() -> None:
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    refs = ["the cat sat on the mat", "a dog ran", "hello world"] * 3
+    preds = {"a": ["the cat sat on a mat", "dog ran", "hello world"] * 3, "b": ["a cat", "the dog", "bye"] * 3}
+    ax = es.plot.text_scores(refs, preds, metric="rouge_l")
+    assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b"] and "ROUGE-L" in ax.get_title()
+    assert es.plot.text_scores(refs, preds, metric=es.token_f1).get_ylabel().startswith("Token F1")
+    with pytest.raises(es.InputValidationError):
+        es.plot.text_scores(refs, {}, metric="rouge_l")
+    with pytest.raises(es.InputValidationError):
+        es.plot.text_scores(refs, preds, metric="bleu")  # corpus metric: no per-example scores
