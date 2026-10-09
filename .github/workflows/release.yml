@@ -69,5 +69,10 @@ jobs:
         run: |
           prerelease=""
           case "${GITHUB_REF_NAME}" in *a*|*b*|*rc*) prerelease="--prerelease";; esac
-          gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" \
-            --title "evalsuite-python ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." $prerelease
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            # The release already exists (e.g. created in the GitHub UI to make the tag): attach the files.
+            gh release upload "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" \
+              --title "evalsuite-python ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." $prerelease
+          fi
