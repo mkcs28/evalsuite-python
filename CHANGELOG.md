@@ -31,6 +31,11 @@ Computer vision (the v0.3.0 roadmap), with comparison, plots, reporting and benc
   failing with a shape error.
 - CI and release workflows use the Node 24 versions of the GitHub actions.
 
+### Fixed
+- Calibration slope and intercept no longer emit an overflow warning before reporting a perfectly
+  separated outcome.
+- The CLI no longer fails on consoles that cannot print Unicode (Windows code pages).
+
 ## [0.2.1] - 2026-10-09
 
 ### Added
