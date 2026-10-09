@@ -358,14 +358,40 @@ def per_class(
     ax: Optional[Axes] = None,
     class_names: Optional[Mapping[Any, str]] = None,
     sort: bool = False,
+    metric: str = "dice",
 ) -> Axes:
-    """Horizontal bar chart of a per-class result (any metric computed with ``average=None``, e.g.
-    ``es.iou(..., average=None)`` or ``es.f1(..., average=None)``), with the macro mean as a reference line.
+    """Horizontal bar chart of per-class scores, with the macro mean as a reference line.
+
+    ``result`` is any metric computed with ``average=None`` (e.g. ``es.iou(..., average=None)`` or
+    ``es.f1(..., average=None)``), a :class:`SegmentationReport` (``metric`` picks the column: ``"dice"``,
+    ``"iou"``, ``"boundary_iou"``, ``"hd95"`` or ``"assd"``) or a :class:`DetectionReport` (AP per class).
     Undefined classes (NaN) are labelled "n/a"."""
-    if not isinstance(getattr(result, "value", None), np.ndarray) or result.labels is None:
-        raise InputValidationError("per_class() needs a per-class result: compute the metric with average=None.")
-    values = np.asarray(result.value, dtype=np.float64)
-    names = [str(class_names.get(c, c)) if class_names else str(c) for c in result.labels]
+    rows = getattr(result, "rows", None)
+    if isinstance(rows, tuple) and rows and "class" in rows[0]:
+        if metric not in rows[0]:
+            raise InputValidationError(
+                f"Unknown metric {metric!r}; use one of dice, iou, boundary_iou, hd95, assd."
+            )
+        values = np.array([r[metric] for r in rows], dtype=np.float64)
+        labels: list[Any] = [r["class"] for r in rows]
+        default_names = [str(r["name"]) for r in rows]
+        title = {"iou": "IoU", "boundary_iou": "Boundary IoU", "hd95": "HD95", "assd": "ASSD"}.get(metric, "Dice")
+    elif isinstance(getattr(result, "per_class", None), Mapping):
+        labels = list(result.per_class)
+        values = np.array([result.per_class[c] for c in labels], dtype=np.float64)
+        default_names = [str(c) for c in labels]
+        title = "AP@[.50:.95]"
+    elif isinstance(getattr(result, "value", None), np.ndarray) and result.labels is not None:
+        values = np.asarray(result.value, dtype=np.float64)
+        labels = list(result.labels)
+        default_names = [str(c) for c in labels]
+        title = result.name
+    else:
+        raise InputValidationError(
+            "per_class() needs a per-class result (a metric computed with average=None) "
+            "or a segmentation or detection report."
+        )
+    names = [str(class_names.get(c, d)) if class_names else d for c, d in zip(labels, default_names)]
     order = np.argsort(np.nan_to_num(values, nan=-np.inf)) if sort else np.arange(values.size)[::-1]
     ax = _axes(ax, (5.0, max(2.4, 0.38 * values.size + 1.2)))
     finite = np.isfinite(values)
@@ -381,8 +407,8 @@ def per_class(
     if finite.any():
         ax.axvline(float(np.nanmean(values[finite])), color="0.3", linestyle="--", linewidth=1, label="macro mean")
         ax.legend(loc="lower right", frameon=False)
-    ax.set(yticks=np.arange(values.size), yticklabels=[names[i] for i in order], xlabel=result.name)
-    ax.set_title(f"{result.name} per class")
+    ax.set(yticks=np.arange(values.size), yticklabels=[names[i] for i in order], xlabel=title)
+    ax.set_title(f"{title} per class")
     upper = float(np.nanmax(values[finite])) if finite.any() else 1.0
     ax.set_xlim(0, max(1.0, upper * 1.15) if upper <= 1 else upper * 1.15)
     return ax

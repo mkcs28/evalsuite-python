@@ -141,6 +141,7 @@ es.hausdorff_distance(y_true, y_pred, percentile=95, spacing=(0.8, 0.8))  # HD95
 report = es.segmentation_report(y_true, y_pred, class_names={0: "background", 1: "liver"})
 print(report)  # mIoU, Dice, pixel accuracy, Boundary IoU, HD95, ASSD + per-class table
 es.plot.segmentation(image, y_true[0], y_pred[0])  # prediction fill, truth outline
+es.plot.per_class(report, metric="iou")  # per-class bars (also takes a detection report)
 ```
 
 ## Object detection
