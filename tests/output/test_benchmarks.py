@@ -31,7 +31,7 @@ def test_benchmarks_without_sklearn() -> None:
     with pytest.raises(ValueError, match="repeat"):
         run_benchmarks(sizes=(10,), repeat=0)
     with pytest.raises(ValueError, match="suite"):
-        run_benchmarks(sizes=(10,), suite="vision")
+        run_benchmarks(sizes=(10,), suite="audio")
 
 
 def test_v020_benchmarks_agree_with_their_references() -> None:
@@ -45,4 +45,4 @@ def test_v020_benchmarks_agree_with_their_references() -> None:
     for row in b.rows:
         assert row["reference_ms"] > 0 and row["max_abs_diff"] < 1e-9, row["case"]
     assert "statsmodels" in b.summary().splitlines()[0]
-    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 12
+    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 15

@@ -5,7 +5,7 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import calibration, classification, clinical, plot, regression, stats
+from . import calibration, classification, clinical, plot, regression, stats, vision
 from .api import evaluate
 from .calibration import (
     CalibrationReport,
@@ -111,8 +111,49 @@ from .stats import (
     wilcoxon_test,
 )
 from .version import __version__
+from .vision import (
+    DetectionReport,
+    SegmentationReport,
+    average_precision_detection,
+    average_surface_distance,
+    boundary_iou,
+    box_iou,
+    detection_pr_curve,
+    detection_report,
+    dice,
+    from_coco,
+    hausdorff_distance,
+    iou,
+    mean_average_precision,
+    mean_pixel_accuracy,
+    miou,
+    per_image_scores,
+    pixel_accuracy,
+    segmentation_confusion,
+    segmentation_report,
+)
 
 __all__ = [
+    "SegmentationReport",
+    "segmentation_report",
+    "detection_pr_curve",
+    "vision",
+    "DetectionReport",
+    "average_precision_detection",
+    "average_surface_distance",
+    "boundary_iou",
+    "box_iou",
+    "detection_report",
+    "dice",
+    "from_coco",
+    "hausdorff_distance",
+    "iou",
+    "mean_average_precision",
+    "mean_pixel_accuracy",
+    "miou",
+    "per_image_scores",
+    "pixel_accuracy",
+    "segmentation_confusion",
     "CalibrationReport",
     "calibration_report",
     "calibration",

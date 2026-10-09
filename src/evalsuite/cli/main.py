@@ -226,6 +226,77 @@ def cmd_calibration(args: argparse.Namespace) -> int:
     return 0
 
 
+def read_masks(path: str, name: str) -> Any:
+    """Masks from .npy / .npz (first array, or the array named like the file stem) or a folder of image
+    files (PNG, TIFF, ...; read with Pillow, sorted by file name)."""
+    import numpy as np
+
+    if not os.path.exists(path):
+        raise CLIError(f"{name}: no such file or folder: {path}")
+    if os.path.isdir(path):
+        try:
+            from PIL import Image
+        except ImportError as exc:
+            raise CLIError(f"{name}: reading image folders needs Pillow (pip install pillow).") from exc
+        files = sorted(
+            f for f in os.listdir(path) if f.lower().endswith((".png", ".tif", ".tiff", ".bmp", ".gif", ".jpg"))
+        )
+        if not files:
+            raise CLIError(f"{name}: no image files in {path}.")
+        return [np.asarray(Image.open(os.path.join(path, f))) for f in files]
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".npy":
+        return np.load(path, allow_pickle=False)
+    if ext == ".npz":
+        with np.load(path, allow_pickle=False) as data:
+            if not data.files:
+                raise CLIError(f"{name}: {path} contains no arrays.")
+            return data[data.files[0]]
+    raise CLIError(f"{name}: use a .npy or .npz file, or a folder of mask images.")
+
+
+def cmd_segmentation(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    spacing = tuple(float(x) for x in args.spacing.split(",")) if args.spacing else None
+    report = es.segmentation_report(
+        read_masks(args.y_true, "y_true"),
+        read_masks(args.y_pred, "y_pred"),
+        num_classes=args.num_classes,
+        ignore_index=args.ignore_index,
+        spacing=spacing,
+        aggregate=args.aggregate,
+        include_background=not args.no_background,
+    )
+    emit(report, args)
+    if args.plot:
+        _save_figure(lambda ax: es.plot.per_class(_report_iou(report), ax=ax), args.plot)
+    return 0
+
+
+def _report_iou(report: Any) -> Any:
+    import numpy as np
+
+    from ..core.result import MetricResult
+
+    return MetricResult(
+        "iou", "IoU", np.array([r["iou"] for r in report.rows]), labels=tuple(r["name"] for r in report.rows)
+    )
+
+
+def cmd_detection(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    y_true, y_pred = es.from_coco(args.ground_truth, args.results)
+    report = es.detection_report(y_true, y_pred, box_format="xywh", max_detections=args.max_detections)
+    emit(report, args)
+    if args.plot:
+        _save_figure(
+            lambda ax: es.plot.detection_pr(y_true, y_pred, ax=ax, box_format="xywh", iou_threshold=0.5), args.plot
+        )
+    return 0
+
+
 def cmd_compare(args: argparse.Namespace) -> int:
     import evalsuite as es
 
@@ -411,6 +482,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_calibration)
 
     p = sub.add_parser(
+        "segmentation",
+        help="segmentation masks: Dice, IoU, mIoU, Boundary IoU, HD95, ASSD per class",
+    )
+    p.add_argument("y_true", help="true masks: .npy/.npz (images on the first axis) or a folder of mask images")
+    p.add_argument("y_pred", help="predicted masks, same layout as y_true")
+    p.add_argument("--num-classes", type=int, help="number of classes (default: largest label + 1)")
+    p.add_argument("--ignore-index", type=int, help="label to ignore, e.g. 255")
+    p.add_argument("--spacing", help="pixel spacing per axis for surface distances, e.g. 0.8,0.8")
+    p.add_argument("--aggregate", choices=("dataset", "image"), default="dataset")
+    p.add_argument("--no-background", action="store_true", help="leave class 0 out")
+    p.add_argument("--plot", metavar="PATH", help="also save a per-class IoU bar chart")
+    add_output(p)
+    p.set_defaults(func=cmd_segmentation)
+
+    p = sub.add_parser(
+        "detection", help="object detection, COCO protocol: mAP, mAP@.50, mAP@.75, mAR, AP per class"
+    )
+    p.add_argument("ground_truth", help="COCO ground-truth JSON (images, annotations, categories)")
+    p.add_argument("results", help="COCO results JSON (image_id, category_id, bbox, score)")
+    p.add_argument("--max-detections", type=int, default=100)
+    p.add_argument("--plot", metavar="PATH", help="also save precision-recall curves per class (IoU 0.5)")
+    add_output(p, digits=3)
+    p.set_defaults(func=cmd_detection)
+
+    p = sub.add_parser(
         "plot", help="save a ROC, PR, calibration, decision-curve, confusion-matrix or residual plot"
     )
     p.add_argument("kind", choices=("roc", "pr", "calibration", "decision", "confusion", "residuals", "predicted"))
@@ -433,9 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repeat", type=int, default=5, help="timed repetitions per case; the fastest is reported")
     p.add_argument(
         "--suite",
-        choices=("all", "core", "clinical"),
+        choices=("all", "core", "clinical", "vision"),
         default="all",
-        help="core: classification/regression; clinical: v0.2.0 clinical, calibration and tests (default all)",
+        help="core: classification/regression; clinical: clinical, calibration, tests; vision: segmentation, "
+        "detection (default all)",
     )
     p.add_argument("--no-sklearn", action="store_true", help="time EvalSuite only (skip reference libraries)")
     p.add_argument("--seed", type=int, default=0)

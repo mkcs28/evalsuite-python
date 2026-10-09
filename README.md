@@ -7,10 +7,10 @@
 
 **Unified, reproducible evaluation for machine learning and research.**
 
-EvalSuite brings classification, regression, clinical and statistical evaluation (with segmentation and
-object-detection evaluation on the roadmap) into one consistent, validated, documented framework.
+EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
+evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.2.1).** Every item on the 0.1.0 and 0.2.0 roadmaps is implemented and verified.
+> **Status: stable (0.3.0).** Every item on the 0.1.0, 0.2.0 and 0.3.0 roadmaps is implemented and verified.
 
 ## Installation
 
@@ -127,6 +127,44 @@ es.adjust_pvalues(p_values, method="hochberg")  # also holm, bonferroni, bh, by
 Every test returns a `TestResult` with the statistic, p-value and an effect size, computed with SciPy and
 checked against SciPy and statsmodels in the test suite.
 
+## Segmentation
+
+```python
+# label masks: one 2-D image, or images on the first axis (N, H, W) / (N, D, H, W), or a list of masks
+es.dice(y_true, y_pred)  # macro over classes, pixel counts summed over the dataset
+es.iou(y_true, y_pred, average=None)  # per class; classes absent from both masks are NaN, not 0
+es.miou(y_true, y_pred, ignore_index=255)
+es.dice(y_true, y_pred, aggregate="image")  # mean of per-image scores (medical imaging convention)
+es.boundary_iou(y_true, y_pred)  # Cheng et al. 2021
+es.hausdorff_distance(y_true, y_pred, percentile=95, spacing=(0.8, 0.8))  # HD95 in mm
+
+report = es.segmentation_report(y_true, y_pred, class_names={0: "background", 1: "liver"})
+print(report)  # mIoU, Dice, pixel accuracy, Boundary IoU, HD95, ASSD + per-class table
+es.plot.segmentation(image, y_true[0], y_pred[0])  # prediction fill, truth outline
+```
+
+## Object detection
+
+```python
+y_true = [{"boxes": [[x1, y1, x2, y2], ...], "labels": [3, ...]}, ...]  # one dict per image
+y_pred = [{"boxes": [...], "labels": [...], "scores": [...]}, ...]
+
+report = es.detection_report(y_true, y_pred)  # the 12 COCO numbers + AP per class
+report["map"], report["map_50"], report["mar_100"]
+es.mean_average_precision(y_true, y_pred, iou_threshold=0.5)  # mAP@.50
+es.average_precision_detection(y_true, y_pred, interpolation="voc")  # per class, VOC-style
+es.box_iou(boxes_a, boxes_b, box_format="xywh")
+y_true, y_pred = es.from_coco("instances_val.json", "detections.json")
+es.plot.detection_pr(y_true, y_pred)
+```
+
+The COCO protocol (crowd regions, area ranges, max detections, 101-point interpolation) matches
+`pycocotools` to the last digit in the test suite.
+
+Models can be compared over the same images with intervals and paired tests, as for every other task:
+`es.compare(y_true, {"unet": masks_a, "deeplab": masks_b})` resamples images; for detection it compares
+mAP.
+
 ## Classification report
 
 ```python
@@ -171,6 +209,8 @@ evalsuite plot roc predictions.csv --y-true label --y-prob prob -o roc.png
 evalsuite diagnostic predictions.csv --y-true label --y-pred pred   # sensitivity, LR+, DOR... with CIs
 evalsuite calibration predictions.csv --y-true label --y-prob prob  # slope, intercept, ECE, HL
 evalsuite plot decision predictions.csv --y-true label --y-prob prob -o dca.png
+evalsuite segmentation true_masks.npy pred_masks.npy --ignore-index 255 --plot per_class.png
+evalsuite detection instances_val.json detections.json --plot pr_curves.png
 evalsuite metrics --category clinical
 evalsuite info classification.mcc
 evalsuite benchmark --quick
@@ -197,6 +237,9 @@ Linux x86_64). Every result agrees with the reference to floating-point rounding
 | diagnostic report (7 CIs) | 1,000,000 | statsmodels | 16.6 | 4.6 | 0.28× |
 | Welch t-test | 1,000,000 | SciPy | 14.5 | 7.3 | 0.51× |
 | Hochberg correction | 1,000,000 | statsmodels | 75.4 | 81.9 | **1.1×** |
+| segmentation Dice and IoU per class | 1,000,000 px | scikit-learn | 40.2 | 282.0 | **7.0×** |
+| COCO detection evaluation (12 numbers) | 1,000 images | pycocotools | 967.4 | 980.6 | **1.0×** |
+| Hausdorff distance | 50 images | SciPy | 26.2 | 20.8 | 0.79× |
 
 `evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where most
 of the speed-up comes from. Hypothesis tests use SciPy underneath, so they match its speed at best; rows
@@ -224,6 +267,13 @@ paired tests (McNemar, DeLong, paired bootstrap), t-tests (Welch, Student, paire
 Kruskal–Wallis, Friedman, Shapiro–Wilk, χ², Fisher's exact; effect sizes (Cohen's d, Hedges' g, Cliff's
 delta, Cramér's V); multiple-testing corrections (Bonferroni, Holm, Hochberg, Benjamini–Hochberg,
 Benjamini–Yekutieli).
+
+**Segmentation** (2-D and 3-D label masks; `ignore_index`; dataset or per-image aggregation): Dice, IoU,
+mIoU, pixel accuracy, mean pixel accuracy, Boundary IoU, Hausdorff distance and HD95, average symmetric
+surface distance (with pixel spacing), confusion matrix and a full report.
+
+**Object detection**: box IoU (xyxy, xywh, cxcywh), COCO mAP@[.50:.95], mAP@.50, mAP@.75, mAP and mAR by
+object size, AP per class with COCO or VOC interpolation, precision-recall curves, COCO file import.
 
 **Regression** (single and multi-output; sample weights): MAE, MSE, RMSE, R², adjusted R², MAPE, sMAPE,
 MSLE, RMSLE, median absolute error, explained variance, max error, mean bias error, quantile (pinball)
