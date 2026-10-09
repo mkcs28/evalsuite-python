@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-09
+
+### Added
+- Benchmarks for the v0.2.0 functions (`evalsuite benchmark --suite clinical`): diagnostic metrics and
+  report, calibration slope and intercept, decision curves, t-test, Mann–Whitney, Cramér's V and Hochberg,
+  each against its reference (scikit-learn, statsmodels, SciPy or the textbook NumPy loop). Benchmark rows
+  now name their reference library.
+
+### Changed
+- Faster label handling: integer class labels are found with one marking pass instead of a sort
+  (8 label metrics at 1M samples: 34× faster than scikit-learn, up from 10×; macro F1 5.8×, up from 1.6×).
+- Decision curves sort the risks once and use cumulative sums (O((n + k) log n), no n × k matrix).
+
 ## [0.2.0] - 2026-10-08
 
 Clinical and statistical evaluation (the v0.2.0 roadmap).

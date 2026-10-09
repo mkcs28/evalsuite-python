@@ -1,9 +1,13 @@
-"""Speed and memory benchmarks, against scikit-learn when it is installed.
+"""Speed and memory benchmarks against reference implementations.
 
 Each case times the fastest of ``repeat`` runs (after one warm-up) and measures peak traced memory with
-``tracemalloc`` (NumPy reports its allocations to it). Both libraries compute the same metrics on the same
-data, and the largest absolute difference between their results is reported, so speed is never shown for
-numbers that disagree.
+``tracemalloc`` (NumPy reports its allocations to it). EvalSuite and the reference compute the same
+quantities on the same data, and the largest absolute difference between their results is reported, so
+speed is never shown for numbers that disagree.
+
+References: scikit-learn for classification and regression (``suite="core"``); scikit-learn, statsmodels
+and SciPy for the v0.2.0 clinical, calibration and statistics functions (``suite="clinical"``). A case
+whose reference library is not installed is timed for EvalSuite only.
 
     >>> from evalsuite.benchmarks import run_benchmarks
     >>> print(run_benchmarks(sizes=(10_000,), repeat=3))  # doctest: +SKIP
@@ -11,6 +15,7 @@ numbers that disagree.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import platform
 import time
@@ -33,13 +38,16 @@ __all__ = ["BenchmarkResult", "run_benchmarks"]
 _HEADER = (
     "case",
     "n",
+    "reference",
     "evalsuite_ms",
-    "sklearn_ms",
+    "reference_ms",
     "speedup",
     "evalsuite_peak_mb",
-    "sklearn_peak_mb",
+    "reference_peak_mb",
     "max_abs_diff",
 )
+
+Case = tuple[str, str, Callable[[], Any], Optional[Callable[[], Any]]]
 
 
 def _measure(fn: Callable[[], Any], repeat: int) -> tuple[float, float, Any]:
@@ -61,7 +69,7 @@ def _measure(fn: Callable[[], Any], repeat: int) -> tuple[float, float, Any]:
     return best, peak / 2**20, result
 
 
-def _cases(n: int, rng: np.random.Generator) -> list[tuple[str, Callable[[], Any], Optional[Callable[[], Any]]]]:
+def _core_cases(n: int, rng: np.random.Generator) -> list[Case]:
     import evalsuite as es
 
     y = rng.integers(0, 2, n)
@@ -81,11 +89,11 @@ def _cases(n: int, rng: np.random.Generator) -> list[tuple[str, Callable[[], Any
         r = es.evaluate(yr, pr, metrics=["mae", "mse", "rmse", "r2"])
         return [float(r[m]) for m in ("mae", "mse", "rmse", "r2")]
 
-    cases: list[tuple[str, Callable[[], Any], Optional[Callable[[], Any]]]] = [
-        ("binary: 8 label metrics via evaluate()", es_binary, None),
-        ("10 classes: macro F1", lambda: [float(es.f1(yk, pk, average="macro"))], None),
-        ("binary: ROC AUC", lambda: [float(es.roc_auc(y, prob))], None),
-        ("regression: MAE, MSE, RMSE, R² via evaluate()", es_reg, None),
+    cases: list[Case] = [
+        ("binary: 8 label metrics via evaluate()", "scikit-learn", es_binary, None),
+        ("10 classes: macro F1", "scikit-learn", lambda: [float(es.f1(yk, pk, average="macro"))], None),
+        ("binary: ROC AUC", "scikit-learn", lambda: [float(es.roc_auc(y, prob))], None),
+        ("regression: MAE, MSE, RMSE, R² via evaluate()", "scikit-learn", es_reg, None),
     ]
     try:
         import sklearn.metrics as skm  # type: ignore[import-untyped]
@@ -109,7 +117,118 @@ def _cases(n: int, rng: np.random.Generator) -> list[tuple[str, Callable[[], Any
         return [skm.mean_absolute_error(yr, pr), mse, float(np.sqrt(mse)), skm.r2_score(yr, pr)]
 
     sk = [sk_binary, lambda: [skm.f1_score(yk, pk, average="macro")], lambda: [skm.roc_auc_score(y, prob)], sk_reg]
-    return [(name, es_fn, sk_fn) for (name, es_fn, _), sk_fn in zip(cases, sk)]
+    return [(name, ref, es_fn, sk_fn) for (name, ref, es_fn, _), sk_fn in zip(cases, sk)]
+
+
+def _clinical_cases(n: int, rng: np.random.Generator) -> list[Case]:
+    """v0.2.0: diagnostic accuracy, calibration, decision curves and statistical tests."""
+    import evalsuite as es
+
+    y = rng.integers(0, 2, n)
+    p = np.where(rng.random(n) < 0.8, y, 1 - y)
+    x = rng.normal(size=n)
+    yc = (rng.random(n) < 1 / (1 + np.exp(-(0.4 + 1.3 * x)))).astype(int)
+    risk = 1 / (1 + np.exp(-(0.1 + 2.0 * x)))
+    a, b = rng.normal(0, 1, n), rng.normal(0.05, 1.2, n)
+    pvals = rng.random(n) ** 2
+    ga, gb = rng.integers(0, 5, n), rng.integers(0, 5, n)
+    table = np.zeros((5, 5), dtype=np.int64)
+    np.add.at(table, (ga, gb), 1)
+    thresholds = np.arange(1, 100) / 100
+
+    def es_diag() -> list[float]:
+        return [
+            float(es.sensitivity(y, p)),
+            float(es.specificity(y, p)),
+            float(es.lr_positive(y, p)),
+            float(es.lr_negative(y, p)),
+        ]
+
+    report_keys = ("sensitivity", "specificity", "ppv", "npv", "accuracy", "prevalence", "diagnostic_odds_ratio")
+
+    def es_report() -> list[float]:
+        r = es.diagnostic_report(y, p)
+        return [v for k in report_keys for v in (r[k].low, r[k].high)]
+
+    def es_cal() -> list[float]:
+        return [float(es.calibration_slope(yc, risk)), float(es.calibration_intercept(yc, risk))]
+
+    def es_dca() -> list[float]:
+        curve: list[float] = es.decision_curve(yc, risk, thresholds=thresholds).net_benefit["model"].tolist()
+        return curve
+
+    def numpy_dca() -> list[float]:  # the textbook loop, one threshold at a time
+        out = []
+        for t in thresholds:
+            treat = risk >= t
+            tp = np.sum(treat & (yc == 1))
+            fp = np.sum(treat & (yc == 0))
+            out.append(tp / n - fp / n * t / (1 - t))
+        return out
+
+    cases: list[Case] = [
+        ("clinical: sensitivity, specificity, LR+, LR−", "scikit-learn", es_diag, None),
+        ("clinical: diagnostic report (7 CIs)", "statsmodels", es_report, None),
+        ("calibration: slope and intercept", "statsmodels", es_cal, None),
+        ("decision curve: 99 thresholds", "NumPy loop", es_dca, numpy_dca),
+        ("statistics: Welch t-test", "SciPy", lambda: [es.t_test(a, b).p_value], None),
+        ("statistics: Mann–Whitney U", "SciPy", lambda: [es.mann_whitney_test(a, b).p_value], None),
+        ("statistics: Cramér's V (5×5 table)", "SciPy", lambda: [es.cramers_v(table)], None),
+        (
+            "multiple testing: Hochberg (n p-values)",
+            "statsmodels",
+            lambda: es.adjust_pvalues(pvals, method="hochberg").tolist(),
+            None,
+        ),
+    ]
+    refs: dict[str, Callable[[], Any]] = {}
+    try:
+        import sklearn.metrics as skm
+
+        def sk_diag() -> list[float]:
+            lr_pos, lr_neg = skm.class_likelihood_ratios(y, p)
+            return [skm.recall_score(y, p), skm.recall_score(y, p, pos_label=0), lr_pos, lr_neg]
+
+        refs["clinical: sensitivity, specificity, LR+, LR−"] = sk_diag
+    except (ImportError, AttributeError):
+        pass
+    from scipy import stats
+
+    refs["statistics: Welch t-test"] = lambda: [stats.ttest_ind(a, b, equal_var=False).pvalue]
+    refs["statistics: Mann–Whitney U"] = lambda: [stats.mannwhitneyu(a, b).pvalue]
+    refs["statistics: Cramér's V (5×5 table)"] = lambda: [stats.contingency.association(table, method="cramer")]
+    try:
+        import statsmodels.api as sm  # type: ignore[import-untyped]
+        from statsmodels.stats.contingency_tables import Table2x2  # type: ignore[import-untyped]
+        from statsmodels.stats.multitest import multipletests  # type: ignore[import-untyped]
+        from statsmodels.stats.proportion import proportion_confint  # type: ignore[import-untyped]
+
+        def sm_report() -> list[float]:
+            tp = int(np.sum((y == 1) & (p == 1)))
+            fn = int(np.sum((y == 1) & (p == 0)))
+            fp = int(np.sum((y == 0) & (p == 1)))
+            tn = int(np.sum((y == 0) & (p == 0)))
+            out: list[float] = []
+            for k, m in ((tp, tp + fn), (tn, tn + fp), (tp, tp + fp), (tn, tn + fn), (tp + tn, n), (tp + fn, n)):
+                out.extend(proportion_confint(k, m, method="wilson"))
+            out.extend(Table2x2(np.array([[tp, fn], [fp, tn]])).oddsratio_confint())
+            return out
+
+        def sm_cal() -> list[float]:
+            lp = np.log(risk / (1 - risk))
+            fam = sm.families.Binomial()
+            slope = sm.GLM(yc, sm.add_constant(lp), family=fam).fit().params[1]
+            intercept = sm.GLM(yc, np.ones((n, 1)), family=fam, offset=lp).fit().params[0]
+            return [slope, intercept]
+
+        refs["clinical: diagnostic report (7 CIs)"] = sm_report
+        refs["calibration: slope and intercept"] = sm_cal
+        refs["multiple testing: Hochberg (n p-values)"] = lambda: multipletests(pvals, method="simes-hochberg")[
+            1
+        ].tolist()
+    except ImportError:
+        pass
+    return [(name, ref, es_fn, own if own is not None else refs.get(name)) for name, ref, es_fn, own in cases]
 
 
 @dataclass(frozen=True, eq=False)
@@ -131,11 +250,12 @@ class BenchmarkResult:
             [
                 r["case"],
                 f"{r['n']:,}",
+                r.get("reference") or "–",
                 f(r["evalsuite_ms"]),
-                f(r["sklearn_ms"]),
+                f(r.get("reference_ms")),
                 "–" if r["speedup"] is None else f"{r['speedup']:.2f}×",
                 f(r["evalsuite_peak_mb"], 2),
-                f(r["sklearn_peak_mb"], 2),
+                f(r.get("reference_peak_mb"), 2),
                 "–" if r["max_abs_diff"] is None else f"{r['max_abs_diff']:.1e}",
             ]
             for r in self.rows
@@ -144,11 +264,12 @@ class BenchmarkResult:
     _TITLES = (
         "Case",
         "n",
+        "Reference",
         "EvalSuite (ms)",
-        "scikit-learn (ms)",
+        "Reference (ms)",
         "Speed-up",
         "EvalSuite peak (MiB)",
-        "scikit-learn peak (MiB)",
+        "Reference peak (MiB)",
         "Max |difference|",
     )
 
@@ -157,15 +278,17 @@ class BenchmarkResult:
         widths = [max(len(t), *(len(c[i]) for c in cells)) for i, t in enumerate(self._TITLES)]
 
         def line(c: Sequence[str]) -> str:
-            return "  ".join(x.ljust(widths[i]) if i == 0 else x.rjust(widths[i]) for i, x in enumerate(c))
+            return "  ".join(x.ljust(widths[i]) if i in (0, 2) else x.rjust(widths[i]) for i, x in enumerate(c))
 
         env = self.environment
         head = (
             f"EvalSuite {env['evalsuite']} benchmarks | Python {env['python']} | NumPy {env['numpy']}"
             + (f" | scikit-learn {env['sklearn']}" if env.get("sklearn") else "")
+            + (f" | statsmodels {env['statsmodels']}" if env.get("statsmodels") else "")
+            + (f" | SciPy {env['scipy']}" if env.get("scipy") else "")
             + f" | {env['machine']} | fastest of {env['repeat']} runs"
         )
-        note = "Speed-up > 1 means EvalSuite is faster. Max |difference| compares the two libraries' results."
+        note = "Speed-up > 1 means EvalSuite is faster. Max |difference| compares EvalSuite with the reference."
         return "\n".join([head, "", line(self._TITLES), *(line(c) for c in cells), "", note])
 
     def __repr__(self) -> str:
@@ -189,7 +312,7 @@ class BenchmarkResult:
     def to_csv(self, path: Optional[str] = None) -> str:
         from .core.export import csv_text
 
-        rows = [[r[h] if r[h] is not None else float("nan") for h in _HEADER] for r in self.rows]
+        rows = [[r.get(h) if r.get(h) is not None else float("nan") for h in _HEADER] for r in self.rows]
         text = csv_text(list(_HEADER), rows)
         if path is not None:
             with open(path, "w", encoding="utf-8", newline="") as fh:
@@ -197,7 +320,10 @@ class BenchmarkResult:
         return text
 
     def to_markdown(self, *, digits: int = 3) -> str:
-        lines = ["| " + " | ".join(self._TITLES) + " |", "| --- |" + " ---: |" * (len(self._TITLES) - 1)]
+        lines = [
+            "| " + " | ".join(self._TITLES) + " |",
+            "| --- | ---: | --- |" + " ---: |" * (len(self._TITLES) - 3),
+        ]
         return "\n".join(lines + ["| " + " | ".join(c) + " |" for c in self._cells(digits)])
 
     def to_latex(self, *, digits: int = 3, caption: Optional[str] = None, label: Optional[str] = None) -> str:
@@ -223,50 +349,69 @@ def run_benchmarks(
     repeat: int = 5,
     compare_sklearn: bool = True,
     random_state: Optional[int] = 0,
+    suite: str = "all",
 ) -> BenchmarkResult:
-    """Time and memory for common evaluation workloads at each size, against scikit-learn if installed."""
+    """Time and memory for evaluation workloads at each size, against a reference implementation.
+
+    ``suite``: ``"core"`` (classification and regression vs scikit-learn), ``"clinical"`` (v0.2.0 clinical,
+    calibration and statistics vs scikit-learn, statsmodels, SciPy) or ``"all"`` (default).
+    ``compare_sklearn=False`` times EvalSuite alone. Rows keep ``sklearn_ms``/``sklearn_peak_mb`` for rows
+    whose reference is scikit-learn, for compatibility with 0.1.x.
+    """
+    import scipy
+
     import evalsuite as es
 
     if repeat < 1:
         raise ValueError("repeat must be at least 1.")
+    if suite not in ("all", "core", "clinical"):
+        raise ValueError("suite must be 'all', 'core' or 'clinical'.")
     rng = np.random.default_rng(random_state)
     rows: list[dict[str, Any]] = []
-    sk_version: Optional[str] = None
+    versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None}
     if compare_sklearn:
-        try:
-            import sklearn
-
-            sk_version = sklearn.__version__
-        except ImportError:
-            compare_sklearn = False
+        for mod in versions:
+            with contextlib.suppress(ImportError):
+                versions[mod] = __import__(mod).__version__
+    builders = {"core": [_core_cases], "clinical": [_clinical_cases], "all": [_core_cases, _clinical_cases]}[suite]
     for n in sizes:
-        for name, es_fn, sk_fn in _cases(int(n), rng):
-            es_t, es_mem, es_val = _measure(es_fn, repeat)
-            row: dict[str, Any] = {
-                "case": name,
-                "n": int(n),
-                "evalsuite_ms": es_t * 1000,
-                "evalsuite_peak_mb": es_mem,
-                "sklearn_ms": None,
-                "sklearn_peak_mb": None,
-                "speedup": None,
-                "max_abs_diff": None,
-            }
-            if compare_sklearn and sk_fn is not None:
-                sk_t, sk_mem, sk_val = _measure(sk_fn, repeat)
-                row.update(
-                    sklearn_ms=sk_t * 1000,
-                    sklearn_peak_mb=sk_mem,
-                    speedup=sk_t / es_t if es_t else None,
-                    max_abs_diff=float(np.max(np.abs(np.asarray(es_val, float) - np.asarray(sk_val, float)))),
-                )
-            rows.append(row)
+        for build in builders:
+            for name, ref_name, es_fn, ref_fn in build(int(n), rng):
+                es_t, es_mem, es_val = _measure(es_fn, repeat)
+                row: dict[str, Any] = {
+                    "case": name,
+                    "n": int(n),
+                    "reference": None,
+                    "evalsuite_ms": es_t * 1000,
+                    "evalsuite_peak_mb": es_mem,
+                    "reference_ms": None,
+                    "reference_peak_mb": None,
+                    "sklearn_ms": None,
+                    "sklearn_peak_mb": None,
+                    "speedup": None,
+                    "max_abs_diff": None,
+                }
+                if compare_sklearn and ref_fn is not None:
+                    ref_t, ref_mem, ref_val = _measure(ref_fn, repeat)
+                    row.update(
+                        reference=ref_name,
+                        reference_ms=ref_t * 1000,
+                        reference_peak_mb=ref_mem,
+                        speedup=ref_t / es_t if es_t else None,
+                        max_abs_diff=float(np.max(np.abs(np.asarray(es_val, float) - np.asarray(ref_val, float)))),
+                    )
+                    if ref_name == "scikit-learn":
+                        row.update(sklearn_ms=row["reference_ms"], sklearn_peak_mb=ref_mem)
+                rows.append(row)
     env = {
         "evalsuite": es.__version__,
         "python": platform.python_version(),
         "numpy": np.__version__,
-        "sklearn": sk_version,
+        "scipy": scipy.__version__ if suite != "core" else None,
+        "sklearn": versions["sklearn"],
+        "statsmodels": versions["statsmodels"] if suite != "core" else None,
         "machine": f"{platform.system()} {platform.machine()}",
         "repeat": repeat,
+        "suite": suite,
     }
     return BenchmarkResult(tuple(rows), env)

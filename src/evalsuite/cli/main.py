@@ -335,7 +335,11 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
     sizes = (1_000, 10_000) if args.quick else tuple(args.sizes)
     result = run_benchmarks(
-        sizes=sizes, repeat=args.repeat, compare_sklearn=not args.no_sklearn, random_state=args.seed
+        sizes=sizes,
+        repeat=args.repeat,
+        compare_sklearn=not args.no_sklearn,
+        random_state=args.seed,
+        suite=args.suite,
     )
     emit(result, args)
     return 0
@@ -427,7 +431,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sizes", type=int, nargs="+", default=[1_000, 100_000, 1_000_000])
     p.add_argument("--quick", action="store_true", help="small sizes only (1k and 10k)")
     p.add_argument("--repeat", type=int, default=5, help="timed repetitions per case; the fastest is reported")
-    p.add_argument("--no-sklearn", action="store_true", help="skip the scikit-learn comparison")
+    p.add_argument(
+        "--suite",
+        choices=("all", "core", "clinical"),
+        default="all",
+        help="core: classification/regression; clinical: v0.2.0 clinical, calibration and tests (default all)",
+    )
+    p.add_argument("--no-sklearn", action="store_true", help="time EvalSuite only (skip reference libraries)")
     p.add_argument("--seed", type=int, default=0)
     add_output(p, digits=3)
     p.set_defaults(func=cmd_benchmark)

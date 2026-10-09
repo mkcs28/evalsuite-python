@@ -83,6 +83,18 @@ def validate_sample_weight(sample_weight: Optional[ArrayLike], n: int) -> Option
     return w
 
 
+def unique_labels(y: NDArray[Any]) -> NDArray[Any]:
+    """Sorted unique values, like ``np.unique``. Small-range integer labels (the usual case for class labels)
+    are found with one marking pass instead of a sort, which is several times faster on large arrays."""
+    if y.size and np.issubdtype(y.dtype, np.integer):
+        lo, hi = int(y.min()), int(y.max())
+        if lo > -(2**62) and hi < 2**62 and hi - lo <= max(1024, y.size):
+            present = np.zeros(hi - lo + 1, dtype=bool)
+            present[(y.astype(np.int64) - lo).ravel()] = True  # int64 offsets: no overflow for small dtypes
+            return (np.flatnonzero(present).astype(np.int64) + lo).astype(y.dtype)
+    return np.unique(y)
+
+
 def target_type(y: NDArray[Any]) -> TargetType:
     """Infer the type of a label array."""
     if y.ndim == 2:
@@ -97,7 +109,7 @@ def target_type(y: NDArray[Any]) -> TargetType:
     if np.issubdtype(y.dtype, np.floating) and not np.all(np.mod(y, 1) == 0):
         return "continuous"
     try:
-        n_unique = np.unique(y).shape[0]
+        n_unique = unique_labels(y).shape[0]
     except TypeError as exc:
         raise InputValidationError(
             "Labels must be mutually comparable (for example all integers or all strings); found a mix of types."
@@ -116,7 +128,7 @@ def resolve_labels(
         return lab
     present = y_true if y_pred is None else np.concatenate([y_true, y_pred])
     try:
-        return np.unique(present)
+        return unique_labels(present)
     except TypeError as exc:
         raise InputValidationError(
             "Labels in y_true and y_pred must be mutually comparable (for example all integers or all strings)."

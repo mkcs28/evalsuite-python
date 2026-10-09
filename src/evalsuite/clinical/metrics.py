@@ -288,14 +288,23 @@ def _check_thresholds(t: ArrayLike) -> np.ndarray:
 def net_benefit_curve(
     y: np.ndarray, p: np.ndarray, w: np.ndarray, thresholds: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Net benefit of the model and of treating everyone at each threshold."""
+    """Net benefit of the model and of treating everyone at each threshold (treat when risk ≥ threshold).
+
+    Sorting once and using cumulative sums makes this O((n + k) log n) for k thresholds and O(n) memory."""
     n = w.sum()
-    treat = p[None, :] >= thresholds[:, None]
-    tp = (treat * (w * y)[None, :]).sum(axis=1)
-    fp = (treat * (w * (1 - y))[None, :]).sum(axis=1)
+    order = np.argsort(p, kind="mergesort")
+    p_sorted = p[order]
+    wy = (w * y)[order]
+    w0 = (w * (1 - y))[order]
+    # cumulative weight of observations strictly below each cut point, from the low-risk end
+    below_pos = np.concatenate([[0.0], np.cumsum(wy)])
+    below_neg = np.concatenate([[0.0], np.cumsum(w0)])
+    k = np.searchsorted(p_sorted, thresholds, side="left")
+    tp = below_pos[-1] - below_pos[k]
+    fp = below_neg[-1] - below_neg[k]
     odds = thresholds / (1 - thresholds)
     model = tp / n - fp / n * odds
-    prevalence = float((w * y).sum() / n)
+    prevalence = float(below_pos[-1] / n)
     treat_all = prevalence - (1 - prevalence) * odds
     return model, treat_all
 
