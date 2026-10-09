@@ -204,7 +204,18 @@ def test_moverscore_matches_pot() -> None:
         for x, y, a, b in zip(r, p, wr, wp)
     ]
     np.testing.assert_allclose(ours, ref, atol=1e-9)
+
+
+def test_moverscore_without_reference_library() -> None:
+    r, p, wr, wp = _tok_embs(2)
     assert float(es.moverscore([r[0]], [r[0]])) == pytest.approx(1.0, abs=1e-9)
+    # one token each: the transport cost is the distance between the two unit vectors
+    a, b = np.array([[3.0, 4.0]]), np.array([[4.0, 3.0]])
+    assert float(es.moverscore([a], [b])) == pytest.approx(1 - np.linalg.norm(a[0] / 5 - b[0] / 5))
+    vals = es.moverscore(r[:3], p[:3], reference_weights=wr[:3], prediction_weights=wp[:3], average=None).value
+    assert vals.shape == (3,) and np.all(vals <= 1)
+    with pytest.raises(es.InputValidationError):
+        es.moverscore(r[:2], p[:3])
 
 
 def test_mauve_curve_matches_mauve_text() -> None:
@@ -683,3 +694,94 @@ def test_every_v040_metric_is_registered_with_documentation() -> None:
     for mid in ids:
         info = es.metric_info(mid)
         assert info.definition and info.formula and info.references, mid
+
+
+# ---------------------------------------------------------------- report and retrieval without references
+def test_text_report_values_exports_and_subset(tmp_path) -> None:
+    refs = [["The cat sat on the mat.", "A cat on a mat."], ["Hello world"]]
+    preds = ["The cat sat on a mat.", "hello there world"]
+    rep = es.text_report(refs, preds)
+    assert rep["bleu"] == pytest.approx(float(es.bleu(refs, preds)))
+    assert rep["chrf_pp"] == pytest.approx(float(es.chrf(refs, preds, word_order=2)))
+    assert rep["token_f1"] == pytest.approx(float(es.token_f1(refs, preds)))
+    assert "BLEU" in rep.summary() and rep.to_markdown().startswith("| Metric |")
+    assert json.loads(rep.to_json())["values"]["ter"] == pytest.approx(float(es.ter(refs, preds)))
+    assert "\\toprule" in rep.to_latex() or "toprule" in rep.to_latex()
+    assert "<table" in rep.to_html() and rep.to_csv().startswith("metric,value")
+    assert next(iter(rep.to_dataframe().index)) == "bleu"
+    for ext in ("json", "csv", "md", "tex", "html", "txt"):
+        rep.save(tmp_path / f"r.{ext}")
+        assert (tmp_path / f"r.{ext}").read_text(encoding="utf-8").strip()
+    sub = es.text_report(refs, preds, metrics=["rouge_l", "exact_match"])
+    assert list(sub.values) == ["rouge_l", "exact_match"]
+    with pytest.raises(KeyError):
+        sub["bleu"]
+    with pytest.raises(es.InputValidationError):
+        es.text_report(refs, preds, metrics=["bertscore"])
+
+
+def test_retrieval_hand_computed() -> None:
+    relevant = [{"a", "c"}, {"x"}, {"b": 3, "d": 1}]
+    retrieved = [["a", "b", "c"], ["y", "z"], ["d", "b"]]
+    assert es.precision_at_k(relevant, retrieved, k=2, average=None).value.tolist() == [0.5, 0.0, 1.0]
+    assert es.recall_at_k(relevant, retrieved, k=2, average=None).value.tolist() == [0.5, 0.0, 1.0]
+    assert es.hit_rate_at_k(relevant, retrieved, k=1, average=None).value.tolist() == [1.0, 0.0, 1.0]
+    assert es.mrr(relevant, retrieved, average=None).value.tolist() == [1.0, 0.0, 1.0]
+    assert float(es.mean_average_precision_at_k(relevant, retrieved, k=3)) == pytest.approx(
+        ((1 + 2 / 3) / 2 + 0 + 1) / 3
+    )
+    # graded NDCG with linear gains (trec_eval and ranx), discounted by log2(rank + 1)
+    dcg = 1 / 1 + 3 / math.log2(3)
+    idcg = 3 / 1 + 1 / math.log2(3)
+    assert es.ndcg_at_k(relevant, retrieved, k=2, average=None).value[2] == pytest.approx(dcg / idcg)
+    for bad in (
+        lambda: es.precision_at_k([{"a"}], [["a"], ["b"]]),
+        lambda: es.precision_at_k([{"a"}], [["a", "a"]]),
+        lambda: es.precision_at_k([{"a"}], ["a"]),
+        lambda: es.precision_at_k([{"a"}], [["a"]], k=0),
+        lambda: es.recall_at_k([set()], [["a"]]),
+        lambda: es.ndcg_at_k([{"a": -1}], [["a"]]),
+        lambda: es.ndcg_at_k(["a"], [["a"]]),
+    ):
+        with pytest.raises(es.InputValidationError):
+            bad()
+
+
+def test_cli_text_command(tmp_path) -> None:
+    import subprocess
+    import sys
+
+    f = tmp_path / "t.csv"
+    f.write_text(
+        'pred,ref,ref2\n"The cat sat on a mat.","The cat sat on the mat.","A cat on a mat."\nhello,Hello,\n'
+    )
+    out = subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "-m",
+            "evalsuite",
+            "text",
+            str(f),
+            "--prediction",
+            "pred",
+            "--reference",
+            "ref",
+            "--reference",
+            "ref2",
+            "--metrics",
+            "bleu,rouge_l",
+            "-f",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    values = json.loads(out.stdout)["values"]
+    assert set(values) == {"bleu", "rouge_l"}
+    bad = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "evalsuite", "text", str(f), "--prediction", "nope", "--reference", "ref"],
+        capture_output=True,
+        text=True,
+    )
+    assert bad.returncode == 2 and "nope" in bad.stderr
