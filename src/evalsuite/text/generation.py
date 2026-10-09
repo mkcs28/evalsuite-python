@@ -815,17 +815,18 @@ def _logprob_arrays(token_logprobs: Any) -> list[np.ndarray]:
         raise InputValidationError("token_logprobs must be a non-empty list of per-token log-probabilities.")
     if all(isinstance(v, (int, float, np.floating)) for v in seqs):
         seqs = [seqs]
-    out = []
-    for i, s in enumerate(seqs):
-        a = np.asarray(s, dtype=np.float64).ravel()
+    out = [np.asarray(s, dtype=np.float64).ravel() for s in seqs]
+    flat = np.concatenate(out)
+    if np.all(np.isfinite(flat)) and not np.any(flat > 1e-9) and all(a.size for a in out):
+        return out  # validated once over all tokens; the loop below only locates the offending sequence
+    for i, a in enumerate(out):
         if a.size == 0:
             raise InputValidationError(f"token_logprobs[{i}] is empty.")
         if not np.all(np.isfinite(a)) or np.any(a > 1e-9):
             raise InputValidationError(
                 f"token_logprobs[{i}] must contain finite natural-log probabilities (<= 0)."
             )
-        out.append(a)
-    return out
+    return out  # pragma: no cover - unreachable: the pooled check failed, so some sequence fails
 
 
 @register(
@@ -844,8 +845,8 @@ def _logprob_arrays(token_logprobs: Any) -> list[np.ndarray]:
 def cross_entropy(token_logprobs: Any, *, base: float = math.e) -> MetricResult:
     """Token-pooled cross-entropy from natural-log token probabilities, in nats (``base=2`` for bits)."""
     seqs = _logprob_arrays(token_logprobs)
-    total = sum(float(s.sum()) for s in seqs)
-    n_tokens = sum(s.size for s in seqs)
+    flat = np.concatenate(seqs)
+    total, n_tokens = float(flat.sum()), int(flat.size)
     if base <= 0 or base == 1:
         raise InputValidationError("base must be positive and not 1.")
     value = -total / n_tokens / math.log(base)
@@ -872,7 +873,7 @@ def perplexity(token_logprobs: Any, *, average: str = "tokens") -> MetricResult:
     per-sequence perplexities instead."""
     seqs = _logprob_arrays(token_logprobs)
     if average == "tokens":
-        value = math.exp(-sum(float(s.sum()) for s in seqs) / sum(s.size for s in seqs))
+        value = math.exp(-float(np.concatenate(seqs).mean()))
     elif average == "sequences":
         value = float(np.mean([math.exp(-float(s.mean())) for s in seqs]))
     else:

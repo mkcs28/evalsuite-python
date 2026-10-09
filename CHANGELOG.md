@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-09
+
+Benchmarks for every metric. No API changed.
+
+### Added
+- `run_benchmarks(suite="metrics")` and `evalsuite benchmark --suite metrics`: one row for each of the 147
+  registered metrics and statistics functions, compared with a reference library (scikit-learn, SciPy,
+  statsmodels, pycocotools, sacreBLEU, rouge-score, NLTK, pycocoevalcap, ranx, krippendorff, choix, POT,
+  jsonschema) where one exists, otherwise with an independent NumPy / standard-library implementation of
+  the textbook formula; learned, judge-dependent and randomised procedures are timed alone. All 128
+  comparisons agree to 1e-9. A test keeps the suite in step with the registry.
+- `scripts/bench_metrics_report.py` renders the per-metric table for BENCHMARKS.md and the website.
+
+### Changed
+- `net_benefit` at a single threshold computes in one pass instead of sorting (about 3× faster).
+- `perplexity` and `cross_entropy` validate the pooled tokens once instead of each sequence separately
+  (5–9× faster for many short sequences); errors still name the offending sequence.
+
 ## [0.4.0] - 2026-10-09
 
 LLM evaluation (the v0.4.0 roadmap). No existing API changed.
