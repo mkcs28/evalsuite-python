@@ -114,6 +114,11 @@ def _as_images(masks: Masks, name: str) -> list[NDArray[Any]]:
     return out
 
 
+def _count(n: int, noun: str) -> str:
+    plural = noun + ("es" if noun.endswith("s") else "s")
+    return f"{n} {noun if n == 1 else plural}"
+
+
 def _pairs(y_true: Masks, y_pred: Masks) -> list[tuple[NDArray[Any], NDArray[Any]]]:
     t = _as_images(y_true, "y_true")
     p = _as_images(y_pred, "y_pred")
@@ -787,7 +792,8 @@ class SegmentationReport:
         p = self.params
         unit = " (physical units)" if p.get("spacing") else " (pixels)"
         lines = [
-            f"EvalSuite segmentation evaluation ({p['n_images']} images, {len(self.rows)} classes, "
+            f"EvalSuite segmentation evaluation ({_count(p['n_images'], 'image')}, "
+            f"{_count(len(self.rows), 'class')}, "
             f"aggregate={p['aggregate']})",
             f"  mIoU                        {_fmt(self.values['miou'], digits)}",
             f"  Mean Dice                   {_fmt(self.values['dice'], digits)}",
