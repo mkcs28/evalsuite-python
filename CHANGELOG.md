@@ -6,7 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Added (v0.4.0, LLM evaluation, in development)
+## [0.4.0] - 2026-10-09
+
+LLM evaluation (the v0.4.0 roadmap). No existing API changed.
+
+### Added
 - `es.text` and top-level functions for language-model evaluation; 69 new registered metrics, each checked
   against a reference implementation where one exists:
   - Text generation: BLEU, sentence BLEU, chrF/chrF++, TER (sacreBLEU), ROUGE-1/2/L/Lsum (rouge-score),
@@ -33,6 +37,13 @@ All notable changes to this project are documented here. The format follows
   these metrics, so corpus metrics such as BLEU get proper intervals.
 - Benchmark suite `llm` against sacreBLEU, rouge-score, NLTK, ranx, krippendorff and jsonschema.
 - `llm` extra (`nltk`) for METEOR's default Porter stemmer.
+- Plots: `es.plot.ratings` (Bradley–Terry or Elo leaderboard with bootstrap intervals), `es.plot.win_matrix`
+  (pairwise win rates) and `es.plot.text_scores` (per-example score distributions by system).
+- Benchmark overall summary counts cases without their size suffixes.
+
+### Not included
+- SPICE (needs a Java scene-graph parser); BLEURT, COMET, BARTScore and AlignScore run through
+  `es.model_score` with your model rather than being bundled.
 
 ## [0.3.1] - 2026-10-09
 
