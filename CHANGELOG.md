@@ -21,7 +21,7 @@ Computer vision (the v0.3.0 roadmap), with comparison, plots, reporting and benc
 - Comparison for vision: `compare`, `bootstrap_ci` and `paired_bootstrap_test` resample images for
   segmentation masks and per-image detections.
 - Plots: `es.plot.segmentation` (prediction fill vs truth outline), `es.plot.per_class` (any per-class
-  result), `es.plot.detection_pr`.
+  result, a segmentation report or a detection report), `es.plot.detection_pr`.
 - CLI: `evalsuite segmentation` (.npy/.npz or a folder of mask images) and `evalsuite detection` (COCO JSON).
 - Benchmarks: `--suite vision` against scikit-learn, SciPy and pycocotools.
 - `vision` extra (Pillow, for reading mask image folders); `CITATION.cff`.

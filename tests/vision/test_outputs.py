@@ -144,3 +144,27 @@ def test_report_headers_use_singular_for_one_image():
     mask = np.zeros((8, 8), dtype=int)
     mask[2:5, 2:5] = 1
     assert "1 image, 2 classes" in str(es.segmentation_report(mask, mask))
+
+
+def test_per_class_plot_accepts_reports():
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    rng = np.random.default_rng(1)
+    yt = rng.integers(0, 3, (2, 16, 16))
+    yp = yt.copy()
+    yp[:, :2] = 0
+    rep = es.segmentation_report(yt, yp, class_names={0: "bg", 1: "a", 2: "b"})
+    ax = es.plot.per_class(rep, metric="iou")
+    assert ax.get_title() == "IoU per class"
+    assert {t.get_text() for t in ax.get_yticklabels()} == {"bg", "a", "b"}
+    with pytest.raises(es.InputValidationError):
+        es.plot.per_class(rep, metric="nope")
+    det = es.detection_report(
+        [{"boxes": [[0, 0, 10, 10]], "labels": [1]}],
+        [{"boxes": [[0, 0, 10, 10]], "labels": [1], "scores": [0.9]}],
+    )
+    assert es.plot.per_class(det).get_title() == "AP@[.50:.95] per class"
+    with pytest.raises(es.InputValidationError):
+        es.plot.per_class(object())
