@@ -17,8 +17,10 @@ whose reference library is not installed is timed for EvalSuite only.
 from __future__ import annotations
 
 import contextlib
+import importlib
 import json
 import platform
+import re
 import time
 import tracemalloc
 import warnings
@@ -371,6 +373,28 @@ def _clinical_cases(n: int, rng: np.random.Generator) -> list[Case]:
     return [(name, ref, es_fn, own if own is not None else refs.get(name)) for name, ref, es_fn, own in cases]
 
 
+_GROUPS = (
+    ("Classification and regression", ("binary", "10 classes", "regression")),
+    ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
+    ("Segmentation and object detection", ("segmentation", "detection")),
+)
+MATCH_TOLERANCE = 1e-9
+
+
+def benchmark_group(case: str) -> str:
+    """The suite a benchmark case belongs to, by its name."""
+    lowered = case.lower()
+    for title, prefixes in _GROUPS:
+        if lowered.startswith(prefixes):
+            return title
+    return "Other"
+
+
+def _geomean(values: Sequence[float]) -> Optional[float]:
+    vals = [v for v in values if v is not None and v > 0]
+    return float(np.exp(np.mean(np.log(vals)))) if vals else None
+
+
 @dataclass(frozen=True, eq=False)
 class BenchmarkResult:
     """Rows of timings (milliseconds), peak memory (MiB) and agreement, plus the environment they ran in."""
@@ -381,6 +405,60 @@ class BenchmarkResult:
     def __post_init__(self) -> None:
         object.__setattr__(self, "rows", tuple(MappingProxyType(dict(r)) for r in self.rows))
         object.__setattr__(self, "environment", MappingProxyType(dict(self.environment)))
+
+    def sorted_rows(self) -> list[Any]:
+        """Rows in alphabetical order of case, then by size."""
+        return sorted(self.rows, key=lambda r: (r["case"].lower(), r["n"]))
+
+    def overall(self) -> list[dict[str, Any]]:
+        """One summary row per suite and one for everything: cases, how many agree with the reference
+        (max |difference| <= 1e-9), and the geometric-mean, smallest and largest speed-up."""
+
+        def summarise(name: str, rows: Sequence[Any]) -> dict[str, Any]:
+            compared = [r for r in rows if r["speedup"] is not None]
+            speedups = [r["speedup"] for r in compared]
+            return {
+                "group": name,
+                "cases": len({re.sub(r"\s*\(\d+ images?\)", "", r["case"]) for r in rows}),
+                "rows": len(rows),
+                "compared": len(compared),
+                "matching": sum(
+                    r["max_abs_diff"] is not None and r["max_abs_diff"] <= MATCH_TOLERANCE for r in rows
+                ),
+                "faster": sum(sp > 1 for sp in speedups),
+                "geomean_speedup": _geomean(speedups),
+                "min_speedup": min(speedups) if speedups else None,
+                "max_speedup": max(speedups) if speedups else None,
+            }
+
+        groups = sorted({benchmark_group(r["case"]) for r in self.rows})
+        out = [summarise(g, [r for r in self.rows if benchmark_group(r["case"]) == g]) for g in groups]
+        out.append(summarise("Overall", self.rows))
+        return out
+
+    _OVERALL_TITLES = ("Suite", "Cases", "Rows", "Match reference", "Faster", "Geo-mean speed-up", "Range")
+
+    def _overall_cells(self) -> list[list[str]]:
+        def x(v: Optional[float]) -> str:
+            return "–" if v is None else f"{v:.2f}×"
+
+        return [
+            [
+                o["group"],
+                str(o["cases"]),
+                str(o["rows"]),
+                f"{o['matching']}/{o['compared']}",
+                f"{o['faster']}/{o['compared']}",
+                x(o["geomean_speedup"]),
+                "–" if o["min_speedup"] is None else f"{x(o['min_speedup'])}–{x(o['max_speedup'])}",
+            ]
+            for o in self.overall()
+        ]
+
+    def overall_markdown(self) -> str:
+        """The overall summary as a Markdown table."""
+        lines = ["| " + " | ".join(self._OVERALL_TITLES) + " |", "| --- |" + " ---: |" * 6]
+        return "\n".join(lines + ["| " + " | ".join(c) + " |" for c in self._overall_cells()])
 
     def _cells(self, digits: int) -> list[list[str]]:
         def f(v: Any, d: int = digits) -> str:
@@ -398,7 +476,7 @@ class BenchmarkResult:
                 f(r.get("reference_peak_mb"), 2),
                 "–" if r["max_abs_diff"] is None else f"{r['max_abs_diff']:.1e}",
             ]
-            for r in self.rows
+            for r in self.sorted_rows()
         ]
 
     _TITLES = (
@@ -430,7 +508,14 @@ class BenchmarkResult:
             + f" | {env['machine']} | fastest of {env['repeat']} runs"
         )
         note = "Speed-up > 1 means EvalSuite is faster. Max |difference| compares EvalSuite with the reference."
-        return "\n".join([head, "", line(self._TITLES), *(line(c) for c in cells), "", note])
+        ocells = self._overall_cells()
+        owidths = [max(len(t), *(len(c[i]) for c in ocells)) for i, t in enumerate(self._OVERALL_TITLES)]
+
+        def oline(c: Sequence[str]) -> str:
+            return "  ".join(x.ljust(owidths[i]) if i == 0 else x.rjust(owidths[i]) for i, x in enumerate(c))
+
+        overall = ["Overall", oline(self._OVERALL_TITLES), *(oline(c) for c in ocells), ""]
+        return "\n".join([head, "", *overall, line(self._TITLES), *(line(c) for c in cells), "", note])
 
     def __repr__(self) -> str:
         return self.summary()
@@ -438,7 +523,13 @@ class BenchmarkResult:
     def to_dict(self) -> dict[str, Any]:
         return cast(
             "dict[str, Any]",
-            _json_safe({"environment": dict(self.environment), "rows": [dict(r) for r in self.rows]}),
+            _json_safe(
+                {
+                    "environment": dict(self.environment),
+                    "overall": self.overall(),
+                    "rows": [dict(r) for r in self.rows],
+                }
+            ),
         )
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
@@ -514,7 +605,7 @@ def run_benchmarks(
     if compare_sklearn:
         for mod in versions:
             with contextlib.suppress(ImportError):
-                __import__(mod)
+                importlib.import_module(mod)  # fixed names only: sklearn, statsmodels, pycocotools
                 from importlib.metadata import version as _dist_version
 
                 versions[mod] = _dist_version("scikit-learn" if mod == "sklearn" else mod)
