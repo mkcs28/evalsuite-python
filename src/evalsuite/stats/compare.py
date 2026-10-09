@@ -15,8 +15,7 @@ from ..core.exceptions import InputValidationError
 from ..core.registry import metric_info
 from ..core.result import _json_safe, _latex_escape, _latex_table
 from ..core.types import ArrayLike
-from ..core.validation import to_numpy
-from ._resolve import MetricCall, is_categorical, resolve_metric
+from ._resolve import MetricCall, as_observations, is_categorical, resolve_metric
 from .effect import adjust_pvalues
 from .intervals import _check_level, _check_resamples, bootstrap_distribution, resample_indices
 from .paired import delong_test, mcnemar_test
@@ -296,10 +295,13 @@ def compare(
         raise InputValidationError("compare() needs at least two models (a dict of name -> predictions).")
     if baseline is not None and baseline not in names:
         raise InputValidationError(f"baseline={baseline!r} is not one of the models: {', '.join(names)}.")
-    yt = to_numpy(y_true, "y_true", allow_2d=True)
+    yt = as_observations(y_true, "y_true")
     categorical = is_categorical(yt)
     if metrics is None:
-        if categorical:
+        if yt.ndim > 2 or (yt.dtype == object and yt.size and not isinstance(yt[0], (str, bytes))):
+            is_detection = yt.dtype == object and isinstance(yt[0], Mapping)
+            metric_names = ["mean_average_precision"] if is_detection else ["dice", "iou"]
+        elif categorical:
             metric_names = list(_DEFAULT_CLF) if predictions else []
             if probabilities:
                 metric_names += _DEFAULT_CLF_PROB if np.unique(yt).shape[0] <= 2 and yt.ndim == 1 else ["roc_auc"]

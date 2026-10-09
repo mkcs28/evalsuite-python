@@ -149,6 +149,16 @@ def evaluate(
     >>> round(r["accuracy"], 2)
     0.75
     """
+    if isinstance(y_true, (list, tuple)) and y_true and isinstance(y_true[0], dict):
+        raise UnsupportedTaskError(
+            "y_true looks like object detection annotations (one dict per image); use "
+            "evalsuite.detection_report(y_true, y_pred) or evalsuite.mean_average_precision(...)."
+        )
+    if np.ndim(y_true) >= 3:
+        raise UnsupportedTaskError(
+            "y_true has 3 or more dimensions, which looks like segmentation masks (images first); use "
+            "evalsuite.segmentation_report(y_true, y_pred) or evalsuite.dice / evalsuite.iou."
+        )
     task = task or _infer_task(y_true, y_prob)
     if task == "classification":
         return _evaluate_classification(

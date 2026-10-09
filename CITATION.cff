@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use EvalSuite in your research, please cite it as below."
+title: "EvalSuite: unified, reproducible evaluation for machine learning and research"
+type: software
+authors:
+  - family-names: "C S"
+    given-names: "Manoj Kumar"
+  - family-names: "Bharadwaj"
+    given-names: "Nikhil D"
+version: "0.3.0"
+date-released: "2026-10-09"
+license: MIT
+repository-code: "https://github.com/mkcs28/evalsuite-python"
+url: "https://evalsuite-nine.vercel.app"
+keywords:
+  - evaluation
+  - metrics
+  - machine learning
+  - statistics
+  - clinical prediction
+  - segmentation
+  - object detection

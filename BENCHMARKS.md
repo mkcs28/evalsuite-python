@@ -1,8 +1,8 @@
 # Benchmarks
 
-Reproduce with `evalsuite benchmark` (all cases), `evalsuite benchmark --suite core` (classification and
-regression) or `evalsuite benchmark --suite clinical` (the v0.2.0 clinical, calibration and statistics
-functions). Add `--format markdown -o BENCHMARKS-local.md` to save a table.
+Reproduce with `evalsuite benchmark` (all cases) or one suite: `--suite core` (classification and
+regression), `--suite clinical` (clinical, calibration and statistics) or `--suite vision` (segmentation and
+object detection). Add `--format markdown -o BENCHMARKS-local.md` to save a table.
 
 Each case is timed as the fastest of 5 runs after a warm-up; peak memory is measured with `tracemalloc`.
 EvalSuite and a **reference implementation compute the same quantities on the same data**, and the last
@@ -11,77 +11,85 @@ rounding.
 
 | Cases | Reference |
 | --- | --- |
-| classification, regression, sensitivity/specificity/likelihood ratios | scikit-learn |
+| classification, regression, sensitivity/specificity/likelihood ratios, segmentation Dice and IoU | scikit-learn |
 | diagnostic report intervals, calibration slope and intercept, Hochberg correction | statsmodels |
-| t-test, Mann–Whitney, Cramér's V | SciPy |
+| t-test, Mann–Whitney, Cramér's V, Hausdorff distance | SciPy |
+| COCO object detection (all 12 summary numbers) | pycocotools |
 | decision curve | the textbook NumPy loop over thresholds |
 
+For segmentation, `n` is the number of pixels (64 × 64 images with five classes); detection uses
+`n / 1000` images with 1–7 objects of five classes each, plus false positives.
+
 ```text
-EvalSuite 0.2.0 benchmarks | Python 3.12.3 | NumPy 2.5.3 | scikit-learn 1.9.1 | statsmodels 0.15.0 | SciPy 1.18.1 | Linux x86_64 | fastest of 5 runs
+EvalSuite 0.3.0 benchmarks | Python 3.12.3 | NumPy 2.5.3 | scikit-learn 1.9.1 | statsmodels 0.15.0 | SciPy 1.18.1 | pycocotools 2.0.11 | Linux x86_64 | fastest of 5 runs
 ```
 
 | Case | n | Reference | EvalSuite (ms) | Reference (ms) | Speed-up | EvalSuite peak (MiB) | Reference peak (MiB) | Max |difference| |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| binary: 8 label metrics via evaluate() | 1,000 | scikit-learn | 0.276 | 8.409 | 30.47× | 0.05 | 0.05 | 0.0e+00 |
-| 10 classes: macro F1 | 1,000 | scikit-learn | 0.103 | 1.166 | 11.32× | 0.05 | 0.03 | 0.0e+00 |
-| binary: ROC AUC | 1,000 | scikit-learn | 0.161 | 1.425 | 8.86× | 0.09 | 0.08 | 1.1e-16 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000 | scikit-learn | 0.093 | 0.606 | 6.53× | 0.03 | 0.02 | 0.0e+00 |
-| clinical: sensitivity, specificity, LR+, LR− | 1,000 | scikit-learn | 0.343 | 3.682 | 10.72× | 0.05 | 0.03 | 4.4e-16 |
-| clinical: diagnostic report (7 CIs) | 1,000 | statsmodels | 0.147 | 0.508 | 3.45× | 0.05 | 0.01 | 1.1e-14 |
-| calibration: slope and intercept | 1,000 | statsmodels | 0.459 | 2.339 | 5.10× | 0.10 | 0.61 | 2.8e-16 |
-| decision curve: 99 thresholds | 1,000 | NumPy loop | 0.152 | 0.842 | 5.53× | 0.07 | 0.01 | 5.6e-17 |
-| statistics: Welch t-test | 1,000 | SciPy | 0.687 | 0.542 | 0.79× | 0.04 | 0.02 | 0.0e+00 |
-| statistics: Mann–Whitney U | 1,000 | SciPy | 0.630 | 0.575 | 0.91× | 0.16 | 0.14 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 1,000 | SciPy | 0.253 | 0.273 | 1.08× | 0.00 | 0.00 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 1,000 | statsmodels | 0.044 | 0.050 | 1.16× | 0.05 | 0.05 | 0.0e+00 |
-| binary: 8 label metrics via evaluate() | 100,000 | scikit-learn | 4.028 | 104.399 | 25.92× | 3.21 | 3.07 | 0.0e+00 |
-| 10 classes: macro F1 | 100,000 | scikit-learn | 4.511 | 16.272 | 3.61× | 3.05 | 2.18 | 0.0e+00 |
-| binary: ROC AUC | 100,000 | scikit-learn | 15.178 | 28.997 | 1.91× | 9.16 | 7.64 | 1.1e-16 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 100,000 | scikit-learn | 1.960 | 1.708 | 0.87× | 2.29 | 1.53 | 0.0e+00 |
-| clinical: sensitivity, specificity, LR+, LR− | 100,000 | scikit-learn | 10.355 | 43.505 | 4.20× | 3.05 | 2.24 | 8.9e-16 |
-| clinical: diagnostic report (7 CIs) | 100,000 | statsmodels | 2.537 | 0.870 | 0.34× | 3.05 | 0.29 | 0.0e+00 |
-| calibration: slope and intercept | 100,000 | statsmodels | 17.503 | 95.133 | 5.44× | 8.46 | 58.00 | 2.2e-16 |
-| decision curve: 99 thresholds | 100,000 | NumPy loop | 12.774 | 13.534 | 1.06× | 6.87 | 0.29 | 5.6e-17 |
-| statistics: Welch t-test | 100,000 | SciPy | 1.966 | 1.140 | 0.58× | 3.06 | 1.53 | 0.0e+00 |
-| statistics: Mann–Whitney U | 100,000 | SciPy | 28.748 | 30.390 | 1.06× | 15.45 | 13.93 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 100,000 | SciPy | 0.225 | 0.217 | 0.97× | 0.00 | 0.00 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 100,000 | statsmodels | 3.689 | 3.951 | 1.07× | 4.58 | 3.97 | 0.0e+00 |
-| binary: 8 label metrics via evaluate() | 1,000,000 | scikit-learn | 30.225 | 1020.196 | 33.75× | 31.54 | 30.53 | 0.0e+00 |
-| 10 classes: macro F1 | 1,000,000 | scikit-learn | 22.373 | 128.679 | 5.75× | 30.52 | 21.79 | 0.0e+00 |
-| binary: ROC AUC | 1,000,000 | scikit-learn | 173.236 | 300.584 | 1.74× | 91.56 | 76.30 | 1.1e-16 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000,000 | scikit-learn | 19.067 | 9.739 | 0.51× | 22.89 | 15.26 | 0.0e+00 |
-| clinical: sensitivity, specificity, LR+, LR− | 1,000,000 | scikit-learn | 66.196 | 392.770 | 5.93× | 30.52 | 22.33 | 5.6e-17 |
-| clinical: diagnostic report (7 CIs) | 1,000,000 | statsmodels | 16.607 | 4.568 | 0.28× | 30.52 | 1.91 | 1.4e-14 |
-| calibration: slope and intercept | 1,000,000 | statsmodels | 177.987 | 1014.801 | 5.70× | 83.99 | 579.85 | 1.3e-15 |
-| decision curve: 99 thresholds | 1,000,000 | NumPy loop | 155.238 | 174.335 | 1.12× | 68.67 | 1.97 | 5.6e-17 |
-| statistics: Welch t-test | 1,000,000 | SciPy | 14.458 | 7.323 | 0.51× | 30.52 | 15.26 | 0.0e+00 |
-| statistics: Mann–Whitney U | 1,000,000 | SciPy | 365.904 | 364.548 | 1.00× | 154.50 | 139.24 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 1,000,000 | SciPy | 0.493 | 0.421 | 0.85× | 0.00 | 0.00 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 1,000,000 | statsmodels | 75.358 | 81.921 | 1.09× | 45.78 | 39.17 | 0.0e+00 |
+| binary: 8 label metrics via evaluate() | 1,000 | scikit-learn | 0.255 | 9.554 | 37.42× | 0.05 | 0.05 | 0.0e+00 |
+| 10 classes: macro F1 | 1,000 | scikit-learn | 0.102 | 1.319 | 12.95× | 0.05 | 0.03 | 0.0e+00 |
+| binary: ROC AUC | 1,000 | scikit-learn | 0.176 | 1.471 | 8.35× | 0.09 | 0.08 | 1.1e-16 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000 | scikit-learn | 0.091 | 0.648 | 7.11× | 0.03 | 0.02 | 0.0e+00 |
+| clinical: sensitivity, specificity, LR+, LR− | 1,000 | scikit-learn | 0.310 | 3.449 | 11.12× | 0.05 | 0.03 | 4.4e-16 |
+| clinical: diagnostic report (7 CIs) | 1,000 | statsmodels | 0.151 | 0.531 | 3.52× | 0.05 | 0.01 | 1.1e-14 |
+| calibration: slope and intercept | 1,000 | statsmodels | 0.487 | 2.513 | 5.16× | 0.10 | 0.61 | 2.8e-16 |
+| decision curve: 99 thresholds | 1,000 | NumPy loop | 0.156 | 0.897 | 5.76× | 0.07 | 0.01 | 5.6e-17 |
+| statistics: Welch t-test | 1,000 | SciPy | 0.819 | 0.623 | 0.76× | 0.04 | 0.02 | 0.0e+00 |
+| statistics: Mann–Whitney U | 1,000 | SciPy | 0.649 | 0.602 | 0.93× | 0.16 | 0.14 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 1,000 | SciPy | 0.260 | 0.234 | 0.90× | 0.00 | 0.00 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 1,000 | statsmodels | 0.046 | 0.053 | 1.16× | 0.05 | 0.05 | 0.0e+00 |
+| segmentation: Dice and IoU per class (n = pixels) | 1,000 | scikit-learn | 0.232 | 3.282 | 14.15× | 0.16 | 0.10 | 0.0e+00 |
+| segmentation: Hausdorff distance (1 image) | 1,000 | SciPy | 0.548 | 0.399 | 0.73× | 0.15 | 0.03 | 0.0e+00 |
+| detection: COCO evaluation (10 images) | 1,000 | pycocotools | 12.599 | 22.011 | 1.75× | 0.54 | 1.33 | 0.0e+00 |
+| binary: 8 label metrics via evaluate() | 100,000 | scikit-learn | 4.382 | 112.468 | 25.67× | 3.21 | 3.07 | 0.0e+00 |
+| 10 classes: macro F1 | 100,000 | scikit-learn | 4.098 | 13.204 | 3.22× | 3.05 | 2.18 | 0.0e+00 |
+| binary: ROC AUC | 100,000 | scikit-learn | 16.161 | 31.224 | 1.93× | 9.16 | 7.64 | 1.1e-16 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 100,000 | scikit-learn | 1.905 | 1.587 | 0.83× | 2.29 | 1.53 | 0.0e+00 |
+| clinical: sensitivity, specificity, LR+, LR− | 100,000 | scikit-learn | 11.091 | 42.599 | 3.84× | 3.05 | 2.24 | 8.9e-16 |
+| clinical: diagnostic report (7 CIs) | 100,000 | statsmodels | 2.895 | 0.976 | 0.34× | 3.05 | 0.29 | 2.8e-14 |
+| calibration: slope and intercept | 100,000 | statsmodels | 18.032 | 100.467 | 5.57× | 8.46 | 58.00 | 5.6e-17 |
+| decision curve: 99 thresholds | 100,000 | NumPy loop | 12.551 | 15.825 | 1.26× | 6.87 | 0.29 | 5.6e-17 |
+| statistics: Welch t-test | 100,000 | SciPy | 2.086 | 1.306 | 0.63× | 3.06 | 1.53 | 0.0e+00 |
+| statistics: Mann–Whitney U | 100,000 | SciPy | 31.660 | 30.400 | 0.96× | 15.45 | 13.93 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 100,000 | SciPy | 0.259 | 0.262 | 1.01× | 0.00 | 0.00 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 100,000 | statsmodels | 4.123 | 4.428 | 1.07× | 4.58 | 3.97 | 0.0e+00 |
+| segmentation: Dice and IoU per class (n = pixels) | 100,000 | scikit-learn | 3.719 | 26.436 | 7.11× | 0.17 | 2.32 | 0.0e+00 |
+| segmentation: Hausdorff distance (24 images) | 100,000 | SciPy | 11.498 | 9.098 | 0.79× | 0.15 | 0.03 | 0.0e+00 |
+| detection: COCO evaluation (100 images) | 100,000 | pycocotools | 81.104 | 91.893 | 1.13× | 1.15 | 4.32 | 0.0e+00 |
+| binary: 8 label metrics via evaluate() | 1,000,000 | scikit-learn | 34.020 | 1045.806 | 30.74× | 31.54 | 30.53 | 0.0e+00 |
+| 10 classes: macro F1 | 1,000,000 | scikit-learn | 31.727 | 129.069 | 4.07× | 30.52 | 21.79 | 0.0e+00 |
+| binary: ROC AUC | 1,000,000 | scikit-learn | 203.583 | 348.552 | 1.71× | 91.56 | 76.30 | 0.0e+00 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000,000 | scikit-learn | 21.052 | 10.722 | 0.51× | 22.89 | 15.26 | 0.0e+00 |
+| clinical: sensitivity, specificity, LR+, LR− | 1,000,000 | scikit-learn | 75.990 | 426.237 | 5.61× | 30.52 | 22.33 | 2.8e-17 |
+| clinical: diagnostic report (7 CIs) | 1,000,000 | statsmodels | 18.828 | 5.073 | 0.27× | 30.52 | 1.91 | 2.5e-14 |
+| calibration: slope and intercept | 1,000,000 | statsmodels | 192.705 | 1096.539 | 5.69× | 83.99 | 579.85 | 3.3e-16 |
+| decision curve: 99 thresholds | 1,000,000 | NumPy loop | 171.516 | 198.074 | 1.15× | 68.67 | 1.97 | 5.6e-17 |
+| statistics: Welch t-test | 1,000,000 | SciPy | 16.322 | 7.974 | 0.49× | 30.52 | 15.26 | 0.0e+00 |
+| statistics: Mann–Whitney U | 1,000,000 | SciPy | 395.086 | 378.419 | 0.96× | 154.50 | 139.24 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 1,000,000 | SciPy | 0.290 | 0.283 | 0.97× | 0.00 | 0.00 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 1,000,000 | statsmodels | 85.440 | 88.325 | 1.03× | 45.78 | 39.17 | 0.0e+00 |
+| segmentation: Dice and IoU per class (n = pixels) | 1,000,000 | scikit-learn | 40.178 | 281.966 | 7.02× | 0.25 | 23.48 | 0.0e+00 |
+| segmentation: Hausdorff distance (50 images) | 1,000,000 | SciPy | 26.171 | 20.775 | 0.79× | 0.15 | 0.03 | 0.0e+00 |
+| detection: COCO evaluation (1000 images) | 1,000,000 | pycocotools | 967.372 | 980.558 | 1.01× | 7.03 | 34.75 | 0.0e+00 |
 
 ## Reading the results
 
 - **Many metrics at once is where EvalSuite is fastest.** `evaluate()` validates the inputs once and builds
-  the confusion matrix once, then derives all eight label metrics from it: 26–34× faster than eight
-  separate scikit-learn calls. The same applies to sensitivity, specificity, LR+ and LR− (4–11×).
+  the confusion matrix once, then derives all eight label metrics from it: 26–37× faster than eight
+  separate scikit-learn calls. The same applies to sensitivity, specificity, LR+ and LR− (4–11×) and to
+  segmentation Dice and IoU per class (7–14×), which come from one pixel confusion matrix.
+- **COCO detection evaluation matches pycocotools exactly and is as fast or faster** (1.0–1.8×). IoUs are
+  computed once per image and class and reused for every area range and IoU threshold, and the greedy
+  matching is vectorised over thresholds.
 - **Calibration slope and intercept are 5–6× faster than statsmodels' GLM and use far less memory**
-  (84 MiB vs 580 MiB at 1M samples): EvalSuite fits the two small logistic models with a dedicated
-  Newton–Raphson solver.
-- **Decision curves** sort the risks once and read every threshold from cumulative sums, so all 99
-  thresholds cost about the same as the plain loop at large n and are 5× faster at small n.
-- **Hypothesis tests call SciPy** for the statistic and p-value, so they cannot be faster than SciPy. At
-  large n the Welch t-test is about 0.5× SciPy's speed because EvalSuite also validates the inputs and
-  computes the confidence interval and Cohen's d; rank tests and Cramér's V are on par.
-- **The diagnostic report is slower than the reference at large n (0.3×).** The reference here only
-  computes seven intervals from counts taken directly with NumPy; EvalSuite also validates the labels, checks
-  for NaN, resolves the positive class, and reports ten measures (including likelihood ratios and Youden's
-  J). 17 ms for a million observations is the price of those checks.
-- **Regression on large arrays is slower** (0.87× at 100k, 0.51× at 1M). EvalSuite checks every input for
-  NaN and infinity, its shape and its dtype before computing; for four cheap metrics on a million values
-  those checks dominate a ~20 ms run.
-- **Memory** is comparable in every case except the decision curve, which keeps a sorted copy of the data.
-
-Since 0.2.1, integer class labels are found with one marking pass instead of a sort, which is why the
-classification rows are faster than in 0.1.x (for example macro F1 at 1M: 5.8× vs 1.6× before).
+  (84 MiB vs 580 MiB at 1M samples).
+- **Hausdorff distance (0.7–0.8×)** uses a Euclidean distance transform per class, which also supports
+  anisotropic pixel spacing and HD95; the reference computes the exact point-set distance between boundary
+  points of one class. Both give identical results.
+- **Hypothesis tests call SciPy**, so they match its speed at best; the Welch t-test also computes the
+  confidence interval and Cohen's d.
+- **Slower rows, shown on purpose:** the diagnostic report (0.3× at large n) validates labels and reports
+  ten measures where the reference computes seven intervals from counts; regression on a million values
+  (0.5×) spends most of its ~20 ms checking every value for NaN, infinity, shape and dtype.
 
 Numbers depend on the machine, Python and NumPy versions; run `evalsuite benchmark` on your own hardware.

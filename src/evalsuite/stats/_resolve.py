@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Optional
 
 import numpy as np
@@ -33,7 +33,30 @@ def resolve_metric(metric: Any) -> tuple[MetricFn, str]:
     raise InputValidationError("metric must be a metric function (e.g. es.f1) or its name (e.g. 'f1').")
 
 
+def as_observations(x: Any, name: str) -> NDArray[Any]:
+    """Observations to resample along the first axis: 1-D/2-D arrays (labels, values, probabilities), stacks of
+    segmentation masks (3-D or more: images first), or per-image detection dicts / differently sized masks
+    (held in a 1-D object array)."""
+    if (
+        isinstance(x, (list, tuple))
+        and x
+        and (isinstance(x[0], Mapping) or (np.ndim(x[0]) >= 2 and len({np.shape(m) for m in x}) > 1))
+    ):
+        out = np.empty(len(x), dtype=object)
+        for i, v in enumerate(x):
+            out[i] = v
+        return out
+    arr = np.asarray(x.to_numpy() if hasattr(x, "to_numpy") else x)
+    if arr.ndim > 2:
+        if arr.shape[0] == 0:
+            raise InputValidationError(f"{name} is empty. Provide at least one observation.")
+        return arr
+    return to_numpy(x, name, allow_2d=True)
+
+
 def is_categorical(y: NDArray[Any]) -> bool:
+    if y.ndim > 2 or (y.dtype == object and y.size and not isinstance(y.flat[0], (str, bytes))):
+        return False
     try:
         return target_type(y) in ("binary", "multiclass", "multilabel")
     except Exception:
@@ -57,9 +80,9 @@ class MetricCall:
                 "Pass exactly one of y_pred (label/value metrics) or y_prob (probability metrics)."
             )
         self.fn = fn
-        self.y_true = to_numpy(y_true, "y_true", allow_2d=True)
+        self.y_true = as_observations(y_true, "y_true")
         second = y_pred if y_pred is not None else y_prob
-        self.second = to_numpy(second, "y_pred" if y_pred is not None else "y_prob", allow_2d=True)
+        self.second = as_observations(second, "y_pred" if y_pred is not None else "y_prob")
         if self.second.shape[0] != self.y_true.shape[0]:
             raise InputValidationError(
                 f"y_true and {'y_pred' if y_pred is not None else 'y_prob'} must contain the same number of "

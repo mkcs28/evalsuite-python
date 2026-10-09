@@ -12,12 +12,13 @@ license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
 maintainers = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
-keywords = ["evaluation", "metrics", "clinical", "diagnostic accuracy", "calibration", "statistical tests", "machine learning", "statistics", "classification", "regression", "reproducibility"]
+keywords = ["evaluation", "metrics", "segmentation", "object detection", "mAP", "clinical", "diagnostic accuracy", "calibration", "statistical tests", "machine learning", "statistics", "classification", "regression", "reproducibility"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Healthcare Industry",
   "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Image Recognition",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -36,7 +37,8 @@ dependencies = ["numpy>=1.22", "scipy>=1.8", "pandas>=1.4"]
 
 [project.optional-dependencies]
 plot = ["matplotlib>=3.5"]
-all = ["matplotlib>=3.5"]
+vision = ["pillow>=9"]
+all = ["matplotlib>=3.5", "pillow>=9"]
 dev = [
   "pytest>=7",
   "pytest-cov>=4",
@@ -44,6 +46,8 @@ dev = [
   "scikit-learn>=1.2",
   "statsmodels>=0.13",
   "matplotlib>=3.5",
+  "pillow>=9",
+  "pycocotools>=2.0.7",
   "ruff>=0.6",
   "mypy>=1.10",
   "pandas-stubs",

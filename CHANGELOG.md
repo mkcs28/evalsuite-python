@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
+Computer vision (the v0.3.0 roadmap), with comparison, plots, reporting and benchmarks extended to it.
+
+### Added
+- Segmentation: `dice`, `iou`, `miou`, `pixel_accuracy`, `mean_pixel_accuracy`, `boundary_iou`,
+  `hausdorff_distance` (HD and HD95, anisotropic `spacing`), `average_surface_distance`,
+  `segmentation_confusion`, `per_image_scores` and `segmentation_report`. 2-D and 3-D masks, lists of
+  differently sized masks, `ignore_index`, `aggregate="dataset"|"image"`, undefined classes reported as NaN.
+- Object detection: `box_iou`, `detection_report` (the 12 COCO numbers plus AP per class),
+  `mean_average_precision`, `average_precision_detection` (COCO or VOC interpolation), `detection_pr_curve`,
+  `from_coco`. Matches pycocotools exactly, including crowd regions, area ranges and detection limits.
+- Comparison for vision: `compare`, `bootstrap_ci` and `paired_bootstrap_test` resample images for
+  segmentation masks and per-image detections.
+- Plots: `es.plot.segmentation` (prediction fill vs truth outline), `es.plot.per_class` (any per-class
+  result), `es.plot.detection_pr`.
+- CLI: `evalsuite segmentation` (.npy/.npz or a folder of mask images) and `evalsuite detection` (COCO JSON).
+- Benchmarks: `--suite vision` against scikit-learn, SciPy and pycocotools.
+- `vision` extra (Pillow, for reading mask image folders); `CITATION.cff`.
+
+### Changed
+- `evaluate()` points segmentation masks and detection annotations to the right functions instead of
+  failing with a shape error.
+- CI and release workflows use the Node 24 versions of the GitHub actions.
+
 ## [0.2.1] - 2026-10-09
 
 ### Added

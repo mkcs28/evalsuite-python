@@ -21,7 +21,18 @@ if TYPE_CHECKING:
 
     from .stats.compare import ComparisonResult
 
-__all__ = ["calibration", "comparison", "confusion_matrix", "decision_curve", "pr", "residuals", "roc"]
+__all__ = [
+    "calibration",
+    "comparison",
+    "confusion_matrix",
+    "decision_curve",
+    "detection_pr",
+    "per_class",
+    "pr",
+    "residuals",
+    "roc",
+    "segmentation",
+]
 
 Scores = Union[ArrayLike, Mapping[str, ArrayLike]]
 _STYLES = ("-", "--", "-.", ":")
@@ -338,4 +349,131 @@ def decision_curve(
         ylim=ylim if ylim is not None else (-0.05 * max(top, 0.05), top * 1.1 + 0.01),
     )
     ax.legend(loc="upper right", frameon=False)
+    return ax
+
+
+def per_class(
+    result: Any,
+    *,
+    ax: Optional[Axes] = None,
+    class_names: Optional[Mapping[Any, str]] = None,
+    sort: bool = False,
+) -> Axes:
+    """Horizontal bar chart of a per-class result (any metric computed with ``average=None``, e.g.
+    ``es.iou(..., average=None)`` or ``es.f1(..., average=None)``), with the macro mean as a reference line.
+    Undefined classes (NaN) are labelled "n/a"."""
+    if not isinstance(getattr(result, "value", None), np.ndarray) or result.labels is None:
+        raise InputValidationError("per_class() needs a per-class result: compute the metric with average=None.")
+    values = np.asarray(result.value, dtype=np.float64)
+    names = [str(class_names.get(c, c)) if class_names else str(c) for c in result.labels]
+    order = np.argsort(np.nan_to_num(values, nan=-np.inf)) if sort else np.arange(values.size)[::-1]
+    ax = _axes(ax, (5.0, max(2.4, 0.38 * values.size + 1.2)))
+    finite = np.isfinite(values)
+    ax.barh(np.arange(values.size), np.where(finite, values, 0)[order], color="#2a6fb0")
+    for y, i in enumerate(order):
+        ax.text(
+            values[i] if finite[i] else 0,
+            y,
+            f" {values[i]:.3f}" if finite[i] else " n/a",
+            va="center",
+            fontsize=8,
+        )
+    if finite.any():
+        ax.axvline(float(np.nanmean(values[finite])), color="0.3", linestyle="--", linewidth=1, label="macro mean")
+        ax.legend(loc="lower right", frameon=False)
+    ax.set(yticks=np.arange(values.size), yticklabels=[names[i] for i in order], xlabel=result.name)
+    ax.set_title(f"{result.name} per class")
+    upper = float(np.nanmax(values[finite])) if finite.any() else 1.0
+    ax.set_xlim(0, max(1.0, upper * 1.15) if upper <= 1 else upper * 1.15)
+    return ax
+
+
+def segmentation(
+    image: Optional[ArrayLike],
+    y_true: ArrayLike,
+    y_pred: ArrayLike,
+    *,
+    ax: Optional[Axes] = None,
+    alpha: float = 0.45,
+    class_names: Optional[Mapping[int, str]] = None,
+    ignore_index: Optional[int] = None,
+) -> Axes:
+    """One image with the predicted mask as a colour overlay and the true class boundaries as contours, so
+    over- and under-segmentation are visible at a glance. Dice and IoU (macro, excluding background) are in
+    the title. ``image`` may be None (masks only), grey-scale or RGB."""
+    from .vision.segmentation import dice as dice_fn
+    from .vision.segmentation import iou as iou_fn
+
+    plt = _plt()
+    t = np.asarray(y_true)
+    pr = np.asarray(y_pred)
+    if t.ndim != 2 or t.shape != pr.shape:
+        raise InputValidationError(
+            "segmentation() plots one 2-D image: y_true and y_pred must be equal 2-D masks."
+        )
+    ax = _axes(ax, (5.0, 5.0 * t.shape[0] / max(t.shape[1], 1)))
+    if image is not None:
+        img = np.asarray(image)
+        ax.imshow(img, cmap="gray" if img.ndim == 2 else None)
+    else:
+        ax.imshow(np.ones(t.shape), cmap="gray", vmin=0, vmax=1)
+    classes = sorted(
+        int(c) for c in np.unique(np.concatenate([t.ravel(), pr.ravel()])) if c != 0 and c != ignore_index
+    )
+    cmap = plt.get_cmap("tab10")
+    overlay = np.zeros((*t.shape, 4))
+    for i, c in enumerate(classes):
+        color = cmap(i % 10)
+        overlay[pr == c] = (*color[:3], alpha)
+        if np.any(t == c):
+            ax.contour((t == c).astype(float), levels=[0.5], colors=[color[:3]], linewidths=1.6)
+        ax.plot(
+            [],
+            [],
+            color=color[:3],
+            linewidth=6,
+            alpha=0.6,
+            label=str(class_names.get(c, c)) if class_names else str(c),
+        )
+    ax.imshow(overlay)
+    if classes:
+        d = float(dice_fn(t, pr, ignore_index=ignore_index, include_background=False))
+        j = float(iou_fn(t, pr, ignore_index=ignore_index, include_background=False))
+        ax.set_title(f"Prediction (fill) vs truth (outline): Dice {d:.3f}, IoU {j:.3f}", fontsize=9)
+        ax.legend(loc="upper right", fontsize=7, frameon=True, title="class", title_fontsize=7)
+    ax.set_axis_off()
+    return ax
+
+
+def detection_pr(
+    y_true: Any,
+    y_pred: Any,
+    *,
+    ax: Optional[Axes] = None,
+    iou_threshold: float = 0.5,
+    box_format: str = "xyxy",
+    class_names: Optional[Mapping[int, str]] = None,
+    max_classes: int = 10,
+) -> Axes:
+    """Precision-recall curves per class for object detection (COCO 101-point interpolation) at one IoU
+    threshold, with each class's AP in the legend; classes beyond ``max_classes`` (by AP) are omitted."""
+    from .vision.detection import detection_pr_curve
+
+    curves = detection_pr_curve(y_true, y_pred, iou_threshold=iou_threshold, box_format=box_format)  # type: ignore[arg-type]
+    if not curves:
+        raise InputValidationError("No class has ground-truth boxes; nothing to plot.")
+    ranked = sorted(curves.items(), key=lambda kv: -float(np.mean(kv[1][1])))[:max_classes]
+    ax = _axes(ax)
+    for i, (c, (rc, pr)) in enumerate(ranked):
+        name = class_names.get(c, str(c)) if class_names else str(c)
+        ax.plot(rc, pr, label=f"{name}: AP = {float(np.mean(pr)):.3f}", **_style(i))
+    m = float(np.mean([np.mean(p) for _, (_, p) in curves.items()]))
+    ax.set(
+        xlabel="Recall",
+        ylabel="Precision",
+        title=f"Detection PR curves @IoU {iou_threshold:g} (mAP = {m:.3f})",
+        xlim=(0, 1.01),
+        ylim=(0, 1.02),
+    )
+    ax.legend(loc="lower left", frameon=False, fontsize="small")
     return ax

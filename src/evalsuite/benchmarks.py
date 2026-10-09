@@ -6,7 +6,8 @@ quantities on the same data, and the largest absolute difference between their r
 speed is never shown for numbers that disagree.
 
 References: scikit-learn for classification and regression (``suite="core"``); scikit-learn, statsmodels
-and SciPy for the v0.2.0 clinical, calibration and statistics functions (``suite="clinical"``). A case
+and SciPy for the v0.2.0 clinical, calibration and statistics functions (``suite="clinical"``);
+scikit-learn, SciPy and pycocotools for segmentation and detection (``suite="vision"``). A case
 whose reference library is not installed is timed for EvalSuite only.
 
     >>> from evalsuite.benchmarks import run_benchmarks
@@ -118,6 +119,145 @@ def _core_cases(n: int, rng: np.random.Generator) -> list[Case]:
 
     sk = [sk_binary, lambda: [skm.f1_score(yk, pk, average="macro")], lambda: [skm.roc_auc_score(y, prob)], sk_reg]
     return [(name, ref, es_fn, sk_fn) for (name, ref, es_fn, _), sk_fn in zip(cases, sk)]
+
+
+def _vision_cases(n: int, rng: np.random.Generator) -> list[Case]:
+    """v0.3.0: segmentation overlap and surface distance (n = pixels) and COCO detection (n / 1000 images)."""
+    import evalsuite as es
+
+    side = 64
+    n_img = max(1, n // (side * side))
+    k = 5
+    yy, xx = np.ogrid[:side, :side]
+    true = np.zeros((n_img, side, side), dtype=np.int64)
+    for i in range(n_img):
+        for c in range(1, k):
+            cy, cx, r = rng.integers(8, side - 8), rng.integers(8, side - 8), rng.integers(4, 14)
+            true[i][(yy - cy) ** 2 + (xx - cx) ** 2 <= r * r] = c
+    pred = np.roll(true, 1, axis=2)
+    noise = rng.random(pred.shape) < 0.02
+    pred[noise] = rng.integers(0, k, int(noise.sum()))
+    labels = list(range(k))
+
+    def es_overlap() -> list[float]:
+        d = np.asarray(es.dice(true, pred, average=None).value)
+        j = np.asarray(es.iou(true, pred, average=None).value)
+        return [*d, *j]
+
+    n_hd = min(n_img, 50)
+
+    def es_hd() -> list[float]:
+        return [float(es.hausdorff_distance(true[i], pred[i], labels=[k - 1])) for i in range(n_hd)]
+
+    n_det = max(10, n // 1000)
+    y_true, y_pred = [], []
+    for _ in range(n_det):
+        m = int(rng.integers(1, 8))
+        xy = rng.uniform(0, 500, (m, 2))
+        wh = rng.uniform(8, 160, (m, 2))
+        boxes = np.column_stack([xy, xy + wh])
+        lab = rng.integers(1, 6, m)
+        y_true.append({"boxes": boxes, "labels": lab, "iscrowd": np.zeros(m, int)})
+        jitter = boxes + rng.normal(0, 4, boxes.shape)
+        jitter[:, 2:] = np.maximum(jitter[:, 2:], jitter[:, :2] + 1)
+        extra = rng.uniform(0, 500, (3, 2))
+        fp = np.column_stack([extra, extra + rng.uniform(10, 80, (3, 2))])
+        y_pred.append(
+            {
+                "boxes": np.vstack([jitter, fp]),
+                "labels": np.r_[lab, rng.integers(1, 6, 3)],
+                "scores": rng.random(m + 3),
+            }
+        )
+
+    def es_map() -> list[float]:
+        r = es.detection_report(y_true, y_pred)
+        return [r["map"], r["map_50"], r["map_75"], r["mar_100"]]
+
+    cases: list[Case] = [
+        ("segmentation: Dice and IoU per class (n = pixels)", "scikit-learn", es_overlap, None),
+        (f"segmentation: Hausdorff distance ({n_hd} image{'s' if n_hd != 1 else ''})", "SciPy", es_hd, None),
+        (f"detection: COCO evaluation ({n_det} images)", "pycocotools", es_map, None),
+    ]
+    refs: dict[str, Callable[[], Any]] = {}
+    try:
+        import sklearn.metrics as skm
+
+        def sk_overlap() -> list[float]:
+            ft, fp_ = true.ravel(), pred.ravel()
+            return [
+                *skm.f1_score(ft, fp_, labels=labels, average=None),
+                *skm.jaccard_score(ft, fp_, labels=labels, average=None),
+            ]
+
+        refs[cases[0][0]] = sk_overlap
+    except ImportError:
+        pass
+    from scipy import ndimage
+    from scipy.spatial.distance import directed_hausdorff
+
+    def scipy_hd() -> list[float]:
+        out = []
+        for i in range(n_hd):
+            pts = []
+            for m_ in (true[i] == k - 1, pred[i] == k - 1):
+                er = ndimage.binary_erosion(m_, structure=ndimage.generate_binary_structure(2, 1), border_value=0)
+                pts.append(np.argwhere(m_ & ~er).astype(float))
+            out.append(max(directed_hausdorff(pts[0], pts[1])[0], directed_hausdorff(pts[1], pts[0])[0]))
+        return out
+
+    refs[cases[1][0]] = scipy_hd
+    try:
+        import contextlib as _ctx
+        import io
+
+        from pycocotools.coco import COCO  # type: ignore[import-untyped]
+        from pycocotools.cocoeval import COCOeval  # type: ignore[import-untyped]
+
+        def coco_map() -> list[float]:
+            images, anns, dets, aid = [], [], [], 1
+            for i, (t, p) in enumerate(zip(y_true, y_pred)):
+                images.append({"id": i + 1})
+                for b, c in zip(t["boxes"], t["labels"]):
+                    w, h = b[2] - b[0], b[3] - b[1]
+                    anns.append(
+                        {
+                            "id": aid,
+                            "image_id": i + 1,
+                            "category_id": int(c),
+                            "bbox": [b[0], b[1], w, h],
+                            "area": w * h,
+                            "iscrowd": 0,
+                        }
+                    )
+                    aid += 1
+                for b, c, sc in zip(p["boxes"], p["labels"], p["scores"]):
+                    dets.append(
+                        {
+                            "image_id": i + 1,
+                            "category_id": int(c),
+                            "bbox": [b[0], b[1], b[2] - b[0], b[3] - b[1]],
+                            "score": float(sc),
+                        }
+                    )
+            with _ctx.redirect_stdout(io.StringIO()):
+                gt = COCO()
+                gt.dataset = {
+                    "images": images,
+                    "annotations": anns,
+                    "categories": [{"id": c} for c in range(1, 6)],
+                }
+                gt.createIndex()
+                ev = COCOeval(gt, gt.loadRes(dets), "bbox")
+                ev.evaluate()
+                ev.accumulate()
+                ev.summarize()
+            return [ev.stats[0], ev.stats[1], ev.stats[2], ev.stats[8]]
+
+        refs[cases[2][0]] = coco_map
+    except ImportError:
+        pass
+    return [(name, ref, es_fn, refs.get(name)) for name, ref, es_fn, _ in cases]
 
 
 def _clinical_cases(n: int, rng: np.random.Generator) -> list[Case]:
@@ -286,6 +426,7 @@ class BenchmarkResult:
             + (f" | scikit-learn {env['sklearn']}" if env.get("sklearn") else "")
             + (f" | statsmodels {env['statsmodels']}" if env.get("statsmodels") else "")
             + (f" | SciPy {env['scipy']}" if env.get("scipy") else "")
+            + (f" | pycocotools {env['pycocotools']}" if env.get("pycocotools") else "")
             + f" | {env['machine']} | fastest of {env['repeat']} runs"
         )
         note = "Speed-up > 1 means EvalSuite is faster. Max |difference| compares EvalSuite with the reference."
@@ -354,7 +495,8 @@ def run_benchmarks(
     """Time and memory for evaluation workloads at each size, against a reference implementation.
 
     ``suite``: ``"core"`` (classification and regression vs scikit-learn), ``"clinical"`` (v0.2.0 clinical,
-    calibration and statistics vs scikit-learn, statsmodels, SciPy) or ``"all"`` (default).
+    calibration and statistics vs scikit-learn, statsmodels, SciPy), ``"vision"`` (segmentation and COCO
+    detection vs scikit-learn, SciPy, pycocotools) or ``"all"`` (default).
     ``compare_sklearn=False`` times EvalSuite alone. Rows keep ``sklearn_ms``/``sklearn_peak_mb`` for rows
     whose reference is scikit-learn, for compatibility with 0.1.x.
     """
@@ -364,16 +506,24 @@ def run_benchmarks(
 
     if repeat < 1:
         raise ValueError("repeat must be at least 1.")
-    if suite not in ("all", "core", "clinical"):
-        raise ValueError("suite must be 'all', 'core' or 'clinical'.")
+    if suite not in ("all", "core", "clinical", "vision"):
+        raise ValueError("suite must be 'all', 'core', 'clinical' or 'vision'.")
     rng = np.random.default_rng(random_state)
     rows: list[dict[str, Any]] = []
-    versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None}
+    versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None, "pycocotools": None}
     if compare_sklearn:
         for mod in versions:
             with contextlib.suppress(ImportError):
-                versions[mod] = __import__(mod).__version__
-    builders = {"core": [_core_cases], "clinical": [_clinical_cases], "all": [_core_cases, _clinical_cases]}[suite]
+                __import__(mod)
+                from importlib.metadata import version as _dist_version
+
+                versions[mod] = _dist_version("scikit-learn" if mod == "sklearn" else mod)
+    builders = {
+        "core": [_core_cases],
+        "clinical": [_clinical_cases],
+        "vision": [_vision_cases],
+        "all": [_core_cases, _clinical_cases, _vision_cases],
+    }[suite]
     for n in sizes:
         for build in builders:
             for name, ref_name, es_fn, ref_fn in build(int(n), rng):
@@ -410,6 +560,7 @@ def run_benchmarks(
         "scipy": scipy.__version__ if suite != "core" else None,
         "sklearn": versions["sklearn"],
         "statsmodels": versions["statsmodels"] if suite != "core" else None,
+        "pycocotools": versions["pycocotools"] if suite in ("all", "vision") else None,
         "machine": f"{platform.system()} {platform.machine()}",
         "repeat": repeat,
         "suite": suite,
