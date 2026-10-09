@@ -5,12 +5,13 @@
 [![Python](https://img.shields.io/pypi/pyversions/evalsuite-python)](https://pypi.org/project/evalsuite-python/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Unified, reproducible evaluation for machine learning and research.**
+**Unified, reproducible evaluation for machine learning, LLM and research.**
 
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
 > **Status: stable (0.3.1).** Every item on the 0.1.0, 0.2.0 and 0.3.0 roadmaps is implemented and verified.
+> **Status:** LLM Metrics Coming Soon in 0.4.0 and 0.5.0.
 
 ## Installation
 
