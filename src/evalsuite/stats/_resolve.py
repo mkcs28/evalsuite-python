@@ -54,6 +54,19 @@ def as_observations(x: Any, name: str) -> NDArray[Any]:
     return to_numpy(x, name, allow_2d=True)
 
 
+def as_items(x: Any, name: str) -> NDArray[Any]:
+    """A 1-D object array holding one item per observation, whatever each item is."""
+    if x is None or isinstance(x, (str, bytes)):
+        raise InputValidationError(f"{name} must be a list with one item per example.")
+    seq = list(x.tolist() if isinstance(x, np.ndarray) and x.dtype != object and x.ndim == 1 else x)
+    if not seq:
+        raise InputValidationError(f"{name} is empty. Provide at least one observation.")
+    out = np.empty(len(seq), dtype=object)
+    for i, v in enumerate(seq):
+        out[i] = v
+    return out
+
+
 def is_categorical(y: NDArray[Any]) -> bool:
     if y.ndim > 2 or (y.dtype == object and y.size and not isinstance(y.flat[0], (str, bytes))):
         return False
@@ -80,9 +93,16 @@ class MetricCall:
                 "Pass exactly one of y_pred (label/value metrics) or y_prob (probability metrics)."
             )
         self.fn = fn
-        self.y_true = as_observations(y_true, "y_true")
         second = y_pred if y_pred is not None else y_prob
-        self.second = as_observations(second, "y_pred" if y_pred is not None else "y_prob")
+        self.items = bool(getattr(fn, "__evalsuite_items__", False))
+        if self.items:
+            # Text, retrieval and other item-level metrics: each observation is a whole item (a string, a list
+            # of references, a ranked list, an embedding matrix); resample items, never stratify by value.
+            self.y_true = as_items(y_true, "y_true")
+            self.second = as_items(second, "y_pred" if y_pred is not None else "y_prob")
+        else:
+            self.y_true = as_observations(y_true, "y_true")
+            self.second = as_observations(second, "y_pred" if y_pred is not None else "y_prob")
         if self.second.shape[0] != self.y_true.shape[0]:
             raise InputValidationError(
                 f"y_true and {'y_pred' if y_pred is not None else 'y_prob'} must contain the same number of "
@@ -97,7 +117,7 @@ class MetricCall:
         self.weight = None if sample_weight is None else to_numpy(sample_weight, "sample_weight")
         self.kwargs = dict(kwargs or {})
         params = inspect.signature(fn).parameters
-        self.categorical = is_categorical(self.y_true)
+        self.categorical = not self.items and is_categorical(self.y_true)
         # Keep every class in every resample so per-class and averaged metrics stay comparable.
         if self.categorical and "labels" in params and "labels" not in self.kwargs and self.y_true.ndim == 1:
             present = self.y_true if y_pred is None else np.concatenate([self.y_true, self.second])

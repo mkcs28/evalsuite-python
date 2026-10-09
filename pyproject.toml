@@ -38,7 +38,8 @@ dependencies = ["numpy>=1.22", "scipy>=1.8", "pandas>=1.4"]
 [project.optional-dependencies]
 plot = ["matplotlib>=3.5"]
 vision = ["pillow>=9"]
-all = ["matplotlib>=3.5", "pillow>=9"]
+llm = ["nltk>=3.8"]
+all = ["matplotlib>=3.5", "pillow>=9", "nltk>=3.8"]
 dev = [
   "pytest>=7",
   "pytest-cov>=4",
@@ -48,6 +49,15 @@ dev = [
   "matplotlib>=3.5",
   "pillow>=9",
   "pycocotools>=2.0.7",
+  "nltk>=3.8",
+  "sacrebleu>=2.4",
+  "rouge-score>=0.1.2",
+  "pycocoevalcap>=1.2",
+  "jsonschema>=4.18",
+  "choix>=0.3",
+  "krippendorff>=0.6",
+  "pot>=0.9; python_version < '3.14'",
+  "ranx>=0.3.19; python_version < '3.14'",
   "ruff>=0.6",
   "mypy>=1.10",
   "pandas-stubs",
@@ -98,6 +108,12 @@ files = ["src/evalsuite"]
 [[tool.mypy.overrides]]
 module = ["scipy.*", "matplotlib.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# optional reference libraries used only by the benchmarks and METEOR's default stemmer
+module = ["sacrebleu.*", "rouge_score.*", "nltk.*", "ranx.*", "krippendorff.*", "jsonschema.*", "pycocotools.*"]
+ignore_missing_imports = true
+follow_untyped_imports = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
