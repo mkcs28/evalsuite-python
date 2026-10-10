@@ -266,36 +266,36 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against reference implementations on the same data (fastest of 5 runs; Python 3.12, NumPy 2.5,
-Linux x86_64). **Overall: 63 of 63 rows agree with the reference** (largest
-difference 1.8e-14), 42 are faster, and the geometric-mean speed-up across all
-21 cases and three sizes is **2.12×**. At 1,000,000 samples (pixels for
+Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.5.0, Python 3.13,
+NumPy 2.5, Linux x86_64). **Overall: 63 of 63 rows agree with the reference** (largest
+difference 1.8e-14), 39 are faster, and the geometric-mean speed-up across all
+21 cases and three sizes is **1.96×**. At 1,000,000 samples (pixels for
 segmentation; 1,000 images for detection and 50 for Hausdorff; 10,000 examples for the LLM cases), in
 alphabetical order:
 
 | Case | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
 | --- | --- | ---: | ---: | ---: |
-| 10 classes: macro F1 | scikit-learn | 23.8 | 135.5 | **5.7×** |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 3.5 | 3.4 | 0.96× |
-| binary: 8 label metrics via evaluate() | scikit-learn | 28.5 | 1023.8 | **36.0×** |
-| binary: ROC AUC | scikit-learn | 187.4 | 327.3 | **1.7×** |
-| calibration: slope and intercept | statsmodels | 205.7 | 1173.7 | **5.7×** |
-| clinical: diagnostic report (7 CIs) | statsmodels | 19.6 | 4.9 | 0.25× |
-| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 75.2 | 411.5 | **5.5×** |
-| decision curve: 99 thresholds | NumPy loop | 165.0 | 201.9 | **1.2×** |
-| detection: COCO evaluation (1000 images) | pycocotools | 838.7 | 848.6 | **1.0×** |
-| multiple testing: Hochberg (n p-values) | statsmodels | 72.1 | 79.0 | **1.1×** |
-| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 22.9 | 10.6 | 0.47× |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 170.4 | 861.0 | **5.1×** |
-| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 34.3 | 256.0 | **7.5×** |
-| segmentation: Hausdorff distance (50 images) | SciPy | 24.2 | 19.8 | 0.82× |
-| statistics: Cramér's V (5×5 table) | SciPy | 0.2 | 0.2 | **1.0×** |
-| statistics: Mann–Whitney U | SciPy | 353.5 | 340.6 | 0.96× |
-| statistics: Welch t-test | SciPy | 16.1 | 8.3 | 0.52× |
-| structured: JSON Schema compliance (10000 documents) | jsonschema | 144.6 | 330.5 | **2.3×** |
-| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 2789.8 | 3051.8 | **1.1×** |
-| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 488.1 | 626.7 | **1.3×** |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1290.1 | 1095.6 | 0.85× |
+| 10 classes: macro F1 | scikit-learn | 51.1 | 143.3 | **2.8×** |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 4.2 | 4.6 | **1.1×** |
+| binary: 8 label metrics via evaluate() | scikit-learn | 50.5 | 1064.2 | **21.1×** |
+| binary: ROC AUC | scikit-learn | 230.0 | 358.7 | **1.6×** |
+| calibration: slope and intercept | statsmodels | 368.3 | 1542.4 | **4.2×** |
+| clinical: diagnostic report (7 CIs) | statsmodels | 39.5 | 8.6 | 0.22× |
+| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 165.9 | 429.8 | **2.6×** |
+| decision curve: 99 thresholds | NumPy loop | 185.6 | 320.0 | **1.7×** |
+| detection: COCO evaluation (1000 images) | pycocotools | 1149.0 | 1281.5 | **1.1×** |
+| multiple testing: Hochberg (n p-values) | statsmodels | 86.6 | 101.5 | **1.2×** |
+| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 34.6 | 25.3 | 0.73× |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 238.8 | 887.1 | **3.7×** |
+| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 50.4 | 277.0 | **5.5×** |
+| segmentation: Hausdorff distance (50 images) | SciPy | 31.3 | 23.8 | 0.76× |
+| statistics: Cramér's V (5×5 table) | SciPy | 0.3 | 0.3 | 0.81× |
+| statistics: Mann–Whitney U | SciPy | 432.6 | 411.2 | 0.95× |
+| statistics: Welch t-test | SciPy | 33.1 | 16.9 | 0.51× |
+| structured: JSON Schema compliance (10000 documents) | jsonschema | 155.8 | 407.4 | **2.6×** |
+| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 2648.8 | 2883.9 | **1.1×** |
+| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 518.3 | 588.2 | **1.1×** |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1158.2 | 996.3 | 0.86× |
 
 **Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
 statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an

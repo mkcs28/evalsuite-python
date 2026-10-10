@@ -28,7 +28,7 @@ For the LLM suite, `n / 100` examples are evaluated (sentences, queries, items o
 `n / 1000` images with 1–7 objects of five classes each, plus false positives.
 
 ```text
-EvalSuite 0.4.0 benchmarks | Python 3.12.3 | NumPy 2.5.3 | scikit-learn 1.9.1 | statsmodels 0.15.0 | SciPy 1.18.1 | pycocotools 2.0.11 | Linux x86_64 | fastest of 5 runs
+EvalSuite 0.5.0 benchmarks | Python 3.13.16 | NumPy 2.5.3 | scikit-learn 1.9.1 | statsmodels 0.15.0 | SciPy 1.18.1 | pycocotools 2.0.11 | Linux x86_64 | fastest of 5 runs
 ```
 
 ## Overall
@@ -38,105 +38,79 @@ faster, and the geometric mean and range of the speed-ups over all sizes.
 
 | Suite | Cases | Rows | Match reference | Faster | Geo-mean speed-up | Range |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Classification and regression | 4 | 12 | 12/12 | 10/12 | 5.88× | 0.47×–49.07× |
-| Clinical, calibration and statistics | 8 | 24 | 24/24 | 17/24 | 1.71× | 0.25×–11.13× |
-| LLM evaluation | 6 | 18 | 18/18 | 10/18 | 1.48× | 0.83×–7.72× |
-| Segmentation and object detection | 3 | 9 | 9/9 | 5/9 | 1.97× | 0.64×–10.39× |
-| Overall | 21 | 63 | 63/63 | 42/63 | 2.12× | 0.25×–49.07× |
+| Classification and regression | 4 | 12 | 12/12 | 10/12 | 5.47× | 0.73×–34.25× |
+| Clinical, calibration and statistics | 8 | 24 | 24/24 | 12/24 | 1.48× | 0.22×–10.70× |
+| LLM evaluation | 6 | 18 | 18/18 | 12/18 | 1.49× | 0.76×–7.12× |
+| Segmentation and object detection | 3 | 9 | 9/9 | 5/9 | 1.80× | 0.52×–16.30× |
+| Overall | 21 | 63 | 63/63 | 39/63 | 1.96× | 0.22×–34.25× |
 
 ## All cases (alphabetical)
 
 | Case | n | Reference | EvalSuite (ms) | Reference (ms) | Speed-up | EvalSuite peak (MiB) | Reference peak (MiB) | Max |difference| |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 10 classes: macro F1 | 1,000 | scikit-learn | 0.101 | 1.342 | 13.25× | 0.05 | 0.03 | 0.0e+00 |
-| 10 classes: macro F1 | 100,000 | scikit-learn | 2.995 | 15.218 | 5.08× | 3.05 | 2.18 | 0.0e+00 |
-| 10 classes: macro F1 | 1,000,000 | scikit-learn | 23.809 | 135.515 | 5.69× | 30.52 | 21.79 | 0.0e+00 |
-| agreement: Krippendorff's alpha, interval (4 raters × 10 items) | 1,000 | krippendorff | 0.049 | 0.045 | 0.92× | 0.01 | 0.01 | 0.0e+00 |
-| agreement: Krippendorff's alpha, interval (4 raters × 1000 items) | 100,000 | krippendorff | 0.412 | 0.387 | 0.94× | 0.26 | 0.69 | 3.3e-15 |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | 1,000,000 | krippendorff | 3.511 | 3.372 | 0.96× | 2.26 | 6.32 | 1.8e-14 |
-| binary: 8 label metrics via evaluate() | 1,000 | scikit-learn | 0.256 | 9.178 | 35.87× | 0.05 | 0.05 | 0.0e+00 |
-| binary: 8 label metrics via evaluate() | 100,000 | scikit-learn | 2.350 | 115.325 | 49.07× | 3.21 | 3.07 | 0.0e+00 |
-| binary: 8 label metrics via evaluate() | 1,000,000 | scikit-learn | 28.459 | 1023.820 | 35.98× | 31.54 | 30.53 | 0.0e+00 |
-| binary: ROC AUC | 1,000 | scikit-learn | 0.167 | 1.460 | 8.73× | 0.09 | 0.08 | 1.1e-16 |
-| binary: ROC AUC | 100,000 | scikit-learn | 17.642 | 27.624 | 1.57× | 9.16 | 7.64 | 0.0e+00 |
-| binary: ROC AUC | 1,000,000 | scikit-learn | 187.361 | 327.279 | 1.75× | 91.56 | 76.30 | 0.0e+00 |
-| calibration: slope and intercept | 1,000 | statsmodels | 0.559 | 2.578 | 4.61× | 0.10 | 0.60 | 2.8e-16 |
-| calibration: slope and intercept | 100,000 | statsmodels | 15.730 | 115.193 | 7.32× | 8.46 | 58.00 | 5.6e-17 |
-| calibration: slope and intercept | 1,000,000 | statsmodels | 205.659 | 1173.684 | 5.71× | 83.99 | 579.85 | 3.9e-16 |
-| clinical: diagnostic report (7 CIs) | 1,000 | statsmodels | 0.235 | 0.523 | 2.23× | 0.05 | 0.01 | 1.1e-14 |
-| clinical: diagnostic report (7 CIs) | 100,000 | statsmodels | 1.951 | 1.602 | 0.82× | 3.05 | 0.29 | 7.1e-15 |
-| clinical: diagnostic report (7 CIs) | 1,000,000 | statsmodels | 19.570 | 4.878 | 0.25× | 30.52 | 1.91 | 7.1e-15 |
-| clinical: sensitivity, specificity, LR+, LR− | 1,000 | scikit-learn | 0.309 | 3.440 | 11.13× | 0.05 | 0.03 | 4.4e-16 |
-| clinical: sensitivity, specificity, LR+, LR− | 100,000 | scikit-learn | 6.632 | 43.403 | 6.54× | 3.05 | 2.24 | 5.6e-17 |
-| clinical: sensitivity, specificity, LR+, LR− | 1,000,000 | scikit-learn | 75.166 | 411.527 | 5.47× | 30.52 | 22.32 | 4.4e-16 |
-| decision curve: 99 thresholds | 1,000 | NumPy loop | 0.268 | 1.437 | 5.36× | 0.07 | 0.01 | 5.6e-17 |
-| decision curve: 99 thresholds | 100,000 | NumPy loop | 11.350 | 15.891 | 1.40× | 6.87 | 0.29 | 5.6e-17 |
-| decision curve: 99 thresholds | 1,000,000 | NumPy loop | 165.010 | 201.852 | 1.22× | 68.67 | 1.97 | 5.6e-17 |
-| detection: COCO evaluation (10 images) | 1,000 | pycocotools | 13.097 | 21.589 | 1.65× | 0.54 | 1.33 | 0.0e+00 |
-| detection: COCO evaluation (100 images) | 100,000 | pycocotools | 102.270 | 93.783 | 0.92× | 1.15 | 4.29 | 0.0e+00 |
-| detection: COCO evaluation (1000 images) | 1,000,000 | pycocotools | 838.714 | 848.551 | 1.01× | 6.92 | 34.02 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 1,000 | statsmodels | 0.045 | 0.077 | 1.71× | 0.05 | 0.05 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 100,000 | statsmodels | 4.867 | 4.675 | 0.96× | 4.58 | 3.97 | 0.0e+00 |
-| multiple testing: Hochberg (n p-values) | 1,000,000 | statsmodels | 72.148 | 78.964 | 1.09× | 45.78 | 39.17 | 0.0e+00 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000 | scikit-learn | 0.095 | 0.650 | 6.85× | 0.03 | 0.02 | 0.0e+00 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 100,000 | scikit-learn | 1.912 | 1.763 | 0.92× | 2.29 | 1.53 | 0.0e+00 |
-| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000,000 | scikit-learn | 22.854 | 10.633 | 0.47× | 22.89 | 15.26 | 0.0e+00 |
-| retrieval: MRR, MAP@20, NDCG@10 (10 queries) | 1,000 | ranx | 0.182 | 1.407 | 7.72× | 0.01 | 0.04 | 0.0e+00 |
-| retrieval: MRR, MAP@20, NDCG@10 (1000 queries) | 100,000 | ranx | 29.821 | 77.001 | 2.58× | 0.49 | 3.12 | 0.0e+00 |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | 1,000,000 | ranx | 170.388 | 861.009 | 5.05× | 5.36 | 31.01 | 6.9e-18 |
-| segmentation: Dice and IoU per class (n = pixels) | 1,000 | scikit-learn | 0.314 | 2.882 | 9.19× | 0.16 | 0.10 | 0.0e+00 |
-| segmentation: Dice and IoU per class (n = pixels) | 100,000 | scikit-learn | 3.864 | 40.162 | 10.39× | 0.17 | 2.32 | 0.0e+00 |
-| segmentation: Dice and IoU per class (n = pixels) | 1,000,000 | scikit-learn | 34.283 | 256.019 | 7.47× | 0.25 | 23.48 | 0.0e+00 |
-| segmentation: Hausdorff distance (1 image) | 1,000 | SciPy | 0.515 | 0.397 | 0.77× | 0.15 | 0.03 | 0.0e+00 |
-| segmentation: Hausdorff distance (24 images) | 100,000 | SciPy | 21.556 | 13.741 | 0.64× | 0.15 | 0.03 | 0.0e+00 |
-| segmentation: Hausdorff distance (50 images) | 1,000,000 | SciPy | 24.165 | 19.832 | 0.82× | 0.15 | 0.03 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 1,000 | SciPy | 0.259 | 0.409 | 1.58× | 0.00 | 0.00 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 100,000 | SciPy | 0.259 | 0.275 | 1.07× | 0.00 | 0.00 | 0.0e+00 |
-| statistics: Cramér's V (5×5 table) | 1,000,000 | SciPy | 0.231 | 0.232 | 1.00× | 0.00 | 0.00 | 0.0e+00 |
-| statistics: Mann–Whitney U | 1,000 | SciPy | 0.640 | 0.564 | 0.88× | 0.16 | 0.14 | 0.0e+00 |
-| statistics: Mann–Whitney U | 100,000 | SciPy | 33.722 | 38.490 | 1.14× | 15.45 | 13.93 | 0.0e+00 |
-| statistics: Mann–Whitney U | 1,000,000 | SciPy | 353.520 | 340.573 | 0.96× | 154.50 | 139.24 | 0.0e+00 |
-| statistics: Welch t-test | 1,000 | SciPy | 0.821 | 0.987 | 1.20× | 0.04 | 0.02 | 0.0e+00 |
-| statistics: Welch t-test | 100,000 | SciPy | 2.097 | 1.382 | 0.66× | 3.06 | 1.53 | 0.0e+00 |
-| statistics: Welch t-test | 1,000,000 | SciPy | 16.124 | 8.349 | 0.52× | 30.52 | 15.26 | 0.0e+00 |
-| structured: JSON Schema compliance (10 documents) | 1,000 | jsonschema | 0.157 | 0.421 | 2.67× | 0.00 | 0.00 | 0.0e+00 |
-| structured: JSON Schema compliance (1000 documents) | 100,000 | jsonschema | 14.393 | 33.995 | 2.36× | 0.05 | 0.02 | 0.0e+00 |
-| structured: JSON Schema compliance (10000 documents) | 1,000,000 | jsonschema | 144.622 | 330.462 | 2.29× | 0.50 | 0.16 | 0.0e+00 |
-| text: corpus BLEU and chrF (10 sentences) | 1,000 | sacreBLEU | 2.206 | 1.960 | 0.89× | 0.10 | 0.22 | 1.4e-14 |
-| text: corpus BLEU and chrF (1000 sentences) | 100,000 | sacreBLEU | 255.898 | 250.494 | 0.98× | 0.74 | 21.91 | 1.4e-14 |
-| text: corpus BLEU and chrF (10000 sentences) | 1,000,000 | sacreBLEU | 2789.790 | 3051.755 | 1.09× | 7.26 | 210.17 | 0.0e+00 |
-| text: METEOR, exact and stem matches (10 sentences) | 1,000 | NLTK | 0.459 | 0.501 | 1.09× | 0.01 | 0.01 | 0.0e+00 |
-| text: METEOR, exact and stem matches (1000 sentences) | 100,000 | NLTK | 52.275 | 58.965 | 1.13× | 0.12 | 0.04 | 0.0e+00 |
-| text: METEOR, exact and stem matches (10000 sentences) | 1,000,000 | NLTK | 488.126 | 626.693 | 1.28× | 1.15 | 0.39 | 0.0e+00 |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10 sentences) | 1,000 | rouge-score | 1.145 | 0.947 | 0.83× | 0.01 | 0.01 | 0.0e+00 |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (1000 sentences) | 100,000 | rouge-score | 120.724 | 111.884 | 0.93× | 0.12 | 0.64 | 0.0e+00 |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | 1,000,000 | rouge-score | 1290.112 | 1095.609 | 0.85× | 1.16 | 6.55 | 0.0e+00 |
-
-## Reading the results
-
-- **Many metrics at once is where EvalSuite is fastest.** `evaluate()` validates the inputs once and builds
-  the confusion matrix once, then derives all eight label metrics from it: 21–33× faster than eight
-  separate scikit-learn calls. The same applies to sensitivity, specificity, LR+ and LR− (4–11×) and to
-  segmentation Dice and IoU per class (5–17×), which come from one pixel confusion matrix.
-- **LLM metrics match their references exactly** and run at about their speed: BLEU and chrF
-  (1.09× sacreBLEU at 10,000 sentences), ROUGE (0.85× rouge-score), METEOR
-  (1.28× NLTK), ranking metrics (5.1× ranx, which compiles with numba), JSON Schema
-  (2.3× jsonschema) and Krippendorff's alpha (0.96×).
-- **COCO detection evaluation matches pycocotools exactly and is faster** (1.1–1.9×). IoUs are
-  computed once per image and class and reused for every area range and IoU threshold, and the greedy
-  matching is vectorised over thresholds.
-- **Calibration slope and intercept are 5–6× faster than statsmodels' GLM and use far less memory**
-  (84 MiB vs 580 MiB at 1M samples).
-- **Hausdorff distance (0.7–0.8×)** uses a Euclidean distance transform per class, which also supports
-  anisotropic pixel spacing and HD95; the reference computes the exact point-set distance between boundary
-  points of one class. Both give identical results.
-- **Hypothesis tests call SciPy**, so they match its speed at best; the Welch t-test also computes the
-  confidence interval and Cohen's d.
-- **Slower rows, shown on purpose:** the diagnostic report (0.2–0.4× at large n) validates labels and reports
-  ten measures where the reference computes seven intervals from counts; regression on a million values
-  (0.5×) spends most of its ~20 ms checking every value for NaN, infinity, shape and dtype.
-
-Numbers depend on the machine, Python and NumPy versions; run `evalsuite benchmark` on your own hardware.
+| 10 classes: macro F1 | 1,000 | scikit-learn | 0.165 | 2.986 | 18.11× | 0.05 | 0.03 | 0.0e+00 |
+| 10 classes: macro F1 | 100,000 | scikit-learn | 2.758 | 16.377 | 5.94× | 4.58 | 2.18 | 0.0e+00 |
+| 10 classes: macro F1 | 1,000,000 | scikit-learn | 51.102 | 143.342 | 2.81× | 45.78 | 21.79 | 0.0e+00 |
+| agreement: Krippendorff's alpha, interval (4 raters × 10 items) | 1,000 | krippendorff | 0.073 | 0.071 | 0.97× | 0.01 | 0.01 | 0.0e+00 |
+| agreement: Krippendorff's alpha, interval (4 raters × 1000 items) | 100,000 | krippendorff | 0.483 | 0.429 | 0.89× | 0.26 | 0.69 | 3.3e-15 |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | 1,000,000 | krippendorff | 4.239 | 4.635 | 1.09× | 2.26 | 6.32 | 1.8e-14 |
+| binary: 8 label metrics via evaluate() | 1,000 | scikit-learn | 0.425 | 12.093 | 28.46× | 0.05 | 0.05 | 0.0e+00 |
+| binary: 8 label metrics via evaluate() | 100,000 | scikit-learn | 3.486 | 119.405 | 34.25× | 4.58 | 3.07 | 0.0e+00 |
+| binary: 8 label metrics via evaluate() | 1,000,000 | scikit-learn | 50.533 | 1064.186 | 21.06× | 45.78 | 30.53 | 0.0e+00 |
+| binary: ROC AUC | 1,000 | scikit-learn | 0.205 | 1.840 | 8.99× | 0.09 | 0.08 | 1.1e-16 |
+| binary: ROC AUC | 100,000 | scikit-learn | 18.177 | 35.541 | 1.96× | 9.16 | 7.64 | 0.0e+00 |
+| binary: ROC AUC | 1,000,000 | scikit-learn | 230.026 | 358.746 | 1.56× | 91.56 | 76.30 | 0.0e+00 |
+| calibration: slope and intercept | 1,000 | statsmodels | 0.895 | 4.116 | 4.60× | 0.10 | 0.60 | 2.8e-16 |
+| calibration: slope and intercept | 100,000 | statsmodels | 27.871 | 142.556 | 5.11× | 8.46 | 58.06 | 5.6e-17 |
+| calibration: slope and intercept | 1,000,000 | statsmodels | 368.332 | 1542.430 | 4.19× | 83.99 | 579.91 | 3.9e-16 |
+| clinical: diagnostic report (7 CIs) | 1,000 | statsmodels | 0.183 | 0.750 | 4.11× | 0.05 | 0.01 | 1.1e-14 |
+| clinical: diagnostic report (7 CIs) | 100,000 | statsmodels | 2.701 | 1.309 | 0.48× | 4.58 | 0.29 | 7.1e-15 |
+| clinical: diagnostic report (7 CIs) | 1,000,000 | statsmodels | 39.512 | 8.589 | 0.22× | 45.78 | 2.86 | 7.1e-15 |
+| clinical: sensitivity, specificity, LR+, LR− | 1,000 | scikit-learn | 0.482 | 5.161 | 10.70× | 0.05 | 0.03 | 4.4e-16 |
+| clinical: sensitivity, specificity, LR+, LR− | 100,000 | scikit-learn | 9.009 | 48.479 | 5.38× | 4.58 | 2.24 | 5.6e-17 |
+| clinical: sensitivity, specificity, LR+, LR− | 1,000,000 | scikit-learn | 165.890 | 429.832 | 2.59× | 45.78 | 22.32 | 4.4e-16 |
+| decision curve: 99 thresholds | 1,000 | NumPy loop | 0.180 | 1.304 | 7.26× | 0.07 | 0.01 | 5.6e-17 |
+| decision curve: 99 thresholds | 100,000 | NumPy loop | 13.612 | 21.027 | 1.54× | 6.87 | 0.29 | 5.6e-17 |
+| decision curve: 99 thresholds | 1,000,000 | NumPy loop | 185.581 | 320.035 | 1.72× | 68.67 | 2.86 | 5.6e-17 |
+| detection: COCO evaluation (10 images) | 1,000 | pycocotools | 35.234 | 31.895 | 0.91× | 0.98 | 1.74 | 0.0e+00 |
+| detection: COCO evaluation (100 images) | 100,000 | pycocotools | 124.397 | 141.062 | 1.13× | 1.48 | 4.65 | 0.0e+00 |
+| detection: COCO evaluation (1000 images) | 1,000,000 | pycocotools | 1149.007 | 1281.548 | 1.12× | 6.93 | 34.01 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 1,000 | statsmodels | 0.054 | 0.066 | 1.23× | 0.05 | 0.05 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 100,000 | statsmodels | 7.221 | 7.032 | 0.97× | 4.58 | 3.97 | 0.0e+00 |
+| multiple testing: Hochberg (n p-values) | 1,000,000 | statsmodels | 86.589 | 101.488 | 1.17× | 45.78 | 39.17 | 0.0e+00 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000 | scikit-learn | 0.130 | 0.861 | 6.61× | 0.03 | 0.02 | 0.0e+00 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 100,000 | scikit-learn | 2.342 | 2.050 | 0.88× | 3.05 | 1.53 | 0.0e+00 |
+| regression: MAE, MSE, RMSE, R² via evaluate() | 1,000,000 | scikit-learn | 34.612 | 25.286 | 0.73× | 30.52 | 15.26 | 0.0e+00 |
+| retrieval: MRR, MAP@20, NDCG@10 (10 queries) | 1,000 | ranx | 0.267 | 1.905 | 7.12× | 0.01 | 0.04 | 0.0e+00 |
+| retrieval: MRR, MAP@20, NDCG@10 (1000 queries) | 100,000 | ranx | 21.131 | 88.780 | 4.20× | 0.49 | 3.12 | 0.0e+00 |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | 1,000,000 | ranx | 238.795 | 887.114 | 3.71× | 5.36 | 31.01 | 6.9e-18 |
+| segmentation: Dice and IoU per class (n = pixels) | 1,000 | scikit-learn | 0.283 | 4.621 | 16.30× | 0.16 | 0.10 | 0.0e+00 |
+| segmentation: Dice and IoU per class (n = pixels) | 100,000 | scikit-learn | 4.601 | 30.161 | 6.56× | 0.17 | 2.32 | 0.0e+00 |
+| segmentation: Dice and IoU per class (n = pixels) | 1,000,000 | scikit-learn | 50.387 | 277.000 | 5.50× | 0.25 | 23.48 | 0.0e+00 |
+| segmentation: Hausdorff distance (1 image) | 1,000 | SciPy | 0.904 | 0.469 | 0.52× | 0.15 | 0.03 | 0.0e+00 |
+| segmentation: Hausdorff distance (24 images) | 100,000 | SciPy | 14.746 | 11.032 | 0.75× | 0.15 | 0.03 | 0.0e+00 |
+| segmentation: Hausdorff distance (50 images) | 1,000,000 | SciPy | 31.349 | 23.751 | 0.76× | 0.15 | 0.03 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 1,000 | SciPy | 0.486 | 0.351 | 0.72× | 0.00 | 0.00 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 100,000 | SciPy | 0.446 | 0.292 | 0.65× | 0.00 | 0.00 | 0.0e+00 |
+| statistics: Cramér's V (5×5 table) | 1,000,000 | SciPy | 0.347 | 0.281 | 0.81× | 0.00 | 0.00 | 0.0e+00 |
+| statistics: Mann–Whitney U | 1,000 | SciPy | 0.780 | 0.728 | 0.93× | 0.16 | 0.14 | 0.0e+00 |
+| statistics: Mann–Whitney U | 100,000 | SciPy | 34.689 | 33.525 | 0.97× | 15.45 | 13.93 | 0.0e+00 |
+| statistics: Mann–Whitney U | 1,000,000 | SciPy | 432.602 | 411.227 | 0.95× | 154.50 | 139.24 | 0.0e+00 |
+| statistics: Welch t-test | 1,000 | SciPy | 1.009 | 0.730 | 0.72× | 0.04 | 0.02 | 0.0e+00 |
+| statistics: Welch t-test | 100,000 | SciPy | 2.661 | 1.624 | 0.61× | 3.06 | 1.53 | 0.0e+00 |
+| statistics: Welch t-test | 1,000,000 | SciPy | 33.054 | 16.897 | 0.51× | 30.52 | 15.26 | 0.0e+00 |
+| structured: JSON Schema compliance (10 documents) | 1,000 | jsonschema | 0.175 | 0.430 | 2.46× | 0.00 | 0.00 | 0.0e+00 |
+| structured: JSON Schema compliance (1000 documents) | 100,000 | jsonschema | 15.722 | 38.814 | 2.47× | 0.05 | 0.02 | 0.0e+00 |
+| structured: JSON Schema compliance (10000 documents) | 1,000,000 | jsonschema | 155.785 | 407.423 | 2.62× | 0.50 | 0.16 | 0.0e+00 |
+| text: corpus BLEU and chrF (10 sentences) | 1,000 | sacreBLEU | 2.385 | 2.092 | 0.88× | 0.10 | 0.22 | 1.4e-14 |
+| text: corpus BLEU and chrF (1000 sentences) | 100,000 | sacreBLEU | 255.851 | 258.174 | 1.01× | 0.74 | 21.91 | 1.4e-14 |
+| text: corpus BLEU and chrF (10000 sentences) | 1,000,000 | sacreBLEU | 2648.800 | 2883.940 | 1.09× | 7.26 | 209.73 | 0.0e+00 |
+| text: METEOR, exact and stem matches (10 sentences) | 1,000 | NLTK | 0.527 | 0.630 | 1.19× | 0.01 | 0.01 | 0.0e+00 |
+| text: METEOR, exact and stem matches (1000 sentences) | 100,000 | NLTK | 51.951 | 59.396 | 1.14× | 0.12 | 0.04 | 0.0e+00 |
+| text: METEOR, exact and stem matches (10000 sentences) | 1,000,000 | NLTK | 518.276 | 588.233 | 1.13× | 1.15 | 0.39 | 0.0e+00 |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10 sentences) | 1,000 | rouge-score | 1.139 | 0.861 | 0.76× | 0.01 | 0.01 | 0.0e+00 |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (1000 sentences) | 100,000 | rouge-score | 110.958 | 95.039 | 0.86× | 0.12 | 0.64 | 0.0e+00 |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | 1,000,000 | rouge-score | 1158.195 | 996.263 | 0.86× | 1.16 | 6.55 | 0.0e+00 |
 
 ## Every metric
 
