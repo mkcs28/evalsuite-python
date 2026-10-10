@@ -15,7 +15,9 @@ Metrics with neither (learned or judge-dependent scores, randomised procedures) 
 Sizes: ``n`` observations for classification, regression, clinical and statistics; ``n`` pixels for
 segmentation; ``n / 1000`` images for detection; ``n / 100`` examples for text, retrieval, RAG, judge and
 structured-output metrics; ``n / 1000`` examples for the token-embedding metrics (BERTScore, MoverScore)
-and MAUVE.
+and MAUVE. The v0.5.0 LLM-systems metrics use ``n / 100`` examples (``n / 10`` for the uncertainty metrics,
+``n / 1000`` sentence pairs for bitext mining) and are compared with SciPy, scikit-learn, jsonschema, radon,
+the ``codebleu`` package's n-gram terms or the textbook formula.
 """
 
 from __future__ import annotations
@@ -1383,9 +1385,696 @@ def _llm(c: _Cases, n: int, rng: np.random.Generator) -> None:
     c.add("text.extra_content_rate", lambda: _f(es.extra_content_rate(wrapped)))
 
 
+# --------------------------------------------------------------------------------------------- v0.5.0 LLM systems
+_CODE_SAMPLES = (
+    "def add(a, b):\n    return a + b\n",
+    "def total(xs):\n    s = 0\n    for x in xs:\n"
+    "        if x > 0 and x < 10:\n            s += x\n    return s\n",
+    "class Box:\n    def get(self, k):\n        try:\n            return self.d[k]\n"
+    "        except KeyError:\n            return None\n",
+    "def mx(a, b):\n    return a if a > b else b\n",
+)
+
+
+def _llmsys(c: _Cases, n: int, rng: np.random.Generator) -> None:
+    from scipy import stats
+
+    import evalsuite as es
+
+    m = max(50, n // 100)
+    skm = _opt("sklearn.metrics")
+
+    def flags(p: float = 0.3, size: Optional[int] = None) -> np.ndarray:
+        return rng.random(size or m) < p
+
+    def mean_of(x: Any) -> Callable[[], float]:
+        return lambda: float(np.mean(x))
+
+    # ---- safety
+    harmful, hp = flags(0.2), flags(0.5)
+    c.add(
+        "safety.harmful_response_rate",
+        lambda: _f(es.harmful_response_rate(harmful, harmful_prompt=hp)),
+        "NumPy formula",
+        lambda: float(harmful[hp].mean()),
+    )
+    refused, should = flags(0.4), flags(0.3)
+    c.add(
+        "safety.refusal_rate",
+        lambda: _f(es.refusal_rate(refused, should_refuse=should)),
+        "NumPy formula",
+        lambda: float(refused[should].mean()),
+    )
+    c.add(
+        "safety.over_refusal_rate",
+        lambda: _f(es.over_refusal_rate(refused, should)),
+        "NumPy formula",
+        lambda: float(refused[~should].mean()),
+    )
+    asr = flags(0.25)
+    c.add("safety.attack_success_rate", lambda: _f(es.attack_success_rate(asr)), "NumPy formula", mean_of(asr))
+    attempts = [list(rng.random(int(rng.integers(1, 6))) < 0.15) for _ in range(m)]
+    c.add(
+        "safety.red_team_success_rate",
+        lambda: _f(es.red_team_success_rate(attempts)),
+        "Python stdlib",
+        lambda: float(np.mean([any(a) for a in attempts])),
+    )
+    tox = rng.beta(1, 6, (m, 5))
+    c.add(
+        "safety.toxicity_score",
+        lambda: _f(es.toxicity_score(tox)),
+        "NumPy formula",
+        lambda: float(tox.max(1).mean()),
+    )
+    ls, la = rng.normal(-20, 3, m), rng.normal(-20, 3, m)
+    c.add(
+        "safety.stereotype_preference",
+        lambda: _f(es.stereotype_preference(ls, la)),
+        "NumPy formula",
+        lambda: float(np.mean((ls > la) + 0.5 * (ls == la))),
+    )
+    dim = 32
+    X, Y, A, B = (rng.normal(size=(8, dim)) for _ in range(4))
+
+    def weat_ref() -> float:
+        def u(v: Any) -> Any:
+            return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+        def s(w: Any) -> Any:
+            return (u(w) @ u(A).T).mean(1) - (u(w) @ u(B).T).mean(1)
+
+        sx, sy = s(X), s(Y)
+        return float((sx.mean() - sy.mean()) / np.concatenate([sx, sy]).std(ddof=1))
+
+    c.add(
+        "safety.weat_effect_size",
+        lambda: _f(es.weat_effect_size(X, Y, A, B, n_permutations=1000, random_state=0)),
+        "NumPy formula",
+        weat_ref,
+    )
+    texts = [
+        f"contact user{i}@mail.com"
+        if rng.random() < 0.1
+        else f"call 555-01{i % 100:02d} now"
+        if rng.random() < 0.1
+        else "no personal data here"
+        for i in range(m)
+    ]
+    email_re = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+    c.add(
+        "safety.pii_leakage_rate",
+        lambda: _f(es.pii_leakage_rate(texts, kinds=["email"])),
+        "Python stdlib",
+        lambda: float(np.mean([email_re.search(t) is not None for t in texts])),
+    )
+    canary = rng.normal(3, 1, m)
+    cands = rng.normal(4, 1, (m, 100))
+    c.add(
+        "safety.exposure",
+        lambda: _f(es.exposure(canary, cands)),
+        "NumPy formula",
+        lambda: float(np.mean(np.log2(101) - np.log2((cands < canary[:, None]).sum(1) + 1))),
+    )
+    pol = ["violence", "pii", "self-harm"]
+    viols = [[p for p in pol if rng.random() < 0.05] for _ in range(m)]
+    c.add(
+        "safety.policy_violation_rate",
+        lambda: _f(es.policy_violation_rate(viols, policies=pol)),
+        "Python stdlib",
+        lambda: float(np.mean([bool(v) for v in viols])),
+    )
+
+    # ---- robustness
+    clean, adv = flags(0.8), flags(0.6)
+    c.add(
+        "robustness.adversarial_robustness",
+        lambda: _f(es.adversarial_robustness(clean, adv)),
+        "NumPy formula",
+        mean_of(adv),
+    )
+    c.add(
+        "robustness.noise_robustness", lambda: _f(es.noise_robustness(clean, adv)), "NumPy formula", mean_of(adv)
+    )
+    ood = flags(0.4)
+    c.add(
+        "robustness.ood_accuracy",
+        lambda: _f(es.ood_accuracy(clean, ood)),
+        "NumPy formula",
+        lambda: float(clean[ood].mean()),
+    )
+    s1, s2 = rng.normal(0.8, 0.1, m), rng.normal(0.75, 0.12, m)
+    c.add(
+        "robustness.distribution_shift_drop",
+        lambda: _numeric_params(es.distribution_shift_drop(s1, s2), ("ci_low", "ci_high")),
+        "SciPy",
+        (lambda: list(stats.ttest_ind(s1, s2, equal_var=False).confidence_interval(0.95)))
+        if hasattr(stats.ttest_ind(s1[:2], s2[:2], equal_var=False), "confidence_interval")  # SciPy >= 1.10
+        else None,
+    )
+    para = [[str(int(rng.integers(0, 2))) for _ in range(4)] for _ in range(m)]
+    c.add(
+        "robustness.paraphrase_consistency",
+        lambda: _f(es.paraphrase_consistency(para)),
+        "Python stdlib",
+        lambda: float(np.mean([len(set(r)) == 1 for r in para])),
+    )
+    orig = [str(v) for v in rng.integers(0, 3, m)]
+    cf = [o if rng.random() < 0.9 else "x" for o in orig]
+    c.add(
+        "robustness.invariance_violation_rate",
+        lambda: _f(es.invariance_violation_rate(orig, cf)),
+        "Python stdlib",
+        lambda: float(np.mean([a != b for a, b in zip(orig, cf)])),
+    )
+    samples = [[str(int(rng.integers(0, 3))) for _ in range(5)] for _ in range(m)]
+
+    def stab_ref() -> float:
+        from itertools import combinations as comb
+
+        return float(np.mean([np.mean([a == b for a, b in comb(s, 2)]) for s in samples]))
+
+    c.add("robustness.response_stability", lambda: _f(es.response_stability(samples)), "Python stdlib", stab_ref)
+    nli = list(rng.choice(np.array(["contradiction", "entailment", "neutral"]), m))
+    c.add(
+        "robustness.contradiction_rate",
+        lambda: _f(es.contradiction_rate(nli)),
+        "NumPy formula",
+        lambda: float(np.mean(np.asarray(nli) == "contradiction")),
+    )
+    statuses = list(rng.choice(np.array(["ok", "ok", "ok", "error", "timeout"]), m))
+    c.add(
+        "robustness.error_rate",
+        lambda: _f(es.error_rate(statuses)),
+        "NumPy formula",
+        lambda: float(np.mean(np.asarray(statuses) != "ok")),
+    )
+    failed = flags(0.3)
+    recovered = failed & flags(0.6)
+    c.add(
+        "robustness.recovery_success_rate",
+        lambda: _f(es.recovery_success_rate(failed, recovered)),
+        "NumPy formula",
+        lambda: float(recovered[failed].mean()),
+    )
+    tmpl = (rng.random((5, m)) < rng.uniform(0.5, 0.9, (5, 1))).astype(float)
+    c.add(
+        "robustness.prompt_sensitivity",
+        lambda: _f(es.prompt_sensitivity(tmpl)),
+        "NumPy formula",
+        lambda: float(np.ptp(tmpl.mean(1))),
+    )
+    lens = rng.choice(np.array([1000, 2000, 4000, 8000, 16000]), m)
+    corr_len = rng.random(m) < 1 - np.log2(lens / 1000) / 6
+
+    def slope_ref() -> float:
+        lv = np.unique(lens)
+        return float(np.polyfit(np.log2(lv), [corr_len[lens == v].mean() for v in lv], 1)[0])
+
+    c.add(
+        "robustness.truncation_sensitivity",
+        lambda: _f(es.truncation_sensitivity(corr_len, lens)),
+        "NumPy formula",
+        slope_ref,
+    )
+
+    # ---- uncertainty
+    conf = rng.uniform(0, 1, m * 10)
+    corr = rng.random(conf.size) < conf
+
+    def ace_ref() -> float:
+        order = np.argsort(conf, kind="mergesort")
+        return float(np.mean([abs(corr[i].mean() - conf[i].mean()) for i in np.array_split(order, 15)]))
+
+    c.add(
+        "uncertainty.adaptive_calibration_error",
+        lambda: _f(es.adaptive_calibration_error(corr, conf)),
+        "NumPy formula",
+        ace_ref,
+    )
+
+    def sorted_err() -> Any:
+        return ~corr[np.argsort(-conf, kind="mergesort")]
+
+    c.add(
+        "uncertainty.aurc",
+        lambda: _f(es.aurc(corr, conf)),
+        "NumPy formula",
+        lambda: float(np.mean(np.cumsum(sorted_err()) / np.arange(1, conf.size + 1))),
+    )
+    k80 = int(np.ceil(0.8 * conf.size))
+    c.add(
+        "uncertainty.selective_risk",
+        lambda: _f(es.selective_risk(corr, conf)),
+        "NumPy formula",
+        lambda: float(sorted_err()[:k80].mean()),
+    )
+    c.add(
+        "uncertainty.risk_at_coverage",
+        lambda: _f(es.risk_at_coverage(corr, conf)),
+        "NumPy formula",
+        lambda: float(sorted_err()[:k80].mean()),
+    )
+
+    def cov_ref() -> float:
+        risk = np.cumsum(sorted_err()) / np.arange(1, conf.size + 1)
+        ok = np.flatnonzero(risk <= 0.2 + 1e-12)
+        return float((ok[-1] + 1) / conf.size) if ok.size else 0.0
+
+    c.add(
+        "uncertainty.coverage_at_risk",
+        lambda: _f(es.coverage_at_risk(corr, conf, risk=0.2)),
+        "NumPy formula",
+        cov_ref,
+    )
+    c.add(
+        "uncertainty.confidence_accuracy_correlation",
+        lambda: _f(es.confidence_accuracy_correlation(corr, conf)),
+        "scikit-learn",
+        (lambda: skm.roc_auc_score(corr, conf)) if skm is not None else None,
+    )
+
+    # ---- agents
+    tools = ["search", "calc", "email", "lookup"]
+    schemas = {t: {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]} for t in tools}
+    trajs = []
+    for _ in range(m):
+        traj = []
+        for _ in range(int(rng.integers(1, 7))):
+            name = str(rng.choice([*tools, "bad"])) if rng.random() < 0.1 else str(rng.choice(tools))
+            args: Any = {"q": f"x{int(rng.integers(0, 3))}"} if rng.random() > 0.05 else {"q": 1}
+            traj.append({"name": name, "arguments": args, "ok": bool(rng.random() < 0.85)})
+        trajs.append(traj)
+    jsch = _opt("jsonschema")
+
+    def invalid_ref() -> float:
+        out = []
+        for traj in trajs:
+            for call in traj:
+                if call["name"] not in schemas:
+                    out.append(True)
+                else:
+                    out.append(not jsch.Draft202012Validator(schemas[call["name"]]).is_valid(call["arguments"]))
+        return float(np.mean(out))
+
+    c.add(
+        "agents.invalid_tool_call_rate",
+        lambda: _f(es.invalid_tool_call_rate(trajs, schemas)),
+        "jsonschema",
+        invalid_ref if jsch else None,
+    )
+    c.add("agents.tool_failure_recovery_rate", lambda: _f(es.tool_failure_recovery_rate(trajs)))
+
+    def repeat_ref() -> float:
+        flags_ = []
+        for traj in trajs:
+            seen: set[str] = set()
+            for call in traj:
+                k = json.dumps([call["name"], call["arguments"]], sort_keys=True)
+                flags_.append(k in seen)
+                seen.add(k)
+        return float(np.mean(flags_))
+
+    c.add(
+        "agents.unnecessary_tool_call_rate",
+        lambda: _f(es.unnecessary_tool_call_rate(trajs)),
+        "Python stdlib",
+        repeat_ref,
+    )
+    done = flags(0.7)
+    c.add("agents.task_completion_rate", lambda: _f(es.task_completion_rate(done)), "NumPy formula", mean_of(done))
+    ncalls = rng.integers(1, 10, m).astype(float)
+    opt = np.minimum(ncalls, rng.integers(1, 6, m)).astype(float)
+    c.add(
+        "agents.tool_use_efficiency",
+        lambda: _f(es.tool_use_efficiency(ncalls, opt)),
+        "NumPy formula",
+        lambda: float(np.mean(opt / ncalls)),
+    )
+    c.add("agents.steps_per_task", lambda: _f(es.steps_per_task(ncalls)), "NumPy formula", mean_of(ncalls))
+    plans = [list(rng.choice(np.array(tools), int(rng.integers(2, 6)))) for _ in range(m)]
+    executed = [[s for s in p if rng.random() < 0.85] for p in plans]
+    c.add("agents.plan_adherence", lambda: _f(es.plan_adherence(plans, executed)))
+    st_e = [{"slot": int(v), "area": "n"} for v in rng.integers(0, 4, m)]
+    st_p = [dict(d) if rng.random() < 0.8 else {"slot": -1, "area": "n"} for d in st_e]
+    c.add(
+        "agents.state_tracking_accuracy",
+        lambda: _f(es.state_tracking_accuracy(st_e, st_p)),
+        "Python stdlib",
+        lambda: float(np.mean([a == b for a, b in zip(st_e, st_p)])),
+    )
+    inter = rng.poisson(0.3, m).astype(float)
+    c.add(
+        "agents.human_intervention_rate",
+        lambda: _f(es.human_intervention_rate(inter)),
+        "NumPy formula",
+        lambda: float(np.mean(inter > 0)),
+    )
+    costs = rng.gamma(2, 0.01, m)
+    c.add("agents.agent_cost_per_task", lambda: _f(es.agent_cost_per_task(costs)), "NumPy formula", mean_of(costs))
+
+    # ---- multilingual
+    langs = np.array(["en", "fr", "de", "hi", "sw"])
+    lt = rng.choice(langs, m)
+    lp = np.where(rng.random(m) < 0.9, lt, rng.choice(langs, m))
+    c.add(
+        "multilingual.language_id_accuracy",
+        lambda: _f(es.language_id_accuracy(lt, lp)),
+        "scikit-learn",
+        (lambda: skm.accuracy_score(lt, lp)) if skm is not None else None,
+    )
+    nb = max(10, n // 1000)
+    se = rng.normal(size=(nb, dim))
+    te = se + rng.normal(0, 0.8, se.shape)
+
+    def bitext_ref() -> float:
+        def u(v: Any) -> Any:
+            return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+        sim = u(se) @ u(te).T
+        idx = np.arange(nb)
+        return float((np.mean(sim.argmax(1) == idx) + np.mean(sim.argmax(0) == idx)) / 2)
+
+    c.add(
+        "multilingual.bitext_mining_accuracy",
+        lambda: _f(es.bitext_mining_accuracy(se, te)),
+        "NumPy formula",
+        bitext_ref,
+    )
+    by_lang = {str(lang): (rng.random(m) < rng.uniform(0.5, 0.9)).astype(float) for lang in langs}
+    c.add(
+        "multilingual.language_parity",
+        lambda: _f(es.language_parity(by_lang)),
+        "NumPy formula",
+        lambda: float(min(v.mean() for v in by_lang.values()) / max(v.mean() for v in by_lang.values())),
+    )
+    c.add(
+        "multilingual.code_switching_robustness",
+        lambda: _f(es.code_switching_robustness(clean, adv)),
+        "NumPy formula",
+        mean_of(adv),
+    )
+    da = rng.uniform(0, 100, m)
+    raters = [f"r{int(v)}" for v in rng.integers(0, 5, m)]
+    c.add(
+        "multilingual.direct_assessment",
+        lambda: _f(es.direct_assessment(da, raters)),
+        "SciPy",
+        lambda: float(
+            np.mean(np.concatenate([stats.zscore(da[np.array(raters) == r], ddof=1) for r in sorted(set(raters))]))
+        ),
+    )
+    ratings = rng.integers(1, 6, m).astype(float)
+    c.add(
+        "multilingual.cultural_appropriateness",
+        lambda: _f(es.cultural_appropriateness(ratings)),
+        "NumPy formula",
+        lambda: float(np.mean((ratings - 1) / 4)),
+    )
+    c.add(
+        "multilingual.language_consistency",
+        lambda: _f(es.language_consistency(lt, lp)),
+        "NumPy formula",
+        lambda: float(np.mean(lt == lp)),
+    )
+    xl = [{str(lang): str(int(rng.integers(0, 2))) for lang in langs[:3]} for _ in range(m)]
+    c.add(
+        "multilingual.cross_lingual_consistency",
+        lambda: _f(es.cross_lingual_consistency(xl)),
+        "Python stdlib",
+        lambda: float(np.mean([len(set(d.values())) == 1 for d in xl])),
+    )
+
+    # ---- code
+    tests_ = [list(rng.random(int(rng.integers(1, 10))) < 0.7) for _ in range(m)]
+    c.add(
+        "code.unit_test_pass_rate",
+        lambda: _f(es.unit_test_pass_rate(tests_)),
+        "NumPy formula",
+        lambda: float(np.mean([np.mean(t) for t in tests_])),
+    )
+    progs = [
+        str(rng.choice(np.array(_CODE_SAMPLES))) if rng.random() < 0.9 else "def broken(:\n" for _ in range(m)
+    ]
+
+    def syntax_ref() -> float:
+        import ast as ast_
+
+        ok = []
+        for p in progs:
+            try:
+                ast_.parse(p)
+                ok.append(True)
+            except SyntaxError:
+                ok.append(False)
+        return float(np.mean(ok))
+
+    c.add("code.syntax_validity_rate", lambda: _f(es.syntax_validity_rate(progs)), "Python stdlib", syntax_ref)
+    viol, lines = rng.poisson(2, m).astype(float), rng.integers(10, 200, m).astype(float)
+    c.add(
+        "code.static_analysis_violation_rate",
+        lambda: _f(es.static_analysis_violation_rate(viol, lines)),
+        "NumPy formula",
+        lambda: float(1000 * viol.sum() / lines.sum()),
+    )
+    outcomes = list(rng.choice(np.array(["passed", "passed", "wrong_answer", "timeout", "runtime_error"]), m))
+    c.add(
+        "code.execution_success_rate",
+        lambda: _f(es.execution_success_rate(outcomes)),
+        "NumPy formula",
+        lambda: float(np.mean(np.asarray(outcomes) == "passed")),
+    )
+    tot = rng.integers(10, 100, m).astype(float)
+    cov = np.floor(tot * rng.uniform(0.3, 1, m))
+    c.add(
+        "code.coverage_rate",
+        lambda: _f(es.coverage_rate(cov, tot)),
+        "NumPy formula",
+        lambda: float(cov.sum()) / float(tot.sum()),
+    )
+    acc_ = flags(0.4)
+    c.add("code.patch_acceptance_rate", lambda: _f(es.patch_acceptance_rate(acc_)), "NumPy formula", mean_of(acc_))
+    f2p = [list(rng.random(int(rng.integers(1, 4))) < 0.7) for _ in range(m)]
+    p2p = [list(rng.random(int(rng.integers(0, 6))) < 0.95) for _ in range(m)]
+    c.add(
+        "code.resolved_rate",
+        lambda: _f(es.resolved_rate(f2p, p2p)),
+        "Python stdlib",
+        lambda: float(np.mean([all(a) and all(b) for a, b in zip(f2p, p2p)])),
+    )
+    sev = np.array(["low", "medium", "high", "critical"])
+    finds = [list(rng.choice(sev, int(rng.poisson(0.3)))) for _ in range(m)]
+    c.add(
+        "code.security_vulnerability_rate",
+        lambda: _f(es.security_vulnerability_rate(finds)),
+        "Python stdlib",
+        lambda: float(np.mean([bool(f) for f in finds])),
+    )
+    tg, tr = rng.lognormal(0, 0.5, m), rng.lognormal(0, 0.3, m)
+    c.add(
+        "code.runtime_efficiency",
+        lambda: _f(es.runtime_efficiency(tg, tr)),
+        "NumPy formula",
+        lambda: float(np.mean(tg / tr)),
+    )
+    srcs = list(_CODE_SAMPLES) * max(1, m // 50)
+    radon_metrics = _opt("radon.metrics")
+    c.add(
+        "code.code_complexity",
+        lambda: [es.code_complexity(srcs).params["maintainability_index"]],
+        "radon",
+        (lambda: [float(np.mean([radon_metrics.mi_visit(s, True) for s in srcs]))]) if radon_metrics else None,
+    )
+    cb_refs = [str(rng.choice(np.array(_CODE_SAMPLES))) for _ in range(max(10, m // 10))]
+    cb_preds = [r.replace("a", "x").replace("s", "t") for r in cb_refs]
+    cbl = _opt("codebleu")
+
+    def cb_ref() -> list[float]:
+        r = cbl.calc_codebleu([[x] for x in cb_refs], cb_preds, lang="python")
+        return [r["ngram_match_score"], r["weighted_ngram_match_score"]]
+
+    def cb_ok() -> bool:
+        try:
+            cb_ref()
+        except Exception:
+            return False
+        return True
+
+    c.add(
+        "code.codebleu",
+        lambda: [es.codebleu(cb_refs, cb_preds).params[k] for k in ("ngram_match", "weighted_ngram_match")],
+        "codebleu (n-gram terms)",
+        cb_ref if cbl is not None and cb_ok() else None,
+    )
+
+    # ---- long context
+    depth = rng.uniform(0, 1, m)
+    corr_d = rng.random(m) < 0.9 - 0.3 * np.sin(np.pi * depth)
+    c.add(
+        "long_context.retrieval_accuracy_by_length",
+        lambda: _f(es.retrieval_accuracy_by_length(corr_len, lens)),
+        "NumPy formula",
+        mean_of(corr_len),
+    )
+    c.add(
+        "long_context.needle_in_haystack",
+        lambda: _f(es.needle_in_haystack(corr_d, lens, np.round(depth, 1))),
+        "NumPy formula",
+        mean_of(corr_d),
+    )
+
+    def pos_ref() -> float:
+        b = np.minimum((depth * 5).astype(int), 4)
+        acc = [corr_d[b == k].mean() for k in range(5) if (b == k).any()]
+        return float(max(acc) - min(acc))
+
+    c.add(
+        "long_context.position_accuracy", lambda: _f(es.position_accuracy(corr_d, depth)), "NumPy formula", pos_ref
+    )
+
+    def litm_ref() -> float:
+        s, e = depth <= 0.2, depth >= 0.8
+        return float((corr_d[s].mean() + corr_d[e].mean()) / 2 - corr_d[~s & ~e].mean())
+
+    c.add(
+        "long_context.lost_in_the_middle",
+        lambda: _f(es.lost_in_the_middle(corr_d, depth)),
+        "NumPy formula",
+        litm_ref,
+    )
+    provided = [[f"f{j}" for j in range(int(rng.integers(1, 8)))] for _ in range(m)]
+    used = [[f for f in p if rng.random() < 0.6] for p in provided]
+    c.add(
+        "long_context.context_utilization",
+        lambda: _f(es.context_utilization(used, provided)),
+        "Python stdlib",
+        lambda: sum(len(u) for u in used) / sum(len(p) for p in provided),
+    )
+    kp = [list(rng.random(int(rng.integers(1, 8))) < 0.6) for _ in range(m)]
+    c.add(
+        "long_context.summary_coverage",
+        lambda: _f(es.summary_coverage(kp)),
+        "NumPy formula",
+        lambda: float(np.mean([np.mean(k) for k in kp])),
+    )
+    docs = [" ".join(_sentence(rng, 50, 200)) for _ in range(m)]
+    sums = [" ".join(_sentence(rng, 5, 30)) for _ in range(m)]
+    c.add(
+        "long_context.compression_ratio",
+        lambda: _f(es.compression_ratio(docs, sums)),
+        "Python stdlib",
+        lambda: float(np.mean([len(a.split()) / len(b.split()) for a, b in zip(docs, sums)])),
+    )
+    cites = [list(rng.poisson(0.8, int(rng.integers(1, 6)))) for _ in range(m)]
+    c.add(
+        "long_context.citation_coverage",
+        lambda: _f(es.citation_coverage(cites)),
+        "NumPy formula",
+        lambda: float(np.mean(np.concatenate([np.asarray(x) > 0 for x in cites]))),
+    )
+    c.add(
+        "long_context.cross_document_consistency",
+        lambda: _f(es.cross_document_consistency(para)),
+        "Python stdlib",
+        lambda: float(np.mean([len(set(r)) == 1 for r in para])),
+    )
+
+    # ---- efficiency
+    t0 = np.cumsum(rng.exponential(0.05, m))
+    first = t0 + rng.gamma(2, 0.1, m)
+    nout = rng.integers(2, 400, m).astype(float)
+    end = first + nout * rng.uniform(0.01, 0.03, m)
+    c.add(
+        "efficiency.time_to_first_token",
+        lambda: _f(es.time_to_first_token(t0, first)),
+        "NumPy formula",
+        lambda: float(np.mean(first - t0)),
+    )
+    c.add(
+        "efficiency.time_per_output_token",
+        lambda: _f(es.time_per_output_token(first, end, nout)),
+        "NumPy formula",
+        lambda: float(np.mean((end - first) / (nout - 1))),
+    )
+    lat = end - t0
+    c.add(
+        "efficiency.latency_percentiles",
+        lambda: _f(es.latency_percentiles(lat)),
+        "NumPy formula",
+        lambda: float(np.percentile(lat, 95)),
+    )
+    c.add(
+        "efficiency.throughput",
+        lambda: _f(es.throughput(nout, t0, end)),
+        "NumPy formula",
+        lambda: float(nout.sum()) / float(np.max(end) - np.min(t0)),
+    )
+    nin = rng.integers(50, 4000, m).astype(float)
+    c.add(
+        "efficiency.token_usage",
+        lambda: _f(es.token_usage(nin, nout)),
+        "NumPy formula",
+        lambda: float(np.mean(nin + nout)),
+    )
+    c.add(
+        "efficiency.inference_cost",
+        lambda: _f(es.inference_cost(nin, nout, input_price=3.0, output_price=15.0)),
+        "NumPy formula",
+        lambda: float(np.mean(nin * 3e-6 + nout * 15e-6)),
+    )
+    readings = {"memory_gb": rng.uniform(10, 40, m), "gpu_util": rng.uniform(0, 100, m)}
+    c.add(
+        "efficiency.resource_utilization",
+        lambda: _f(es.resource_utilization(readings)),
+        "NumPy formula",
+        lambda: float(np.max(readings["memory_gb"])),
+    )
+    power = rng.uniform(200, 400, m)
+    c.add(
+        "efficiency.energy_per_request",
+        lambda: _f(es.energy_per_request(power, interval_s=0.5, n_requests=m)),
+        "NumPy formula",
+        lambda: float(np.sum((power[1:] + power[:-1]) / 2) * 0.5 / 3600 / m),
+    )
+    c.add(
+        "efficiency.requests_per_second",
+        lambda: _f(es.requests_per_second(end)),
+        "NumPy formula",
+        lambda: float((m - 1) / np.ptp(end)),
+    )
+    ok_ = flags(0.98)
+    c.add("efficiency.availability", lambda: _f(es.availability(ok_)), "NumPy formula", mean_of(ok_))
+
+    # ---- SPICE (v0.4 text, implemented in v0.5.0)
+    objs = np.array(["dog", "cat", "man", "ball", "tree", "car", "hat"])
+    rels = np.array(["on", "near", "holds"])
+
+    def graph() -> list[tuple[str, ...]]:
+        o = list(rng.choice(objs, 3, replace=False))
+        return [(o[0],), (o[1],), (o[0], "small"), (o[0], str(rng.choice(rels)), o[1])]
+
+    sp_r = [graph() for _ in range(m)]
+    sp_c = [[*g[:2], graph()[3]] for g in sp_r]
+
+    def spice_ref() -> float:
+        out = []
+        for r, cnd in zip(sp_r, sp_c):
+            rs, cs = set(r), set(cnd)
+            mt = len(rs & cs)
+            p, rc = mt / len(cs), mt / len(rs)
+            out.append(0.0 if p + rc == 0 else 2 * p * rc / (p + rc))
+        return float(np.mean(out))
+
+    c.add("text.spice", lambda: _f(es.spice(sp_r, sp_c)), "Python stdlib", spice_ref)
+
+
+def _numeric_params(r: Any, keys: tuple[str, ...]) -> list[float]:
+    return [float(r.params[k]) for k in keys]
+
+
 def metric_cases(n: int, rng: np.random.Generator) -> list[Case]:
     """One benchmark case for every registered metric and every statistics function."""
     c = _Cases()
-    for build in (_classification, _regression, _clinical, _statistics, _vision, _llm):
+    for build in (_classification, _regression, _clinical, _statistics, _vision, _llm, _llmsys):
         build(c, n, rng)
     return sorted(c.rows, key=lambda r: r[0])

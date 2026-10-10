@@ -529,6 +529,19 @@ _GROUPS = (
     ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
     ("Segmentation and object detection", ("segmentation", "detection")),
     ("LLM evaluation", ("text", "retrieval", "agreement", "structured", "qa.", "rag.", "reasoning.")),
+    (
+        "LLM systems",
+        (
+            "safety.",
+            "robustness.",
+            "uncertainty.",
+            "agents.",
+            "multilingual.",
+            "code.",
+            "long_context.",
+            "efficiency.",
+        ),
+    ),
 )
 MATCH_TOLERANCE = 1e-9
 

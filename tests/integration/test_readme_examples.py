@@ -129,6 +129,8 @@ def test_readme_example_runs(heading: str, code: str, tmp_path, monkeypatch) -> 
             ],
             claim_verdicts=[["supported", "unsupported"], [True, True]],
             comparisons=[("a", "b", "win"), ("b", "c", "win"), ("c", "a", "win"), ("a", "c", "tie")],
+            reference_tuples=[[("dog",), ("dog", "brown")], [("cat",)]],
+            candidate_tuples=[[("dog",)], [("cat",), ("mat",)]],
             relevant=[{1, 2}, {3}],
             retrieved=[[1, 5, 2], [4, 3]],
             outputs=['{"x": 1}', "not json"],

@@ -5,7 +5,7 @@
 >>> print(result.summary())  # doctest: +SKIP
 """
 
-from . import calibration, classification, clinical, plot, regression, stats, text, vision
+from . import calibration, classification, clinical, llmsys, plot, regression, stats, text, vision
 from .api import evaluate
 from .calibration import (
     CalibrationReport,
@@ -63,6 +63,8 @@ from .core.exceptions import (
 )
 from .core.registry import MetricInfo, list_metrics, metric_info
 from .core.result import EvaluationResult, MetricResult
+from .llmsys import *  # noqa: F403  (v0.5.0 LLM-systems functions, listed in llmsys.__all__)
+from .llmsys import __all__ as _llmsys_all
 from .regression import (
     adjusted_r2,
     explained_variance,
@@ -137,6 +139,7 @@ from .vision import (
 
 __all__ = [
     "text",
+    "llmsys",
     "SegmentationReport",
     "segmentation_report",
     "detection_pr_curve",
@@ -262,3 +265,4 @@ __all__ = [
     "top_k_accuracy",
 ]
 __all__ += list(_text_all)
+__all__ += list(_llmsys_all)

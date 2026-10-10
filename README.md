@@ -10,9 +10,9 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.4.1).** Every item on the 0.1.0, 0.2.0, 0.3.0 and 0.4.0 roadmaps is implemented and verified
-> (except SPICE, which needs a Java scene-graph parser).
-> **LLM evaluation is available from 0.4.0**; LLM systems, safety and operations are planned for 0.5.0.
+> **Status: stable (0.5.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
+> multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
 ## Installation
 
@@ -182,6 +182,32 @@ es.json_schema_compliance(outputs, schema)  # also tool_call_f1, instruction_com
 es.pass_at_k(n_samples, n_correct, k=10)  # also benchmark_accuracy(..., style="gsm8k")
 es.compare(references, {"a": preds_a, "b": preds_b}, metrics=["bleu", "rouge_l"])  # paired over examples
 es.plot.ratings(comparisons)  # Bradley–Terry leaderboard with intervals; also win_matrix, text_scores
+es.spice(reference_tuples, candidate_tuples)  # scene-graph F-score; parser= for captions, synonyms="wordnet"
+```
+
+## LLM systems
+
+Safety, robustness, uncertainty, agents, multilingual, code, long context and serving cost. The verdicts
+these take (harmful or not, test passed or not, confidence) come from your own judge, classifier or sandbox;
+EvalSuite turns them into rates with Wilson intervals and breakdowns. PII detection, CodeBLEU, cyclomatic
+complexity and the maintainability index (identical to radon) are computed from the text itself, and
+EvalSuite never executes generated code.
+
+```python
+import evalsuite as es
+
+es.harmful_response_rate([True, False, False, True], harmful_prompt=[True, True, False, True])
+es.over_refusal_rate(refused=[True, False, True], should_refuse=[True, False, False])
+es.pii_leakage_rate(["mail me at a@b.io", "nothing here"])  # e-mail, phone, Luhn-checked cards, IPs
+es.paraphrase_consistency([["Paris", "paris"], ["4", "5", "4"]])
+es.aurc(correct=[True, True, False, True], confidence=[0.9, 0.8, 0.7, 0.4])  # also selective_risk
+es.plan_adherence(plans=[["search", "read", "answer"]], executed=[["search", "answer"]])
+es.language_parity({"en": [1, 1, 0, 1], "sw": [1, 0, 0, 1]})
+es.codebleu(["def add(a, b):\n    return a + b"], ["def add(x, y):\n    return x + y"])
+es.code_complexity(["def f(x):\n    return 1 if x else 0"])  # cyclomatic complexity + maintainability
+es.needle_in_haystack(correct=[1, 0, 1, 1], context_lengths=[4000, 4000, 8000, 8000], depths=[0, 0.5, 0, 0.5])
+es.time_to_first_token(request_times=[0.0, 1.0], first_token_times=[0.21, 1.35])
+es.inference_cost([1200, 800], [300, 150], input_price=3.0, output_price=15.0)  # prices per 1M tokens
 ```
 
 ## Classification report
@@ -271,10 +297,10 @@ alphabetical order:
 | text: METEOR, exact and stem matches (10000 sentences) | NLTK | 488.1 | 626.7 | **1.3×** |
 | text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1290.1 | 1095.6 | 0.85× |
 
-**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 147 registered metrics and
-statistics functions at 10,000 and 100,000 samples. 79 are compared with a reference library, 49 with an
-independent textbook formula and 19 (learned, judge-dependent or randomised) are timed alone; **all 128
-comparisons agree**, and against the libraries the geometric-mean speed-up is **2.76×** (123 of 158
+**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
+statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
+independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
+comparisons agree**, and against the libraries the geometric-mean speed-up is **2.65×** (137 of 172
 measurements faster). Per-metric table in BENCHMARKS.md.
 
 `evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where most
@@ -314,6 +340,29 @@ object size, AP per class with COCO or VOC interpolation, precision-recall curve
 **Regression** (single and multi-output; sample weights): MAE, MSE, RMSE, R², adjusted R², MAPE, sMAPE,
 MSLE, RMSLE, median absolute error, explained variance, max error, mean bias error, quantile (pinball)
 loss, Huber loss, relative absolute error, relative squared error.
+
+**LLM evaluation** (0.4.0): BLEU, sentence BLEU, chrF/chrF++, TER, ROUGE-1/2/L/Lsum, METEOR, CIDEr-D, SPICE,
+perplexity, cross-entropy, Distinct-n, Self-BLEU, MAUVE, BERTScore, embedding similarity, MoverScore, learned
+metrics via `model_score`; faithfulness, hallucination rate, groundedness, citation precision/recall, claim
+verification, knowledge consistency, answer correctness/relevance, abstention, exact match, token F1; win
+rate, Bradley–Terry, Elo, Krippendorff's alpha, Fleiss' kappa, judge agreement and biases, rubric scores;
+pass@k, majority vote, benchmark accuracy; Precision/Recall/Hit rate@k, MRR, MAP, NDCG, context precision,
+recall and relevance; JSON / JSON Schema / XML validity, required fields, tool calls, instruction following.
+
+**LLM systems** (0.5.0): harmful-response, refusal, over-refusal, attack-success and red-team success rates,
+expected maximum toxicity, CrowS-Pairs stereotype preference, WEAT, PII leakage, memorization exposure,
+policy violations; adversarial, typo-noise, OOD and code-switching robustness, distribution-shift drop,
+paraphrase / counterfactual / cross-lingual consistency, response stability, contradiction rate, failure and
+recovery rates, prompt sensitivity, truncation sensitivity; adaptive calibration error, risk-coverage curve,
+AURC and E-AURC, selective risk, risk at coverage, coverage at risk, confidence AUROC; task completion,
+invalid tool calls, tool-use efficiency, steps per task, plan adherence, state tracking, tool-failure
+recovery, loop rate, human intervention, cost per task; language ID, bitext mining, language parity, direct
+assessment, cultural appropriateness, language consistency; unit-test pass rate, syntax validity, static
+analysis and security findings, execution success, test coverage, patch acceptance, SWE-bench resolved rate,
+CodeBLEU, cyclomatic complexity and maintainability index, runtime efficiency; long-context accuracy by
+length, needle-in-a-haystack grid, position accuracy, lost-in-the-middle gap, context utilization, summary
+coverage, compression ratio, citation coverage, cross-document consistency; TTFT, TPOT, latency percentiles,
+throughput, token usage, cost, resource utilization, energy per request, requests per second, availability.
 
 ## Conventions
 

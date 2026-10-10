@@ -55,6 +55,7 @@ from .reasoning import benchmark_accuracy, extract_answer, majority_vote_accurac
 from .report import TextReport, text_report
 from .retrieval import hit_rate_at_k, mean_average_precision_at_k, mrr, ndcg_at_k, precision_at_k, recall_at_k
 from .semantic import bertscore, embedding_similarity, mauve, model_score, moverscore
+from .spice import spice
 from .structured import (
     api_call_success_rate,
     constraint_satisfaction_rate,
@@ -139,6 +140,7 @@ __all__ = [
     "self_bleu",
     "self_preference_bias",
     "sentence_bleu",
+    "spice",
     "task_success_rate",
     "ter",
     "token_f1",

@@ -106,7 +106,8 @@ def markdown(env: dict, rows: list[dict]) -> str:
         f"{env['machine']}, fastest of {env['repeat']} runs). n is observations for classification, regression, "
         "clinical and statistics; pixels for segmentation; n / 1000 images for detection; n / 100 examples for "
         "text, retrieval, RAG, judge and structured-output metrics; n / 1000 examples for BERTScore, MoverScore "
-        "and MAUVE.",
+        "and MAUVE; n / 100 examples for the v0.5.0 LLM-systems metrics (n / 10 for uncertainty, n / 1000 "
+        "sentence pairs for bitext mining).",
         "",
         "Each metric is compared with a reference library where one exists, otherwise with an independent "
         "implementation of its textbook formula in NumPy or the Python standard library. A bare formula skips "

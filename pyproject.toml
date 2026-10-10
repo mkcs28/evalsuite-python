@@ -56,6 +56,7 @@ dev = [
   "jsonschema>=4.18",
   "choix>=0.3",
   "krippendorff>=0.6",
+  "radon>=6",
   "pot>=0.9; python_version < '3.14'",
   "ranx>=0.3.19; python_version < '3.14'",
   "ruff>=0.6",

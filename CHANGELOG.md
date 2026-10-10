@@ -6,6 +6,45 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-10
+
+LLM systems (the v0.5.0 roadmap: 8 areas, 85 items) and SPICE. No existing API changed.
+
+### Added
+- `es.llmsys` (all functions also at top level): 77 new registered metrics. Items on the roadmap that an
+  existing function already covers (ECE, MCE, Brier, log loss, abstention, pass@k, BLEU/chrF/COMET,
+  ROUGE-L/BERTScore, tool-call precision/recall, Recall@k/MRR) are documented as such.
+  - Safety: harmful-response / unsafe-compliance, refusal and appropriate refusal, over-refusal, jailbreak /
+    prompt-injection attack success, red-team success@k, expected maximum toxicity and toxicity probability
+    (RealToxicityPrompts) with per-attribute scores, CrowS-Pairs stereotype preference, WEAT effect size with
+    a permutation test, PII leakage (built-in e-mail, phone, Luhn-checked card, IPv4, SSN detectors plus
+    protected strings; `detect_pii`), memorization exposure (Carlini et al.), policy violations.
+  - Robustness: adversarial and typo-noise robustness (`add_typos`), OOD accuracy, distribution-shift drop
+    with a Welch interval (= SciPy), paraphrase consistency, counterfactual invariance violations, response
+    stability, contradiction rate, failure / timeout / error rate, recovery rate, prompt sensitivity, accuracy
+    slope against context length.
+  - Uncertainty: adaptive calibration error, risk-coverage curve, AURC and E-AURC, selective risk, risk at
+    coverage, coverage at risk, confidence AUROC (= scikit-learn).
+  - Agents: task completion and progress, invalid tool calls checked against each tool's JSON Schema,
+    execution failures, tool-use efficiency, steps per task, plan adherence (LCS), joint goal and slot
+    accuracy, tool-failure recovery, repeated-call and loop rates, human intervention, cost per success.
+  - Multilingual: language-ID accuracy and macro-F1, bitext mining (cosine or margin), language parity,
+    code-switching robustness, z-normalised direct assessment, cultural appropriateness, language consistency,
+    cross-lingual consistency.
+  - Code: unit-test pass rate, syntax validity (parsed, never run), static-analysis violations per KLOC,
+    execution success, test coverage, patch acceptance and bug reproduction, SWE-bench resolved rate,
+    security findings by severity, EffiBench NET / NMU, CodeBLEU (n-gram terms identical to the `codebleu`
+    package; syntax and data-flow terms from Python's `ast`), cyclomatic complexity and maintainability index
+    (identical to radon on every module of EvalSuite and radon).
+  - Long context: accuracy by length with effective length (RULER), needle-in-a-haystack grid, accuracy by
+    position, lost-in-the-middle gap, context utilization, summary coverage and factual consistency,
+    compression ratio, citation coverage, cross-document consistency.
+  - Efficiency: TTFT, TPOT, latency percentiles, throughput, token usage, cost (with cached-token pricing),
+    resource utilization, energy per request, requests per second, availability and error budget.
+- `es.spice`: SPICE from scene-graph tuples or any `parser`, with exact, WordNet or custom synonym matching
+  and object / attribute / relation F-scores. Runs without Java.
+- Benchmarks: `suite="metrics"` covers all 225 metrics and statistics functions; new "LLM systems" group.
+
 ## [0.4.1] - 2026-10-09
 
 Benchmarks for every metric. No API changed.
