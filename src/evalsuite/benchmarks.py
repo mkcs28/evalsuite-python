@@ -524,6 +524,117 @@ def _clinical_cases(n: int, rng: np.random.Generator) -> list[Case]:
     return [(name, ref, es_fn, own if own is not None else refs.get(name)) for name, ref, es_fn, own in cases]
 
 
+def _llmsys_cases(n: int, rng: np.random.Generator) -> list[Case]:
+    """v0.5.0: LLM systems workloads (code quality, selective prediction, agent tool calls, shift, latency)."""
+    import json as _json
+
+    import evalsuite as es
+
+    from ._bench_metrics import _CODE_SAMPLES
+
+    m = max(10, n // 100)
+    progs = [str(rng.choice(np.array(_CODE_SAMPLES))) for _ in range(max(4, m // 10))]
+    refs_c = progs
+    preds_c = [p.replace("a", "x").replace("s", "t") for p in progs]
+    conf = rng.uniform(0, 1, n)
+    correct = rng.random(n) < conf
+    tools = {
+        t: {"type": "object", "properties": {"q": {"type": "string"}, "k": {"type": "integer"}}, "required": ["q"]}
+        for t in ("search", "calc", "email")
+    }
+    trajs = [
+        [
+            {
+                "name": str(rng.choice(["search", "calc", "email", "bad"])),
+                "arguments": {"q": "x"} if rng.random() > 0.1 else {"k": 1},
+            }
+            for _ in range(int(rng.integers(1, 6)))
+        ]
+        for _ in range(m)
+    ]
+    src, tgt = rng.normal(0.8, 0.1, n), rng.normal(0.75, 0.12, n)
+    lat = rng.lognormal(0, 0.5, n)
+
+    def es_shift() -> list[float]:
+        r = es.distribution_shift_drop(src, tgt)
+        return [r.params["ci_low"], r.params["ci_high"]]
+
+    def es_lat() -> list[float]:
+        r = es.latency_percentiles(lat)
+        return [r.params["p50"], r.params["p95"], r.params["p99"]]
+
+    cases: list[Case] = [
+        (
+            f"systems: maintainability index ({len(progs)} programs)",
+            "radon",
+            lambda: [float(es.code_complexity(progs).params["maintainability_index"])],
+            None,
+        ),
+        (
+            f"systems: CodeBLEU n-gram terms ({len(progs)} programs)",
+            "codebleu",
+            lambda: [es.codebleu(refs_c, preds_c).params[k] for k in ("ngram_match", "weighted_ngram_match")],
+            None,
+        ),
+        (
+            "systems: confidence AUROC (n answers)",
+            "scikit-learn",
+            lambda: [float(es.confidence_accuracy_correlation(correct, conf))],
+            None,
+        ),
+        (
+            f"systems: invalid tool calls vs JSON Schema ({m} tasks)",
+            "jsonschema",
+            lambda: [float(es.invalid_tool_call_rate(trajs, tools))],
+            None,
+        ),
+        ("systems: distribution-shift drop, Welch CI (n scores)", "SciPy", es_shift, None),
+        (
+            "systems: latency p50 / p95 / p99 (n requests)",
+            "NumPy",
+            es_lat,
+            lambda: np.percentile(lat, [50, 95, 99]).tolist(),
+        ),
+    ]
+    refs: dict[str, Callable[[], Any]] = {}
+    with contextlib.suppress(ImportError):
+        from radon.metrics import mi_visit  # type: ignore[import-untyped]
+
+        refs[cases[0][0]] = lambda: [float(np.mean([mi_visit(p, True) for p in progs]))]
+    with contextlib.suppress(Exception):
+        from codebleu import calc_codebleu
+
+        def cb() -> list[float]:
+            r = calc_codebleu([[x] for x in refs_c], preds_c, lang="python")
+            return [r["ngram_match_score"], r["weighted_ngram_match_score"]]
+
+        cb()
+        refs[cases[1][0]] = cb
+    with contextlib.suppress(ImportError):
+        import sklearn.metrics as skm
+
+        refs[cases[2][0]] = lambda: [float(skm.roc_auc_score(correct, conf))]
+    with contextlib.suppress(ImportError):
+        import jsonschema
+
+        def js_ref() -> list[float]:
+            flags = []
+            for traj in trajs:
+                for c in traj:
+                    sch = tools.get(str(c["name"]))
+                    flags.append(sch is None or not jsonschema.Draft202012Validator(sch).is_valid(c["arguments"]))
+            return [float(np.mean(flags))]
+
+        refs[cases[3][0]] = js_ref
+    from scipy import stats as _st
+
+    res = _st.ttest_ind(src[:3], tgt[:3], equal_var=False)
+    if hasattr(res, "confidence_interval"):
+        refs[cases[4][0]] = lambda: list(_st.ttest_ind(src, tgt, equal_var=False).confidence_interval(0.95))
+    del _json
+    return [(name, ref, es_fn, own if own is not None else refs.get(name)) for name, ref, es_fn, own in cases]
+
+
 _GROUPS = (
     ("Classification and regression", ("binary", "10 classes", "regression", "classification")),
     ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
@@ -532,6 +643,7 @@ _GROUPS = (
     (
         "LLM systems",
         (
+            "systems:",
             "safety.",
             "robustness.",
             "uncertainty.",
@@ -765,8 +877,8 @@ def run_benchmarks(
 
     if repeat < 1:
         raise ValueError("repeat must be at least 1.")
-    if suite not in ("all", "core", "clinical", "vision", "llm", "metrics"):
-        raise ValueError("suite must be 'all', 'core', 'clinical', 'vision', 'llm' or 'metrics'.")
+    if suite not in ("all", "core", "clinical", "vision", "llm", "llmsys", "metrics"):
+        raise ValueError("suite must be 'all', 'core', 'clinical', 'vision', 'llm', 'llmsys' or 'metrics'.")
     rng = np.random.default_rng(random_state)
     rows: list[dict[str, Any]] = []
     versions: dict[str, Optional[str]] = {"sklearn": None, "statsmodels": None, "pycocotools": None}
@@ -782,7 +894,8 @@ def run_benchmarks(
         "clinical": [_clinical_cases],
         "vision": [_vision_cases],
         "llm": [_llm_cases],
-        "all": [_core_cases, _clinical_cases, _vision_cases, _llm_cases],
+        "llmsys": [_llmsys_cases],
+        "all": [_core_cases, _clinical_cases, _vision_cases, _llm_cases, _llmsys_cases],
         "metrics": [metric_cases],
     }[suite]
     for n in sizes:

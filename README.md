@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.5.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **Status: stable (0.5.1).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
@@ -266,41 +266,47 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.5.0, Python 3.13,
-NumPy 2.5, Linux x86_64). **Overall: 63 of 63 rows agree with the reference** (largest
-difference 1.8e-14), 39 are faster, and the geometric-mean speed-up across all
-21 cases and three sizes is **1.96×**. At 1,000,000 samples (pixels for
+Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.5.1, Python 3.13,
+NumPy 2.5, Linux x86_64). **Overall: 81 of 81 rows agree with the reference** (largest
+difference 2.5e-14), 56 are faster, and the geometric-mean speed-up across all
+27 cases and three sizes is **1.89×**. At 1,000,000 samples (pixels for
 segmentation; 1,000 images for detection and 50 for Hausdorff; 10,000 examples for the LLM cases), in
 alphabetical order:
 
 | Case | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
 | --- | --- | ---: | ---: | ---: |
-| 10 classes: macro F1 | scikit-learn | 51.1 | 143.3 | **2.8×** |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 4.2 | 4.6 | **1.1×** |
-| binary: 8 label metrics via evaluate() | scikit-learn | 50.5 | 1064.2 | **21.1×** |
-| binary: ROC AUC | scikit-learn | 230.0 | 358.7 | **1.6×** |
-| calibration: slope and intercept | statsmodels | 368.3 | 1542.4 | **4.2×** |
-| clinical: diagnostic report (7 CIs) | statsmodels | 39.5 | 8.6 | 0.22× |
-| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 165.9 | 429.8 | **2.6×** |
-| decision curve: 99 thresholds | NumPy loop | 185.6 | 320.0 | **1.7×** |
-| detection: COCO evaluation (1000 images) | pycocotools | 1149.0 | 1281.5 | **1.1×** |
-| multiple testing: Hochberg (n p-values) | statsmodels | 86.6 | 101.5 | **1.2×** |
-| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 34.6 | 25.3 | 0.73× |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 238.8 | 887.1 | **3.7×** |
-| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 50.4 | 277.0 | **5.5×** |
-| segmentation: Hausdorff distance (50 images) | SciPy | 31.3 | 23.8 | 0.76× |
-| statistics: Cramér's V (5×5 table) | SciPy | 0.3 | 0.3 | 0.81× |
-| statistics: Mann–Whitney U | SciPy | 432.6 | 411.2 | 0.95× |
-| statistics: Welch t-test | SciPy | 33.1 | 16.9 | 0.51× |
-| structured: JSON Schema compliance (10000 documents) | jsonschema | 155.8 | 407.4 | **2.6×** |
-| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 2648.8 | 2883.9 | **1.1×** |
-| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 518.3 | 588.2 | **1.1×** |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1158.2 | 996.3 | 0.86× |
+| 10 classes: macro F1 | scikit-learn | 41.5 | 137.6 | **3.3×** |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 4.5 | 4.5 | **1.0×** |
+| binary: 8 label metrics via evaluate() | scikit-learn | 49.4 | 1056.8 | **21.4×** |
+| binary: ROC AUC | scikit-learn | 200.3 | 338.5 | **1.7×** |
+| calibration: slope and intercept | statsmodels | 344.3 | 1541.7 | **4.5×** |
+| clinical: diagnostic report (7 CIs) | statsmodels | 33.5 | 9.6 | 0.29× |
+| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 137.9 | 438.1 | **3.2×** |
+| decision curve: 99 thresholds | NumPy loop | 172.1 | 236.2 | **1.4×** |
+| detection: COCO evaluation (1000 images) | pycocotools | 1147.9 | 1351.0 | **1.2×** |
+| multiple testing: Hochberg (n p-values) | statsmodels | 91.9 | 98.4 | **1.1×** |
+| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 32.0 | 22.6 | 0.71× |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 248.6 | 897.0 | **3.6×** |
+| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 51.6 | 289.5 | **5.6×** |
+| segmentation: Hausdorff distance (50 images) | SciPy | 31.9 | 23.8 | 0.75× |
+| statistics: Cramér's V (5×5 table) | SciPy | 0.3 | 0.3 | 0.95× |
+| statistics: Mann–Whitney U | SciPy | 390.3 | 425.8 | **1.1×** |
+| statistics: Welch t-test | SciPy | 37.7 | 16.3 | 0.43× |
+| structured: JSON Schema compliance (10000 documents) | jsonschema | 159.4 | 371.7 | **2.3×** |
+| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 740.3 | 791.9 | **1.1×** |
+| systems: confidence AUROC (n answers) | scikit-learn | 194.4 | 327.7 | **1.7×** |
+| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 13.3 | 16.9 | **1.3×** |
+| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 145.0 | 333.2 | **2.3×** |
+| systems: latency p50 / p95 / p99 (n requests) | NumPy | 41.0 | 19.7 | 0.48× |
+| systems: maintainability index (1000 programs) | radon | 138.3 | 168.7 | **1.2×** |
+| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 2726.2 | 3121.0 | **1.1×** |
+| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 507.4 | 590.3 | **1.2×** |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 1147.3 | 1010.7 | 0.88× |
 
 **Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
 statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
 independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
-comparisons agree**, and against the libraries the geometric-mean speed-up is **2.65×** (137 of 172
+comparisons agree**, and against the libraries the geometric-mean speed-up is **2.67×** (139 of 172
 measurements faster). Per-metric table in BENCHMARKS.md.
 
 `evaluate()` validates inputs once and builds the confusion matrix once for all metrics, which is where most

@@ -559,11 +559,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repeat", type=int, default=5, help="timed repetitions per case; the fastest is reported")
     p.add_argument(
         "--suite",
-        choices=("all", "core", "clinical", "vision", "llm", "metrics"),
+        choices=("all", "core", "clinical", "vision", "llm", "llmsys", "metrics"),
         default="all",
         help="core: classification/regression; clinical: clinical, calibration, tests; vision: segmentation, "
-        "detection; llm: text, retrieval, agreement, structured output; metrics: one row per metric and "
-        "statistics function (default all)",
+        "detection; llm: text, retrieval, agreement, structured output; llmsys: v0.5.0 LLM systems; "
+        "metrics: one row per metric and statistics function (default all)",
     )
     p.add_argument("--no-sklearn", action="store_true", help="time EvalSuite only (skip reference libraries)")
     p.add_argument("--seed", type=int, default=0)

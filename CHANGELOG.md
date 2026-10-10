@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-10
+
+### Added
+- `evalsuite benchmark --suite llmsys` (and `run_benchmarks(suite="llmsys")`): v0.5 LLM-systems workloads
+  against radon, the codebleu package, scikit-learn, jsonschema, SciPy and NumPy; included in `--suite all`
+  (27 cases, 81 measurements, all agreeing with their reference).
+
+### Changed
+- LLM-systems metrics accept NumPy arrays without converting them to Python lists first (much faster on
+  large inputs); `confidence_accuracy_correlation` computes Spearman from the ranks it already has.
+
 ## [0.5.0] - 2026-10-10
 
 LLM systems (the v0.5.0 roadmap: 8 areas, 85 items) and SPICE. No existing API changed.

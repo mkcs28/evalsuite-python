@@ -31,6 +31,14 @@ def seq(x: Any, name: str) -> list[Any]:
 
 def bools(x: Any, name: str) -> np.ndarray:
     """A 1-D boolean array from booleans or 0/1 values (anything else is rejected, never coerced)."""
+    if isinstance(x, np.ndarray) and x.ndim == 1 and x.size and x.dtype.kind in "biuf":
+        if x.dtype.kind == "b":
+            return x.astype(bool, copy=False)
+        bad = ~np.isin(x, (0, 1))
+        if bad.any():
+            i = int(np.flatnonzero(bad)[0])
+            raise InputValidationError(f"{name}[{i}] must be a boolean (or 0/1); got {x[i]!r}.")
+        return x.astype(bool)
     items = seq(x, name)
     out = np.empty(len(items), dtype=bool)
     for i, v in enumerate(items):
@@ -45,7 +53,7 @@ def bools(x: Any, name: str) -> np.ndarray:
 
 def floats(x: Any, name: str, *, lo: Optional[float] = None, hi: Optional[float] = None) -> np.ndarray:
     """A finite 1-D float array, optionally bounded."""
-    items = seq(x, name)
+    items: Any = x if isinstance(x, np.ndarray) and x.size and x.dtype.kind in "biuf" else seq(x, name)
     try:
         a = np.asarray(items, dtype=np.float64)
     except (TypeError, ValueError) as exc:

@@ -45,7 +45,7 @@ def test_v020_benchmarks_agree_with_their_references() -> None:
     for row in b.rows:
         assert row["reference_ms"] > 0 and row["max_abs_diff"] < 1e-9, row["case"]
     assert "statsmodels" in b.summary().splitlines()[0]
-    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 21
+    assert len(run_benchmarks(sizes=(300,), repeat=1, suite="all").rows) == 27
 
 
 def test_overall_summary_and_alphabetical_rows() -> None:
@@ -55,11 +55,12 @@ def test_overall_summary_and_alphabetical_rows() -> None:
         "Classification and regression",
         "Clinical, calibration and statistics",
         "LLM evaluation",
+        "LLM systems",
         "Segmentation and object detection",
         "Overall",
     ]
     total = overall[-1]
-    assert total["rows"] == 21 == sum(o["rows"] for o in overall[:-1])
+    assert total["rows"] == 27 == sum(o["rows"] for o in overall[:-1])
     assert total["matching"] == total["compared"]  # every compared case agrees with its reference
     if total["compared"]:
         assert total["min_speedup"] <= total["geomean_speedup"] <= total["max_speedup"]
@@ -114,3 +115,11 @@ def test_cases_needing_a_missing_optional_dependency_are_skipped(monkeypatch) ->
     monkeypatch.setattr(es, "meteor", missing)
     b = benchmarks.run_benchmarks(sizes=(500,), repeat=1, suite="llm")
     assert not any("METEOR" in r["case"] for r in b.rows) and b.rows
+
+
+def test_llmsys_benchmarks_agree_with_their_references() -> None:
+    b = run_benchmarks(sizes=(2000,), repeat=1, suite="llmsys")
+    assert len(b.rows) == 6
+    for row in b.rows:
+        if row["max_abs_diff"] is not None:
+            assert row["max_abs_diff"] < 1e-9, row["case"]

@@ -215,8 +215,12 @@ def confidence_accuracy_correlation(correct: Any, confidence: Any) -> MetricResu
     if np.ptp(p) == 0:
         pb = sp = float("nan")
     else:
-        pb = float(stats.pearsonr(c.astype(float), p)[0])
-        sp = float(stats.spearmanr(c.astype(float), p)[0])
+        cf = c.astype(float)
+        pb = float(np.corrcoef(cf, p)[0, 1])
+        # Spearman = Pearson correlation of average ranks; the ranks of p are already computed
+        n0 = c.size - n1
+        rc = np.where(c, n0 + (n1 + 1) / 2, (n0 + 1) / 2)
+        sp = float(np.corrcoef(rc, ranks)[0, 1])
     return MetricResult(
         "confidence_accuracy_correlation",
         "Confidence–accuracy AUROC",
