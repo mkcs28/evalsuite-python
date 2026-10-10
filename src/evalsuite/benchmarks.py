@@ -598,7 +598,7 @@ def _llmsys_cases(n: int, rng: np.random.Generator) -> list[Case]:
     ]
     refs: dict[str, Callable[[], Any]] = {}
     with contextlib.suppress(ImportError):
-        from radon.metrics import mi_visit  # type: ignore[import-untyped]
+        from radon.metrics import mi_visit
 
         refs[cases[0][0]] = lambda: [float(np.mean([mi_visit(p, True) for p in progs]))]
     with contextlib.suppress(Exception):

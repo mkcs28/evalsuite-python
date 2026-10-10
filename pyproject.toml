@@ -112,7 +112,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # optional reference libraries used only by the benchmarks and METEOR's default stemmer
-module = ["sacrebleu.*", "rouge_score.*", "nltk.*", "ranx.*", "krippendorff.*", "jsonschema.*", "pycocotools.*"]
+module = ["sacrebleu.*", "rouge_score.*", "nltk.*", "ranx.*", "krippendorff.*", "jsonschema.*", "pycocotools.*", "codebleu.*", "radon.*", "pycocoevalcap.*", "ot.*", "choix.*"]
 ignore_missing_imports = true
 follow_untyped_imports = false
 

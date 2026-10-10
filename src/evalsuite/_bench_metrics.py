@@ -903,7 +903,7 @@ def _llm(c: _Cases, n: int, rng: np.random.Generator) -> None:
 
     cider_ref: Optional[Callable[[], float]] = None
     with contextlib.suppress(ImportError):
-        from pycocoevalcap.cider.cider import Cider  # type: ignore[import-untyped]
+        from pycocoevalcap.cider.cider import Cider
 
         def _cider() -> float:
             res = {i: [p] for i, p in enumerate(preds)}
