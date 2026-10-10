@@ -363,28 +363,41 @@ def _luhn(digits: str) -> bool:
 
 PII_PATTERNS: dict[str, str] = {
     "email": r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
-    "phone": r"(?<!\w)(?:\+?\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)[\s.-]?)?\d{3,4}[\s.-]\d{3,4}(?:[\s.-]\d{2,4})?(?!\w)",
+    "phone": r"(?<!\d[\s.-])(?<!\w)(?:\+?\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)[\s.-]?)?\d{3,4}[\s.-]\d{3,4}"
+    r"(?:[\s.-]\d{2,4})?(?![\s.-]?\d)(?!\w)",
     "credit_card": r"(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)",
     "ipv4": r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])",
     "us_ssn": r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)",
 }
 _COMPILED = {k: re.compile(v) for k, v in PII_PATTERNS.items()}
+_PRIORITY = ("email", "credit_card", "us_ssn", "ipv4", "phone")
 
 
 def detect_pii(text: str, *, kinds: Optional[Sequence[str]] = None) -> dict[str, list[str]]:
     """Find PII in one text with the built-in detectors (``PII_PATTERNS``). Card numbers must pass the Luhn
-    check. Returns kind -> matches (only kinds with at least one match)."""
+    check. Detectors run from most to least specific (e-mail, card, SSN, IPv4, phone) and a match overlapping
+    an earlier one is dropped, so a card number is not also reported as a phone number. Returns kind ->
+    matches (only kinds with at least one match)."""
     if not isinstance(text, str):
         raise InputValidationError("text must be a string.")
     use = list(PII_PATTERNS) if kinds is None else list(kinds)
     unknown = [k for k in use if k not in PII_PATTERNS]
     if unknown:
         raise InputValidationError(f"Unknown PII kinds {unknown}; choose from {sorted(PII_PATTERNS)}.")
+    taken: list[tuple[int, int]] = []
     out: dict[str, list[str]] = {}
-    for kind in use:
-        found = [m.group(0) for m in _COMPILED[kind].finditer(text)]
-        if kind == "credit_card":
-            found = [f for f in found if _luhn(re.sub(r"\D", "", f))]
+    for kind in [k for k in _PRIORITY if k in use]:
+        found = []
+        for m in _COMPILED[kind].finditer(text):
+            digits = re.sub(r"\D", "", m.group(0))
+            if kind == "credit_card" and not _luhn(digits):
+                continue
+            if kind == "phone" and not 7 <= len(digits) <= 15:  # E.164 allows at most 15 digits
+                continue
+            if any(m.start() < b and a < m.end() for a, b in taken):
+                continue
+            taken.append(m.span())
+            found.append(m.group(0))
         if found:
             out[kind] = found
     return out

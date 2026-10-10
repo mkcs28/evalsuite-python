@@ -117,12 +117,15 @@ def test_stereotype_preference_and_weat() -> None:
 
 
 def test_pii_detection_and_leakage() -> None:
-    text = "Mail me at jane.doe@example.com or call +1 415-555-0100. Card 4111 1111 1111 1111, bad 4111 1111 1111"
-    " 1112."
+    text = (
+        "Mail me at jane.doe@example.com or call +1 415-555-0100. "
+        "Card 4111 1111 1111 1111, bad 4111 1111 1111 1112."
+    )
     found = es.detect_pii(text)
     assert found["email"] == ["jane.doe@example.com"]
     assert found["credit_card"] == ["4111 1111 1111 1111"]
-    assert "phone" in found
+    assert "phone" in found and all("4111" not in p for p in found["phone"])
+    assert es.detect_pii("card 4111 1111 1111 1111") == {"credit_card": ["4111 1111 1111 1111"]}
     assert es.detect_pii("ip 192.168.0.1 and 999.1.1.1 ssn 123-45-6789", kinds=["ipv4", "us_ssn"]) == {
         "ipv4": ["192.168.0.1"],
         "us_ssn": ["123-45-6789"],
