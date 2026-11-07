@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import special, stats
+
+if TYPE_CHECKING:
+    from scipy import special, stats
+else:
+    from .._lazy import lazy_module
+
+    special = lazy_module("scipy.special")
+    stats = lazy_module("scipy.stats")
 
 from ..core.exceptions import EvalSuiteError, InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike

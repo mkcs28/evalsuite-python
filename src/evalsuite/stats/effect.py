@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import special
+
+if TYPE_CHECKING:
+    from scipy import special
+else:
+    from .._lazy import lazy_module
+
+    special = lazy_module("scipy.special")
 
 from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike

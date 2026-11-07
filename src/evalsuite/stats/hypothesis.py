@@ -8,11 +8,17 @@ implementations are the reference; EvalSuite adds input validation, effect sizes
 from __future__ import annotations
 
 import math
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import stats
+
+if TYPE_CHECKING:
+    from scipy import stats
+else:
+    from .._lazy import lazy_module
+
+    stats = lazy_module("scipy.stats")
 
 from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike

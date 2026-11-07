@@ -40,6 +40,10 @@ __all__ = [
 ]
 
 _C = "code"
+
+# Errors CPython raises for source it cannot parse: syntax errors, null bytes (ValueError), and input nested
+# too deeply for the parser (MemoryError "parser stack overflowed") or for the compiler (RecursionError).
+_PARSE_ERRORS = (SyntaxError, ValueError, MemoryError, RecursionError)
 _REF_HUMANEVAL = (
     "Chen M, Tworek J, Jun H, et al. Evaluating large language models trained on code. arXiv:2107.03374. 2021."
 )
@@ -141,7 +145,7 @@ def syntax_validity_rate(
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", SyntaxWarning)
                     compile(src, "<generated>", "exec", dont_inherit=True)  # parses only; nothing runs
-            except (SyntaxError, ValueError):
+            except _PARSE_ERRORS:
                 return False
             return True
 
@@ -562,12 +566,16 @@ def code_complexity(code: Any) -> MetricResult:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", SyntaxWarning)
                 tree = ast.parse(src)
+            visitor = _Complexity.run(tree)
+            v = _halstead_volume(tree)
         except SyntaxError as exc:
             raise InputValidationError(f"code[{i}] is not valid Python: {exc.msg} (line {exc.lineno}).") from exc
-        visitor = _Complexity.run(tree)
+        except _PARSE_ERRORS as exc:
+            raise InputValidationError(
+                f"code[{i}] is too deeply nested to analyse ({type(exc).__name__})."
+            ) from exc
         blocks = visitor.blocks
         funcs += [c for _, c in blocks]
-        v = _halstead_volume(tree)
         g = visitor.total
         lloc, sloc, comments = _raw(src)
         c_pct = comments / sloc * 100 if sloc else 0.0
@@ -720,38 +728,38 @@ def _parse(src: str) -> Optional[ast.AST]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SyntaxWarning)
             return ast.parse(_strip(src))
-    except SyntaxError:
+    except _PARSE_ERRORS:
         return None
 
 
-def _sexp(node: ast.AST, memo: dict[int, str]) -> str:
-    key = id(node)
-    if key in memo:
-        return memo[key]
-    kids = [
-        c
-        for c in ast.iter_child_nodes(node)
-        if not isinstance(c, (ast.expr_context, ast.operator, ast.unaryop, ast.boolop, ast.cmpop))
-    ]
-    tag = type(node).__name__
-    if isinstance(node, (ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.AugAssign)):
-        tag += ":" + type(node.op).__name__
-    s = f"({tag}{''.join(' ' + _sexp(c, memo) for c in kids)})"
-    memo[key] = s
-    return s
+_SKIP_NODES = (ast.expr_context, ast.operator, ast.unaryop, ast.boolop, ast.cmpop)
 
 
-def _subtrees(tree: ast.AST) -> list[str]:
-    memo: dict[int, str] = {}
-    out = []
-    for node in ast.walk(tree):
-        kids = [
-            c
-            for c in ast.iter_child_nodes(node)
-            if not isinstance(c, (ast.expr_context, ast.operator, ast.unaryop, ast.boolop, ast.cmpop))
-        ]
+def _kids(node: ast.AST) -> list[ast.AST]:
+    return [c for c in ast.iter_child_nodes(node) if not isinstance(c, _SKIP_NODES)]
+
+
+def _subtrees(tree: ast.AST, table: dict[tuple[Any, ...], int]) -> list[int]:
+    """Every subtree with children (and the root), as ids that are equal exactly when the subtrees are
+    structurally equal. Built bottom-up without recursion: ``table`` interns (node type, child ids), so the
+    cost is linear in the tree size (comparing serialised subtrees would be quadratic)."""
+    ids: dict[int, int] = {}
+    out: list[int] = []
+    stack: list[tuple[ast.AST, bool]] = [(tree, False)]
+    while stack:
+        node, ready = stack.pop()
+        kids = _kids(node)
+        if not ready:
+            stack.append((node, True))
+            stack.extend((k, False) for k in kids)
+            continue
+        tag = type(node).__name__
+        if isinstance(node, (ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.AugAssign)):
+            tag += ":" + type(node.op).__name__
+        sid = table.setdefault((tag, tuple(ids[id(k)] for k in kids)), len(table))
+        ids[id(node)] = sid
         if kids or node is tree:
-            out.append(_sexp(node, memo))
+            out.append(sid)
     return out
 
 
@@ -878,15 +886,16 @@ def codebleu(
     ngram = _corpus_bleu(t_refs, t_hyps, None)
     weighted = _corpus_bleu(t_refs, t_hyps, kw)
     match = total = df_match = df_total = 0
+    table: dict[tuple[Any, ...], int] = {}
     for rs, p in zip(refs, preds):
         cand = _parse(p)
-        cand_sub = set(_subtrees(cand)) if cand is not None else set()
+        cand_sub = set(_subtrees(cand, table)) if cand is not None else set()
         cand_flow = _normalize_flow(_dataflow(cand)) if cand is not None else []
         for r in rs:
             ref = _parse(r)
             if ref is None:
                 continue
-            ref_sub = _subtrees(ref)
+            ref_sub = _subtrees(ref, table)
             match += sum(s in cand_sub for s in ref_sub)
             total += len(ref_sub)
             ref_flow = _normalize_flow(_dataflow(ref))

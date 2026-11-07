@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import numpy as np
-from scipy import special, stats
+
+if TYPE_CHECKING:
+    from scipy import special, stats
+else:
+    from .._lazy import lazy_module
+
+    special = lazy_module("scipy.special")
+    stats = lazy_module("scipy.stats")
 
 from ..core.exceptions import InputValidationError
 from ..core.types import ArrayLike

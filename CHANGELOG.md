@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-07
+
+Security and performance hardening. No API changes.
+
+### Security
+- The built-in PII e-mail detector no longer backtracks quadratically: `detect_pii` / `pii_leakage_rate`
+  on 60 kB of adversarial text went from ~6 s to ~10 ms.
+- `codebleu`, `code_complexity` and `syntax_validity_rate` handle source nested too deeply for CPython's
+  parser (MemoryError / RecursionError) instead of crashing: invalid for syntax validity, an
+  `InputValidationError` for complexity, no syntax match for CodeBLEU.
+- Internal `assert` type checks replaced by explicit errors, so behaviour is the same under `python -O`.
+- CI and release workflows pin every action to a commit SHA; Dependabot keeps them and the dependencies current.
+- Documented that user-supplied regular expressions (`format_compliance`) run on a backtracking engine.
+
+### Performance
+- `import evalsuite` no longer imports SciPy; it is loaded on first use (import time ~0.6 s → ~0.07 s).
+- CodeBLEU syntax match uses interned subtree ids instead of serialised strings: linear in the size of the
+  program rather than quadratic.
+
 ## [0.5.1] - 2026-10-10
 
 ### Added

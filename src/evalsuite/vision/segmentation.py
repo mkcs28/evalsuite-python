@@ -27,7 +27,13 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import ndimage
+
+if TYPE_CHECKING:
+    from scipy import ndimage
+else:
+    from .._lazy import lazy_module
+
+    ndimage = lazy_module("scipy.ndimage")
 
 from ..core.exceptions import InputValidationError, UndefinedMetricWarning
 from ..core.export import PathLike, csv_text, html_document, html_table, save_as

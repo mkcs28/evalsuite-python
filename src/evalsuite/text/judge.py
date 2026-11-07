@@ -9,10 +9,16 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
-from scipy import stats
+
+if TYPE_CHECKING:
+    from scipy import stats
+else:
+    from .._lazy import lazy_module
+
+    stats = lazy_module("scipy.stats")
 
 from ..core.exceptions import InputValidationError
 from ..core.registry import register

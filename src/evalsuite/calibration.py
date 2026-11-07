@@ -14,7 +14,13 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import stats
+
+if TYPE_CHECKING:
+    from scipy import stats
+else:
+    from ._lazy import lazy_module
+
+    stats = lazy_module("scipy.stats")
 
 from .classification.metrics import (
     _binary_target,

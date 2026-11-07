@@ -109,7 +109,8 @@ def accuracy(y_true: ArrayLike, y_pred: ArrayLike, *, sample_weight: Optional[Ar
 
 def _accuracy(ctx: ClassificationContext) -> MetricResult:
     if ctx.target_type == "multilabel":
-        assert ctx.y_pred is not None  # noqa: S101 - ensured by context for label metrics
+        if ctx.y_pred is None:
+            raise InputValidationError("y_pred is required for this metric.")
         correct = (ctx.y_true == ctx.y_pred).all(axis=1)
     else:
         correct = ctx.true_idx == ctx.pred_idx
@@ -491,7 +492,8 @@ def hamming_loss(
     """Hamming loss."""
     ctx = _ctx(y_true, y_pred, sample_weight=sample_weight)
     if ctx.target_type == "multilabel":
-        assert ctx.y_pred is not None  # noqa: S101
+        if ctx.y_pred is None:
+            raise InputValidationError("y_pred is required for this metric.")
         wrong = (ctx.y_true != ctx.y_pred).mean(axis=1)
     else:
         wrong = (ctx.true_idx != ctx.pred_idx).astype(float)

@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import special
+
+if TYPE_CHECKING:
+    from scipy import special
+else:
+    from .._lazy import lazy_module
+
+    special = lazy_module("scipy.special")
 
 from ..core.exceptions import InputValidationError
 from ..core.export import PathLike, csv_text, html_document, html_table, save_as

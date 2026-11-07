@@ -63,7 +63,8 @@ def _classification_registry(
 
 def _hamming(ctx: ClassificationContext) -> MetricResult:
     if ctx.target_type == "multilabel":
-        assert ctx.y_pred is not None  # noqa: S101
+        if ctx.y_pred is None:
+            raise InputValidationError("y_pred is required for this metric.")
         wrong = (ctx.y_true != ctx.y_pred).mean(axis=1)
     else:
         wrong = (ctx.true_idx != ctx.pred_idx).astype(float)

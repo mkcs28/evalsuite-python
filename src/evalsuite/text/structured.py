@@ -712,7 +712,11 @@ def constraint_satisfaction_rate(checks: Any) -> MetricResult:
 def format_compliance(
     outputs: Any, pattern: str, *, flags: int = re.S, average: Optional[str] = "mean"
 ) -> MetricResult:
-    """``re.fullmatch(pattern, output.strip())`` per output."""
+    """``re.fullmatch(pattern, output.strip())`` per output.
+
+    The pattern is compiled with Python's backtracking ``re`` engine; patterns with nested quantifiers such as
+    ``(a+)+$`` can take exponential time on some outputs, so only pass patterns you trust.
+    """
     outs = _outputs(outputs)
     try:
         rx = re.compile(pattern, flags)
