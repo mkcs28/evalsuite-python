@@ -9,7 +9,9 @@ authors:
     given-names: "Nikhil D"
 version: "0.3.0"
 date-released: "2026-10-09"
-license: MIT
+license:
+  - MIT
+  - Apache-2.0
 repository-code: "https://github.com/mkcs28/evalsuite-python"
 url: "https://evalsuite-nine.vercel.app"
 keywords:

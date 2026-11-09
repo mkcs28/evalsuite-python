@@ -3,7 +3,7 @@
 [![CI](https://github.com/mkcs28/evalsuite-python/actions/workflows/ci.yml/badge.svg)](https://github.com/mkcs28/evalsuite-python/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/evalsuite-python)](https://pypi.org/project/evalsuite-python/)
 [![Python](https://img.shields.io/pypi/pyversions/evalsuite-python)](https://pypi.org/project/evalsuite-python/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
 **Unified, reproducible evaluation for machine learning, LLM and research.**
 
@@ -401,4 +401,10 @@ Authors and maintainers: **Manoj Kumar C S** and **Nikhil D Bharadwaj**.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Dual-licensed under either of
+
+- MIT license ([LICENSE](LICENSE))
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+
+at your option. Unless you explicitly state otherwise, any contribution you submit for inclusion in this
+project shall be dual-licensed as above, without any additional terms or conditions.

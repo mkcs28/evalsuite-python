@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
@@ -208,17 +209,18 @@ def proportion_ci(
         raise InputValidationError("successes must be between 0 and n.")
     p = successes / n
     alpha = 1 - level
-    z = special.ndtri(1 - alpha / 2)
+    z = float(special.ndtri(1 - alpha / 2))
     if method == "wilson":
         denom = 1 + z**2 / n
         centre = (p + z**2 / (2 * n)) / denom
-        half = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
+        half = z * math.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
         low, high = centre - half, centre + half
     elif method == "clopper-pearson":
-        low = 0.0 if successes == 0 else stats.beta.ppf(alpha / 2, successes, n - successes + 1)
-        high = 1.0 if successes == n else stats.beta.ppf(1 - alpha / 2, successes + 1, n - successes)
+        # Beta quantiles via the inverse regularised incomplete beta function (what scipy.stats.beta.ppf uses).
+        low = 0.0 if successes == 0 else special.betaincinv(successes, n - successes + 1, alpha / 2)
+        high = 1.0 if successes == n else special.betaincinv(successes + 1, n - successes, 1 - alpha / 2)
     elif method == "normal":
-        half = z * np.sqrt(p * (1 - p) / n)
+        half = z * math.sqrt(p * (1 - p) / n)
         low, high = max(0.0, p - half), min(1.0, p + half)
     else:
         raise InputValidationError("method must be 'wilson', 'clopper-pearson' or 'normal'.")
@@ -240,7 +242,7 @@ def accuracy_ci(
     if yt.shape != yp.shape:
         raise InputValidationError(f"y_true has shape {yt.shape} but y_pred has shape {yp.shape}.")
     correct = (yt == yp).all(axis=1) if yt.ndim == 2 else yt == yp
-    ci = proportion_ci(int(correct.sum()), int(correct.shape[0]), level=level, method=method)
+    ci = proportion_ci(int(np.count_nonzero(correct)), int(correct.shape[0]), level=level, method=method)
     return ConfidenceInterval(ci.estimate, ci.low, ci.high, level, method, "accuracy", ci.params)
 
 

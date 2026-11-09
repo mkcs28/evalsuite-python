@@ -65,7 +65,7 @@ def _label_kind(arr: NDArray[Any]) -> str:
 
 
 def check_finite(arr: NDArray[Any], name: str) -> None:
-    if np.issubdtype(arr.dtype, np.number) and not np.all(np.isfinite(arr)):
+    if arr.dtype.kind in "fc" and not np.all(np.isfinite(arr)):  # integers and booleans are always finite
         n_nan = int(np.isnan(arr).sum())
         n_inf = int(np.isinf(arr).sum())
         raise InputValidationError(
@@ -104,10 +104,13 @@ def unique_labels(y: NDArray[Any]) -> NDArray[Any]:
     are found with one marking pass instead of a sort, which is several times faster on large arrays."""
     if y.size and np.issubdtype(y.dtype, np.integer):
         lo, hi = int(y.min()), int(y.max())
+        if hi - lo <= 1:  # min and max are themselves the labels (the binary case): no counting pass
+            return np.array([lo] if hi == lo else [lo, hi], dtype=y.dtype)
         if lo > -(2**62) and hi < 2**62 and hi - lo <= max(1024, y.size):
-            present = np.zeros(hi - lo + 1, dtype=bool)
-            present[(y.astype(np.int64) - lo).ravel()] = True  # int64 offsets: no overflow for small dtypes
-            return (np.flatnonzero(present).astype(np.int64) + lo).astype(y.dtype)
+            flat = y.ravel()
+            # bincount counts in one pass; offsets in int64 so small dtypes cannot overflow.
+            counts = np.bincount(flat if lo == 0 and flat.dtype.itemsize <= 8 else flat.astype(np.int64) - lo)
+            return (np.flatnonzero(counts).astype(np.int64) + lo).astype(y.dtype)
     return np.unique(y)
 
 
@@ -147,6 +150,14 @@ def resolve_labels(
             f"y_true has {_label_kind(y_true)} labels but y_pred has {_label_kind(y_pred)} labels; "
             "use the same label type in both (for example map class names to integers first)."
         )
+    if (
+        y_pred is not None
+        and np.issubdtype(y_true.dtype, np.integer)
+        and np.issubdtype(y_pred.dtype, np.integer)
+        and y_true.dtype == y_pred.dtype
+    ):
+        # Union of each array's labels: no concatenated copy of the data.
+        return np.union1d(unique_labels(y_true), unique_labels(y_pred)).astype(y_true.dtype)
     present = y_true if y_pred is None else np.concatenate([y_true, y_pred])
     try:
         return unique_labels(present)

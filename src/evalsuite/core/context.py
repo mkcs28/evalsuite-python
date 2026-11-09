@@ -92,7 +92,23 @@ class ClassificationContext:
     def _index(self) -> dict[Any, int]:
         return {lab.item() if hasattr(lab, "item") else lab: i for i, lab in enumerate(self.labels)}
 
+    @cached_property
+    def _contiguous_int_labels(self) -> Optional[int]:
+        """The first label when labels are consecutive integers lo, lo+1, …; encoding is then y − lo."""
+        lab = self.labels
+        if (
+            lab.dtype.kind in "iu"
+            and lab.size
+            and np.array_equal(lab, np.arange(int(lab[0]), int(lab[0]) + lab.size))
+        ):
+            return int(lab[0])
+        return None
+
     def encode(self, y: NDArray[Any]) -> NDArray[np.int64]:
+        lo = self._contiguous_int_labels
+        if lo is not None and y.dtype.kind in "iu":
+            yi = y.astype(np.int64, copy=False)
+            return yi - lo if lo else yi
         sorted_labels = np.all(self.labels[:-1] <= self.labels[1:]) if self.labels.dtype != object else False
         if sorted_labels:
             return np.searchsorted(self.labels, y).astype(np.int64)
@@ -123,6 +139,8 @@ class ClassificationContext:
             )
         k = self.labels.shape[0]
         flat = self.true_idx * k + self.pred_idx
+        if self.sample_weight is None:  # integer counting is faster than summing unit weights
+            return np.bincount(flat, minlength=k * k).reshape(k, k).astype(np.float64)
         return np.bincount(flat, weights=self.weights, minlength=k * k).reshape(k, k).astype(np.float64)
 
     @cached_property

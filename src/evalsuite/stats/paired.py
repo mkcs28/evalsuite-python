@@ -59,8 +59,8 @@ def mcnemar_test(
         )
     ok_a = (yt == a).all(axis=1) if yt.ndim == 2 else yt == a
     ok_b = (yt == b_).all(axis=1) if yt.ndim == 2 else yt == b_
-    b = int(np.sum(ok_a & ~ok_b))
-    c = int(np.sum(~ok_a & ok_b))
+    b = int(np.count_nonzero(ok_a & ~ok_b))
+    c = int(np.count_nonzero(~ok_a & ok_b))
     n_disc = b + c
     use_exact = n_disc < 25 if exact is None else bool(exact)
     estimate = (b - c) / yt.shape[0]
@@ -74,10 +74,10 @@ def mcnemar_test(
             params={**params, "note": "no discordant pairs: the classifiers agree on every observation"},
         )
     if use_exact:
-        p = min(1.0, 2 * stats.binom.cdf(min(b, c), n_disc, 0.5))
+        p = min(1.0, 2 * float(special.bdtr(min(b, c), n_disc, 0.5)))
         return TestResult("mcnemar-exact", float(min(b, c)), float(p), estimate=estimate, params=params)
     stat = (abs(b - c) - (1 if correction else 0)) ** 2 / n_disc
-    p = stats.chi2.sf(stat, 1)
+    p = float(special.chdtrc(1, stat))
     return TestResult(
         "mcnemar", float(stat), float(p), estimate=estimate, params={**params, "continuity_correction": correction}
     )

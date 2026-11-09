@@ -93,8 +93,6 @@ def cramers_v(table: ArrayLike, *, bias_correction: bool = False) -> float:
     References: Cramér H. Mathematical Methods of Statistics. Princeton; 1946. Bergsma W. A bias-correction for
     Cramér's V and Tschuprow's T. J Korean Stat Soc. 2013;42(3):323-328.
     """
-    from scipy import stats
-
     t = np.asarray(table, dtype=np.float64)
     if t.ndim != 2 or min(t.shape) < 2:
         raise InputValidationError("Give a contingency table with at least 2 rows and 2 columns.")
@@ -103,7 +101,10 @@ def cramers_v(table: ArrayLike, *, bias_correction: bool = False) -> float:
     if np.any(t.sum(axis=0) == 0) or np.any(t.sum(axis=1) == 0):
         raise StatisticalTestError("Cramér's V is undefined when a row or column total is zero.")
     n = t.sum()
-    chi2 = stats.chi2_contingency(t, correction=False)[0]
+    rows, cols = t.sum(axis=1), t.sum(axis=0)
+    expected = np.outer(rows, cols) / n
+    dev = t - expected
+    chi2 = float(np.sum(dev * dev / expected))  # uncorrected Pearson χ², as scipy.stats.chi2_contingency
     r, k = t.shape
     if not bias_correction:
         return float(np.sqrt(chi2 / (n * (min(r, k) - 1))))
