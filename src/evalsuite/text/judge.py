@@ -274,8 +274,7 @@ def krippendorff_alpha(ratings: Any, *, level: str = "nominal") -> MetricResult:
     mask = ~np.isnan(a)
     items = np.broadcast_to(np.arange(a.shape[1]), a.shape)[mask]
     codes = np.searchsorted(values, a[mask])
-    counts = np.zeros((a.shape[1], v))
-    np.add.at(counts, (items, codes), 1)
+    counts = np.bincount(items * v + codes, minlength=a.shape[1] * v).reshape(a.shape[1], v).astype(np.float64)
     m_u = counts.sum(axis=1)
     pairable = m_u >= 2
     paired = counts[pairable]
@@ -324,11 +323,30 @@ def krippendorff_alpha(ratings: Any, *, level: str = "nominal") -> MetricResult:
 def fleiss_kappa(ratings: Any) -> MetricResult:
     """Fleiss' kappa from an items × raters matrix of category labels (every item rated by the same number of
     raters), identical to ``statsmodels``' ``fleiss_kappa`` on the aggregated table."""
-    a = np.asarray(ratings, dtype=object)
+    raw = np.asarray(ratings)
+    a = raw if raw.dtype.kind in "iuU" else np.asarray(ratings, dtype=object)
     if a.ndim != 2 or a.shape[0] < 1 or a.shape[1] < 2:
         raise InputValidationError("ratings must be a 2-D array: one row per item, one column per rater (>= 2).")
-    cats = sorted({str(x) for x in a.ravel()})
-    table = np.array([[sum(str(x) == c for x in row) for c in cats] for row in a], dtype=float)
+    # Categories are compared by their string form; integer and string arrays are grouped with one vectorised
+    # pass (their string forms are distinct exactly when the values are), other inputs element by element.
+    if a.dtype.kind in "iuU":
+        uniq, inv = np.unique(a, return_inverse=True)
+        keys = [str(v) for v in uniq.tolist()]
+    else:
+        index: dict[str, int] = {}
+        keys = []
+        codes = []
+        for x in a.ravel():
+            sx = str(x)
+            if sx not in index:
+                index[sx] = len(keys)
+                keys.append(sx)
+            codes.append(index[sx])
+        inv = np.asarray(codes, dtype=np.intp)
+    k = len(keys)
+    rows = np.repeat(np.arange(a.shape[0]), a.shape[1])
+    table = np.bincount(rows * k + inv.ravel(), minlength=a.shape[0] * k).reshape(a.shape[0], k).astype(float)
+    cats = sorted(keys)
     n_raters = a.shape[1]
     p_j = table.sum(axis=0) / table.sum()
     p_i = ((table * table).sum(axis=1) - n_raters) / (n_raters * (n_raters - 1))

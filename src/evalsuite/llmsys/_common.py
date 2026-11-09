@@ -60,12 +60,15 @@ def floats(x: Any, name: str, *, lo: Optional[float] = None, hi: Optional[float]
         raise InputValidationError(f"{name} must contain numbers.") from exc
     if a.ndim != 1:
         raise InputValidationError(f"{name} must be one-dimensional (one number per example).")
-    if not np.all(np.isfinite(a)):
-        raise InputValidationError(f"{name} contains NaN or infinite values.")
-    if lo is not None and np.any(a < lo):
-        raise InputValidationError(f"{name} must be >= {lo}.")
-    if hi is not None and np.any(a > hi):
-        raise InputValidationError(f"{name} must be <= {hi}.")
+    if a.size:
+        # min and max propagate NaN and ±inf, so two reductions check finiteness and both bounds.
+        mn, mx = float(a.min()), float(a.max())
+        if not (math.isfinite(mn) and math.isfinite(mx)):
+            raise InputValidationError(f"{name} contains NaN or infinite values.")
+        if lo is not None and mn < lo:
+            raise InputValidationError(f"{name} must be >= {lo}.")
+        if hi is not None and mx > hi:
+            raise InputValidationError(f"{name} must be <= {hi}.")
     return a
 
 
@@ -130,20 +133,27 @@ def quantiles(a: np.ndarray, qs: Sequence[float]) -> list[float]:
 def summary(a: np.ndarray, extra: Sequence[float] = ()) -> dict[str, float]:
     """Mean, standard deviation, min, max and the p50/p90/p95/p99 percentiles (linear interpolation), plus any
     ``extra`` percentiles under keys ``p<q>``; all order statistics come from one partition."""
-    qs = [0.0, 50.0, 90.0, 95.0, 99.0, 100.0, *extra]
+    qs = [50.0, 90.0, 95.0, 99.0, *[q for q in extra if q not in (0.0, 50.0, 90.0, 95.0, 99.0, 100.0)]]
     v = quantiles(a, qs)
+    by_q = dict(zip(qs, v))
+    mean = float(a.mean())
+    if a.size > 1:
+        c = a - mean
+        std = math.sqrt(float(np.dot(c, c)) / (a.size - 1))
+    else:
+        std = 0.0
     out = {
-        "mean": float(a.mean()),
-        "std": float(a.std(ddof=1)) if a.size > 1 else 0.0,
-        "min": v[0],
-        "max": v[5],
-        "p50": v[1],
-        "p90": v[2],
-        "p95": v[3],
-        "p99": v[4],
+        "mean": mean,
+        "std": std,
+        "min": float(a.min()),
+        "max": float(a.max()),
+        "p50": by_q[50.0],
+        "p90": by_q[90.0],
+        "p95": by_q[95.0],
+        "p99": by_q[99.0],
     }
-    for q, val in zip(extra, v[6:]):
-        out[f"p{q:g}"] = val
+    for q in extra:
+        out[f"p{q:g}"] = float(a.min()) if q == 0 else float(a.max()) if q == 100 else by_q[q]
     return out
 
 

@@ -67,7 +67,10 @@ def as_references(x: Any, n: int, name: str = "references") -> list[list[str]]:
 
 
 def word_ngrams(tokens: Sequence[str], n: int) -> Counter[tuple[str, ...]]:
-    return Counter(tuple(tokens[i : i + n]) for i in range(len(tokens) - n + 1))
+    """Counts of the word n-grams of ``tokens`` (tuples built by ``zip`` over shifted slices, in C)."""
+    if n == 1:
+        return Counter(zip(tokens))
+    return Counter(zip(*(tokens[i:] for i in range(n))))
 
 
 def check_positive_int(value: Any, name: str) -> int:

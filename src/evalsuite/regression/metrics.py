@@ -80,6 +80,18 @@ class _Inputs:
     def error(self) -> FloatArray:
         return self.y_pred - self.y_true
 
+    @cached_property
+    def sq_error(self) -> FloatArray:
+        """Squared errors, shared by MSE, RMSE and R² when evaluate() computes them together."""
+        e = self.error
+        with np.errstate(over="ignore"):
+            return e * e
+
+    @cached_property
+    def mse_per_output(self) -> FloatArray:
+        with np.errstate(over="ignore"):
+            return self.mean(self.sq_error)
+
     def mean(self, values: FloatArray) -> FloatArray:
         """Weighted mean over observations, per output column."""
         if self.weight is None:
@@ -176,7 +188,7 @@ def mse(
 ) -> MetricResult:
     """Mean squared error."""
     inp = _inputs(y_true, y_pred, sample_weight)
-    return _finish(inp.mean(inp.error**2), inp, multioutput, "mse", "MSE")
+    return _finish(inp.mse_per_output, inp, multioutput, "mse", "MSE")
 
 
 @register(
@@ -203,7 +215,7 @@ def rmse(
     """Root mean squared error (square root taken per output, then averaged)."""
     inp = _inputs(y_true, y_pred, sample_weight)
     with np.errstate(over="ignore"):
-        per_output = np.sqrt(inp.mean(inp.error**2))
+        per_output = np.sqrt(inp.mse_per_output)
     if not np.all(np.isfinite(per_output)):
         # Errors above ~1e154 overflow when squared although the RMSE itself is representable:
         # rescale by the largest error and square again.
@@ -214,10 +226,15 @@ def rmse(
 
 
 def _r2_per_output(inp: _Inputs) -> FloatArray:
-    w = inp.w[:, None]
-    ss_res = (w * inp.error**2).sum(0)
     mean = inp.mean(inp.y_true)
-    ss_tot = (w * (inp.y_true - mean) ** 2).sum(0)
+    dev = inp.y_true - mean
+    if inp.weight is None:  # no array of unit weights to multiply by
+        ss_res = inp.sq_error.sum(0)
+        ss_tot = (dev * dev).sum(0)
+    else:
+        w = inp.weight[:, None]
+        ss_res = (w * inp.sq_error).sum(0)
+        ss_tot = (w * dev * dev).sum(0)
     out = np.empty_like(ss_res)
     const = ss_tot == 0
     out[~const] = 1 - ss_res[~const] / ss_tot[~const]

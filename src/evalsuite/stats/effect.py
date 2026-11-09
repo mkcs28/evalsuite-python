@@ -133,16 +133,17 @@ def adjust_pvalues(
     Benjamini Y, Hochberg Y. J R Stat Soc B. 1995;57(1):289-300. Benjamini Y, Yekutieli D. Ann Stat.
     2001;29(4):1165-1188.
     """
-    p = to_numpy(p_values, "p_values").astype(np.float64)
+    p = to_numpy(p_values, "p_values").astype(np.float64, copy=False)
     check_finite(p, "p_values")
-    if np.any((p < 0) | (p > 1)):
+    if float(np.min(p)) < 0 or float(np.max(p)) > 1:
         raise InputValidationError("p-values must be between 0 and 1.")
     m = p.shape[0]
+    if method == "bonferroni":  # no ranking needed
+        bonf: NDArray[np.float64] = np.minimum(p * m, 1.0)
+        return bonf
     order = np.argsort(p)  # ties get the same adjusted value whatever their order
     ranked = p[order]
-    if method == "bonferroni":
-        adj = np.minimum(ranked * m, 1)
-    elif method == "holm":
+    if method == "holm":
         adj = np.minimum(np.maximum.accumulate(ranked * (m - np.arange(m))), 1)
     elif method == "hochberg":
         scaled = ranked * (m - np.arange(m))

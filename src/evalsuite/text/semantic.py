@@ -217,11 +217,30 @@ def embedding_similarity(
 
 
 # ---------------------------------------------------------------- MoverScore
-def _emd(a: NDArray[np.float64], b: NDArray[np.float64], cost: NDArray[np.float64]) -> float:
-    """Exact earth mover's distance between histograms a and b (both summing to 1) by linear programming."""
+def _emd(
+    a: NDArray[np.float64], b: NDArray[np.float64], cost: NDArray[np.float64], *, uniform: bool = False
+) -> float:
+    """Exact earth mover's distance between histograms a and b (both summing to 1).
+
+    Uses POT's network simplex when POT is installed. Otherwise, uniform weights (1/n and 1/m) reduce to an
+    assignment problem: replicate each row m/g and each column n/g times (g = gcd(n, m)) and solve it with
+    SciPy's Hungarian solver; general weights use linear programming (SciPy HiGHS). All three are exact."""
+    try:
+        import ot
+
+        return float(ot.emd2(a, b, cost))
+    except ImportError:
+        pass
+    n, m = cost.shape
+    if uniform:
+        from scipy.optimize import linear_sum_assignment
+
+        size = n * m // math.gcd(n, m)
+        big = np.repeat(np.repeat(cost, size // n, axis=0), size // m, axis=1)
+        r, c = linear_sum_assignment(big)
+        return float(big[r, c].sum() / size)
     from scipy.optimize import linprog
 
-    n, m = cost.shape
     a_eq = np.zeros((n + m, n * m))
     for i in range(n):
         a_eq[i, i * m : (i + 1) * m] = 1
@@ -254,7 +273,7 @@ def moverscore(
     average: Optional[str] = "mean",
 ) -> MetricResult:
     """MoverScore from token embeddings (and optional IDF weights) you computed; uses an exact transport
-    solver (SciPy HiGHS), identical to POT's ``ot.emd2``."""
+    solver (POT's ``ot.emd2`` when installed, otherwise SciPy), identical to POT."""
     refs = _matrices(reference_embeddings, "reference_embeddings")
     preds = _matrices(prediction_embeddings, "prediction_embeddings")
     if len(refs) != len(preds):
@@ -267,7 +286,8 @@ def moverscore(
         wp = _weights(pw[k], p.shape[0], "prediction_weights")
         ru, pu = _unit(r), _unit(p)
         cost = np.sqrt(np.maximum(((ru[:, None, :] - pu[None, :, :]) ** 2).sum(-1), 0))
-        scores[k] = 1.0 - _emd(wr / wr.sum(), wp / wp.sum(), cost)
+        uniform = rw[k] is None and pw[k] is None
+        scores[k] = 1.0 - _emd(wr / wr.sum(), wp / wp.sum(), cost, uniform=uniform)
     return _finish("moverscore", "MoverScore", scores, average, {"weighted": reference_weights is not None})
 
 

@@ -64,6 +64,15 @@ _REF_MARCHISIO = (
 )
 
 
+def _str_array(x: Any, name: str) -> np.ndarray:
+    """Labels as a NumPy string array (each value's ``str``)."""
+    if isinstance(x, np.ndarray) and x.dtype.kind == "U" and x.ndim == 1:
+        if x.size == 0:
+            seq(x, name)  # raises the usual empty-input error
+        return x
+    return np.asarray([str(v) for v in seq(x, name)], dtype=str)
+
+
 @register(
     category=_C,
     task="language-identification",
@@ -75,21 +84,24 @@ _REF_MARCHISIO = (
     references=(_REF_LANGID,),
 )
 def language_id_accuracy(true_languages: Any, predicted_languages: Any) -> MetricResult:
-    t = [str(v) for v in seq(true_languages, "true_languages")]
-    p = [str(v) for v in seq(predicted_languages, "predicted_languages")]
+    t = _str_array(true_languages, "true_languages")
+    p = _str_array(predicted_languages, "predicted_languages")
     same_length(("true_languages", t), ("predicted_languages", p))
-    labels = sorted(set(t) | set(p))
-    f1s, recall = [], {}
-    for lab in labels:
-        tp = sum(a == lab and b == lab for a, b in zip(t, p))
-        fp = sum(a != lab and b == lab for a, b in zip(t, p))
-        fn = sum(a == lab and b != lab for a, b in zip(t, p))
-        f1s.append(0.0 if tp == 0 else 2 * tp / (2 * tp + fp + fn))
-        if tp + fn:
-            recall[lab] = tp / (tp + fn)
-    acc = float(np.mean([a == b for a, b in zip(t, p)]))
+    # One encoding of both arrays, then a confusion matrix by bincount (labels in sorted order).
+    labels_arr, codes = np.unique(np.concatenate([t, p]), return_inverse=True)
+    k = labels_arr.shape[0]
+    n = t.shape[0]
+    cm = np.bincount(codes[:n] * k + codes[n:], minlength=k * k).reshape(k, k)
+    tp = np.diag(cm)
+    fp = cm.sum(axis=0) - tp
+    fn = cm.sum(axis=1) - tp
+    denom = 2 * tp + fp + fn
+    f1s = np.where(tp > 0, 2 * tp / np.maximum(denom, 1), 0.0)
+    labels = labels_arr.tolist()
+    recall = {lab: int(tp[i]) / int(tp[i] + fn[i]) for i, lab in enumerate(labels) if tp[i] + fn[i]}
+    acc = float(tp.sum() / n)
     return MetricResult(
-        "language_id_accuracy", "Language-ID accuracy", acc, {"macro_f1": float(np.mean(f1s)), "recall": recall}
+        "language_id_accuracy", "Language-ID accuracy", acc, {"macro_f1": float(f1s.mean()), "recall": recall}
     )
 
 

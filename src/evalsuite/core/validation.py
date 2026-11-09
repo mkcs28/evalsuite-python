@@ -114,18 +114,28 @@ def unique_labels(y: NDArray[Any]) -> NDArray[Any]:
     return np.unique(y)
 
 
+def _has_fraction(y: NDArray[Any]) -> bool:
+    """Whether any value is non-integral. Real-valued targets almost always show it in the first few values,
+    so a short leading chunk is checked before the whole array."""
+    flat = y.ravel()
+    head = flat[:1024]
+    if not np.all(np.mod(head, 1) == 0):
+        return True
+    return flat.size > head.size and not np.all(np.mod(flat[head.size :], 1) == 0)
+
+
 def target_type(y: NDArray[Any]) -> TargetType:
     """Infer the type of a label array."""
     if y.ndim == 2:
         if y.shape[1] > 1 and np.isin(y, (0, 1)).all():
             return "multilabel"
-        if np.issubdtype(y.dtype, np.floating) and not np.all(np.mod(y, 1) == 0):
+        if np.issubdtype(y.dtype, np.floating) and _has_fraction(y):
             return "continuous"  # multi-output regression
         raise InputValidationError(
             "2-D targets must be a binary indicator matrix (0/1, one column per label) for multilabel tasks; "
             f"received shape {y.shape} with values other than 0 and 1."
         )
-    if np.issubdtype(y.dtype, np.floating) and not np.all(np.mod(y, 1) == 0):
+    if np.issubdtype(y.dtype, np.floating) and _has_fraction(y):
         return "continuous"
     try:
         n_unique = unique_labels(y).shape[0]

@@ -17,6 +17,7 @@ Input conventions (stated once, applied everywhere):
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import warnings
@@ -497,8 +498,10 @@ def mean_pixel_accuracy(
 
 
 # ---- boundary and surface metrics ------------------------------------------------------------------
+@functools.lru_cache(maxsize=8)
 def _structure(ndim: int) -> NDArray[np.bool_]:
     out: NDArray[np.bool_] = ndimage.generate_binary_structure(ndim, 1)
+    out.setflags(write=False)
     return out
 
 
@@ -511,12 +514,24 @@ def _surface(mask: NDArray[np.bool_]) -> NDArray[np.bool_]:
     return out
 
 
-def _directed_distances(
+def _surface_distances(
     a_surface: NDArray[np.bool_], b_surface: NDArray[np.bool_], spacing: Optional[Sequence[float]]
-) -> NDArray[np.float64]:
-    """Distance from each surface point of A to the nearest surface point of B."""
-    dist = ndimage.distance_transform_edt(~b_surface, sampling=spacing)
-    return np.asarray(dist[a_surface], dtype=np.float64)
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Nearest-neighbour distances between the two surfaces, both ways (A→B, B→A).
+
+    Uses k-d trees over the surface points only, which is much cheaper than a distance transform of the whole
+    image when surfaces are a small fraction of it; distances are the same exact Euclidean values."""
+    from scipy.spatial import cKDTree
+
+    pa = np.argwhere(a_surface).astype(np.float64)
+    pb = np.argwhere(b_surface).astype(np.float64)
+    if spacing is not None:
+        sc = np.asarray(spacing, dtype=np.float64)
+        pa *= sc
+        pb *= sc
+    d_ab = cKDTree(pb).query(pa)[0]
+    d_ba = cKDTree(pa).query(pb)[0]
+    return np.asarray(d_ab, dtype=np.float64), np.asarray(d_ba, dtype=np.float64)
 
 
 def _check_spacing(spacing: Optional[Sequence[float]], ndim: int) -> Optional[tuple[float, ...]]:
@@ -551,20 +566,25 @@ def _surface_metric(
     one_empty = 0
     for i, (a, b) in enumerate(pairs):
         sp = _check_spacing(spacing, a.ndim)
-        valid = np.ones(a.shape, bool) if ignore_index is None else a != ignore_index
+        valid = None if ignore_index is None else a != ignore_index
         for j, c in enumerate(cls):
-            ta, pb = (a == c) & valid, (b == c) & valid
-            if not ta.any() and not pb.any():
+            ta, pb = a == c, b == c
+            if valid is not None:
+                ta &= valid
+                pb &= valid
+            has_a, has_b = bool(ta.any()), bool(pb.any())
+            if not has_a and not has_b:
                 continue
-            if not ta.any() or not pb.any():
+            if not has_a or not has_b:
                 values[i, j] = math.inf
                 one_empty += 1
                 continue
-            sa, sb = _surface(ta), _surface(pb)
-            d_ab = _directed_distances(sa, sb, sp)
-            d_ba = _directed_distances(sb, sa, sp)
+            d_ab, d_ba = _surface_distances(_surface(ta), _surface(pb), sp)
             if which == "hd":
-                values[i, j] = max(np.percentile(d_ab, percentile), np.percentile(d_ba, percentile))
+                if percentile == 100:
+                    values[i, j] = max(float(np.max(d_ab)), float(np.max(d_ba)))
+                else:
+                    values[i, j] = max(np.percentile(d_ab, percentile), np.percentile(d_ba, percentile))
             else:
                 values[i, j] = (d_ab.sum() + d_ba.sum()) / (d_ab.size + d_ba.size)
     if one_empty:

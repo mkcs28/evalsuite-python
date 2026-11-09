@@ -8,6 +8,7 @@ published results; ROUGE follows Google's ``rouge-score`` package (0–1, averag
 
 from __future__ import annotations
 
+import functools
 import math
 import re
 from collections import Counter
@@ -77,13 +78,19 @@ _RE_13A = [
 
 
 def _tok_13a(line: str) -> list[str]:
+    return list(_tok_13a_cached(line))
+
+
+@functools.lru_cache(maxsize=2**16)
+def _tok_13a_cached(line: str) -> tuple[str, ...]:
+    """13a tokenization, memoised like sacreBLEU's tokenizer (repeated references are tokenized once)."""
     line = line.replace("<skipped>", "").replace("-\n", "").replace("\n", " ")
     if "&" in line:
         line = line.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
     line = f" {line} "
     for pattern, repl in _RE_13A:
         line = pattern.sub(repl, line)
-    return line.split()
+    return tuple(line.split())
 
 
 Tokenize = Literal["13a", "none"]
@@ -108,18 +115,18 @@ def _bleu_stats(hyp: list[str], refs: list[list[str]], order: int) -> list[float
     hyp_len = len(hyp)
     ref_lens = [len(r) for r in refs]
     closest = min(ref_lens, key=lambda r: (abs(hyp_len - r), r))
-    ref_max: Counter[tuple[str, ...]] = Counter()
-    for r in refs:
-        for n in range(1, order + 1):
-            for ng, c in word_ngrams(r, n).items():
-                if c > ref_max[ng]:
-                    ref_max[ng] = c
     correct = [0] * order
     total = [0] * order
     for n in range(1, order + 1):
-        hyp_ng = word_ngrams(hyp, n)
+        # Max count of each n-gram over the references (Counter union), then clipped matches (intersection).
+        ref_max = word_ngrams(refs[0], n)
+        for r in refs[1:]:  # not Counter |=, which rescans the whole counter after every reference
+            get = ref_max.get
+            for ng, c in word_ngrams(r, n).items():
+                if c > get(ng, 0):
+                    ref_max[ng] = c
         total[n - 1] = max(hyp_len - n + 1, 0)
-        correct[n - 1] = sum(min(c, ref_max.get(ng, 0)) for ng, c in hyp_ng.items())
+        correct[n - 1] = sum((word_ngrams(hyp, n) & ref_max).values())
     return [hyp_len, closest, *correct, *total]
 
 
@@ -201,10 +208,12 @@ def bleu(
     smooth = _check_smooth(smooth)
     tok = _tokenizer(tokenize)
     hyp_tok = _prep(preds, lowercase, tok)
-    stats = np.zeros(2 + 2 * order)
+    acc = [0.0] * (2 + 2 * order)
     for h, rs in zip(hyp_tok, refs):
-        stats += np.array(_bleu_stats(h, _prep(rs, lowercase, tok), order), dtype=float)
-    score, precisions, bp = _bleu_from_stats(stats.tolist(), order, smooth, smooth_value, effective_order)
+        for i, v in enumerate(_bleu_stats(h, _prep(rs, lowercase, tok), order)):
+            acc[i] += v
+    stats = np.asarray(acc)
+    score, precisions, bp = _bleu_from_stats(acc, order, smooth, smooth_value, effective_order)
     return MetricResult(
         "bleu",
         "BLEU",
@@ -285,12 +294,12 @@ def _chrf_words(sent: str) -> list[str]:
 def _chrf_ngrams(sent: str, char_order: int, word_order: int, whitespace: bool) -> list[Counter[Any]]:
     line = sent if whitespace else "".join(sent.split())
     out: list[Counter[Any]] = [
-        Counter(line[i : i + n] for i in range(len(line) - n + 1)) for n in range(1, char_order + 1)
+        Counter([line[i : i + n] for i in range(len(line) - n + 1)]) for n in range(1, char_order + 1)
     ]
     if word_order:
         words = _chrf_words(sent)
         out += [
-            Counter(" ".join(words[i : i + n]) for i in range(len(words) - n + 1))
+            Counter([" ".join(words[i : i + n]) for i in range(len(words) - n + 1)])
             for n in range(1, word_order + 1)
         ]
     return out
@@ -352,7 +361,7 @@ def chrf(
     if isinstance(word_order, bool) or not isinstance(word_order, (int, np.integer)) or word_order < 0:
         raise InputValidationError("word_order must be an integer >= 0 (2 gives chrF++).")
     order = char_order + int(word_order)
-    total = np.zeros(3 * order)
+    total = [0.0] * (3 * order)
     for hyp, rs in zip(preds, refs):
         h = _chrf_ngrams(hyp.lower() if lowercase else hyp, char_order, word_order, whitespace)
         best: Optional[list[float]] = None
@@ -362,17 +371,20 @@ def chrf(
             seg: list[float] = []
             for hc, rc in zip(h, r):
                 n_hyp = sum(hc.values())
-                match = sum(min(c, rc[ng]) for ng, c in hc.items() if ng in rc)
+                small, big = (hc, rc) if len(hc) <= len(rc) else (rc, hc)  # iterate the smaller counter
+                get = big.get
+                match = sum(min(c, get(ng, 0)) for ng, c in small.items())
                 seg += [n_hyp if rc else 0, sum(rc.values()), match]
             f = _chrf_f(seg, order, beta, eps_smoothing)
             if f > best_f:
                 best_f, best = f, seg
-        total += np.array(best)
+        if best is not None:  # every example has at least one reference
+            total = [t + v for t, v in zip(total, best)]
     name = f"chrF{beta:g}" + "+" * int(word_order)
     return MetricResult(
         "chrf",
         name,
-        _chrf_f(total.tolist(), order, beta, eps_smoothing),
+        _chrf_f(total, order, beta, eps_smoothing),
         {"char_order": char_order, "word_order": int(word_order), "beta": beta, "lowercase": lowercase},
     )
 
@@ -385,36 +397,71 @@ _MAX_SHIFT_CANDIDATES = 1000
 _INF = int(1e16)
 
 
-def _edit_distance(hyp: list[str], ref: list[str]) -> tuple[int, str]:
-    """Beam edit distance (insert/delete/substitute cost 1) and the trace, as Tercom/sacreBLEU."""
-    nh, nr = len(hyp), len(ref)
-    dist: list[list[tuple[int, str]]] = [[(i, "i") for i in range(nr + 1)]]
-    dist += [[(_INF, "x")] * (nr + 1) for _ in range(nh)]
-    ratio = nr / nh if hyp else 1
+def _beam(nh: int, nr: int) -> tuple[float, int]:
+    ratio = nr / nh if nh else 1
     beam = math.ceil(ratio / 2 + _BEAM_WIDTH) if ratio / 2 > _BEAM_WIDTH else _BEAM_WIDTH
-    for i in range(1, nh + 1):
+    return ratio, beam
+
+
+def _edit_rows(
+    hyp: list[str], ref: list[str], rows: list[list[int]], start: int, ops: Optional[list[list[str]]] = None
+) -> None:
+    """Fill beam edit-distance rows ``start``..len(hyp) in place (insert/delete/substitute cost 1, as Tercom
+    and sacreBLEU). ``rows[0..start-1]`` must already hold the rows of the same hypothesis prefix. With
+    ``ops``, also record each cell's operation (ties broken match/substitute, delete, insert)."""
+    nh, nr = len(hyp), len(ref)
+    ratio, beam = _beam(nh, nr)
+    inf = _INF
+    for i in range(max(start, 1), nh + 1):
         diag = math.floor(i * ratio)
         lo = max(0, diag - beam)
         hi = nr + 1 if i == nh else min(nr + 1, diag + beam)
-        row, prev = dist[i], dist[i - 1]
+        prev = rows[i - 1]
+        row = [inf] * (nr + 1)
+        oprow = ["x"] * (nr + 1) if ops is not None else None
+        w = hyp[i - 1]
         for j in range(lo, hi):
             if j == 0:
-                row[j] = (prev[j][0] + 1, "d")
+                row[0] = prev[0] + 1
+                if oprow is not None:
+                    oprow[0] = "d"
                 continue
-            sub = 0 if hyp[i - 1] == ref[j - 1] else 1
-            best = row[j]
-            for cost, op in (
-                (prev[j - 1][0] + sub, " " if sub == 0 else "s"),
-                (prev[j][0] + 1, "d"),
-                (row[j - 1][0] + 1, "i"),
-            ):
-                if best[0] > cost:
-                    best = (cost, op)
-            row[j] = best
+            match = w == ref[j - 1]
+            best = prev[j - 1] + (0 if match else 1)
+            op = " " if match else "s"
+            d = prev[j] + 1
+            if d < best:
+                best, op = d, "d"
+            ins = row[j - 1] + 1
+            if ins < best:
+                best, op = ins, "i"
+            if best < inf:
+                row[j] = best
+                if oprow is not None:
+                    oprow[j] = op
+        if i < len(rows):
+            rows[i] = row
+        else:
+            rows.append(row)
+        if ops is not None and oprow is not None:
+            if i < len(ops):
+                ops[i] = oprow
+            else:
+                ops.append(oprow)
+
+
+def _edit_distance(hyp: list[str], ref: list[str], rows_out: Optional[list[list[int]]] = None) -> tuple[int, str]:
+    """Beam edit distance and its trace, as Tercom/sacreBLEU. ``rows_out`` receives the cost rows."""
+    nh, nr = len(hyp), len(ref)
+    rows: list[list[int]] = [list(range(nr + 1))]
+    ops: list[list[str]] = [["i"] * (nr + 1)]
+    _edit_rows(hyp, ref, rows, 1, ops)
+    if rows_out is not None:
+        rows_out[:] = rows
     trace = []
     i, j = nh, nr
     while i > 0 or j > 0:
-        op = dist[i][j][1]
+        op = ops[i][j]
         trace.append(op)
         if op in ("s", " "):
             i -= 1
@@ -425,11 +472,16 @@ def _edit_distance(hyp: list[str], ref: list[str]) -> tuple[int, str]:
             i -= 1
         else:  # pragma: no cover - unreachable for valid tables
             raise RuntimeError("invalid edit trace")
-    return dist[nh][nr][0], "".join(reversed(trace))
+    return rows[nh][nr], "".join(reversed(trace))
 
 
-def _ter_shift(hyp: list[str], ref: list[str], checked: int) -> tuple[int, list[str], int]:
-    pre, inv_trace = _edit_distance(hyp, ref)
+def _ter_shift(hyp: list[str], ref: list[str], checked: int) -> tuple[int, list[str], int, int]:
+    """Best shift of ``hyp``: (gain, shifted words, candidates checked, edit distance of ``hyp``)."""
+    # Rows of the unshifted hypothesis: a shifted candidate keeps hyp[:min(start, target)] and has the same
+    # length (so the same beam), so its edit-distance rows up to that prefix are these and only the rest is
+    # recomputed. Costs are identical to recomputing from scratch.
+    base: list[list[int]] = []
+    pre, inv_trace = _edit_distance(hyp, ref, base)
     trace = inv_trace.translate(str.maketrans("id", "di"))
     align: dict[int, int] = {}
     ref_err: list[int] = []
@@ -468,24 +520,25 @@ def _ter_shift(hyp: list[str], ref: list[str], checked: int) -> tuple[int, list[
                 continue
             prev_idx = idx
             shifted = _perform_shift(hyp, sh, length, idx)
-            cand = (pre - _edit_distance(shifted, ref)[0], length, -sh, -idx, shifted)
+            keep = min(sh, idx)
+            rows = base[: keep + 1]
+            _edit_rows(shifted, ref, rows, keep + 1)
+            cand = (pre - rows[len(shifted)][len(ref)], length, -sh, -idx, shifted)
             checked += 1
             if best is None or cand > best:
                 best = cand
         if checked >= _MAX_SHIFT_CANDIDATES:
             break
     if best is None:
-        return 0, hyp, checked
-    return best[0], best[4], checked
+        return 0, hyp, checked, pre
+    return best[0], best[4], checked, pre
 
 
 def _shifted_pairs(hyp: list[str], ref: list[str]) -> Any:
     """(start_h, start_r, length) of matching word runs, in Tercom's order."""
     nh, nr = len(hyp), len(ref)
     for sh in range(nh):
-        for sr in range(nr):
-            if abs(sr - sh) > _MAX_SHIFT_DIST:
-                continue
+        for sr in range(max(0, sh - _MAX_SHIFT_DIST), min(nr, sh + _MAX_SHIFT_DIST + 1)):
             length = 0
             while hyp[sh + length] == ref[sr + length] and length < _MAX_SHIFT_SIZE:
                 length += 1
@@ -514,12 +567,11 @@ def _ter_edits(hyp: list[str], ref: list[str]) -> int:
     words = hyp
     checked = 0
     while True:
-        delta, new_words, checked = _ter_shift(words, ref, checked)
+        delta, new_words, checked, dist = _ter_shift(words, ref, checked)
         if checked >= _MAX_SHIFT_CANDIDATES or delta <= 0:
-            break
+            return shifts + dist  # ``words`` is unchanged, so its distance is the one just computed
         shifts += 1
         words = new_words
-    return shifts + _edit_distance(words, ref)[0]
 
 
 @register(
@@ -564,10 +616,19 @@ _VALID = re.compile(r"^[a-z0-9]+$")
 
 
 def _rouge_tok(text: str, stemmer: Optional[Callable[[str], str]]) -> list[str]:
+    if stemmer is None:
+        return list(_rouge_tok_plain(text))
     tokens = re.split(r"\s+", _NON_ALNUM.sub(" ", text.lower()))
     if stemmer is not None:
         tokens = [stemmer(t) if len(t) > 3 else t for t in tokens]
     return [t for t in tokens if _VALID.match(t)]
+
+
+@functools.lru_cache(maxsize=2**16)
+def _rouge_tok_plain(text: str) -> tuple[str, ...]:
+    """rouge-score's tokenizer without stemming, memoised (ROUGE-1/2/L of one corpus tokenize it once)."""
+    tokens = re.split(r"\s+", _NON_ALNUM.sub(" ", text.lower()))
+    return tuple(t for t in tokens if _VALID.match(t))
 
 
 def _f(p: float, r: float) -> float:
@@ -592,10 +653,23 @@ def _lcs_table(a: list[str], b: list[str]) -> list[list[int]]:
     return t
 
 
+def _lcs_length(a: list[str], b: list[str]) -> int:
+    """Length of the longest common subsequence with two rolling rows (no full table)."""
+    prev = [0] * (len(b) + 1)
+    for ai in a:
+        row = [0]
+        left = 0
+        for j, bj in enumerate(b):
+            left = prev[j] + 1 if ai == bj else (prev[j + 1] if prev[j + 1] > left else left)
+            row.append(left)
+        prev = row
+    return prev[-1]
+
+
 def _rouge_l(t: list[str], p: list[str]) -> tuple[float, float, float]:
     if not t or not p:
         return 0.0, 0.0, 0.0
-    lcs = _lcs_table(t, p)[-1][-1]
+    lcs = _lcs_length(t, p)
     prec, rec = lcs / len(p), lcs / len(t)
     return prec, rec, _f(prec, rec)
 
