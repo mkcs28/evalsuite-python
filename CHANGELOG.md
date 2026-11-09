@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-09
+
+Every benchmark row is now faster than its reference library: 81 of 81 in the main benchmark (geometric mean
+3.07× → **3.29×**) and 172 of 172 per-metric library comparisons (4.67× → **4.97×**). No API changes; results
+are unchanged (all 81 + 204 comparisons agree with the reference, as before).
+
+### Changed
+- Latency percentiles (and every LLM-systems latency/step/token summary): exact selection from a small window
+  bracketed by a sorted sample instead of partitioning the whole array; bit-identical to `np.percentile`
+  (0.69× → 1.1–2.0× NumPy). Falls back to a full partition if a bracket ever misses.
+- COCO detection: COCOeval's greedy matching runs across all images of a class at once (0.96× → 1.85×
+  pycocotools; identical matches).
+- Shapiro–Wilk: SciPy's algorithm (SciPy ≥ 1.12) with Royston's weights cached per sample size, bit-identical
+  (0.90× → 11× SciPy); older SciPy keeps its own Fortran implementation.
+- MoverScore: cost matrix computed exactly as POT's `ot.dist`, POT's solver called without redundant marginal
+  checks (0.9× → 1.4× POT).
+- Surface distances: erosion by array shifts and direct nearest-point search for small boundaries (k-d trees
+  for large ones); average surface distance 0.75× → 1.2× and Hausdorff 1.1× → 1.9× SciPy.
+- METEOR: Porter stems memoised per word (0.74× → 3.5× NLTK).
+- Krippendorff's alpha and CodeBLEU: lower fixed cost on tiny inputs (now faster at every size).
+- README and BENCHMARKS.md rerun on 0.5.5.
+
 ## [0.5.4] - 2026-11-09
 
 Speed release and a second licence. No API changes; every result is unchanged (all 81 benchmark rows and
