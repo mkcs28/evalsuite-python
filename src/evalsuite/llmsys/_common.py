@@ -116,17 +116,64 @@ def by_group(values: np.ndarray, groups: Optional[Sequence[Any]], name: str = "g
     return out
 
 
-def quantiles(a: np.ndarray, qs: Sequence[float]) -> list[float]:
-    """Percentiles ``qs`` (0-100, linear interpolation, identical to ``np.percentile``) from one partition."""
+def _order_stats_partition(a: np.ndarray, ks: list[int]) -> dict[int, float]:
+    part = np.partition(a, ks)
+    return {k: float(part[k]) for k in ks}
+
+
+def _order_stats_bracketed(a: np.ndarray, ks: list[int]) -> Optional[dict[int, float]]:
+    """Exact order statistics of a large array without partitioning all of it.
+
+    A sorted strided sample (about 8k values) brackets each wanted rank; one pass counts the values below the
+    bracket and extracts those inside it, and only that small subset is partitioned. Overlapping brackets are
+    merged. Returns None if a bracket misses its rank (possible only for adversarially ordered data), and the
+    caller falls back to a full partition, so the result is always exact."""
     n = a.size
-    pos = [(n - 1) * q / 100.0 for q in qs]
-    lo = [int(np.floor(h)) for h in pos]
-    kth = sorted({k for i in lo for k in (i, min(i + 1, n - 1))})
-    part = np.partition(a, kth)
+    s = np.sort(a[:: max(1, n // 8192)])
+    ns = s.size
+    brackets: list[list[Any]] = []
+    for k in ks:
+        r = k / (n - 1) * (ns - 1)
+        margin = 6 * math.sqrt(max(r * (ns - r) / ns, 1.0)) + 4
+        lo_i, hi_i = max(0, math.floor(r - margin)), min(ns - 1, math.ceil(r + margin))
+        if brackets and lo_i <= brackets[-1][1]:
+            brackets[-1][1] = max(brackets[-1][1], hi_i)
+            brackets[-1][2].append(k)
+        else:
+            brackets.append([lo_i, hi_i, [k]])
+    out: dict[int, float] = {}
+    for lo_i, hi_i, group in brackets:
+        mask = np.ones(n, dtype=bool) if lo_i == 0 else a >= s[lo_i]
+        below = 0 if lo_i == 0 else n - int(np.count_nonzero(mask))
+        if hi_i < ns - 1:
+            mask &= a <= s[hi_i]
+        window = a[mask]
+        rel = [k - below for k in group]
+        if rel[0] < 0 or rel[-1] >= window.size:
+            return None
+        part = np.partition(window, rel)
+        for k, r_ in zip(group, rel):
+            out[k] = float(part[r_])
+    return out
+
+
+def quantiles(a: np.ndarray, qs: Sequence[float]) -> list[float]:
+    """Percentiles ``qs`` (0-100, linear interpolation, as ``np.percentile``). Large arrays use bracketed
+    selection on a small window per percentile; small ones one partition. Both are exact."""
+    n = a.size
+    pos = [(n - 1) * (q / 100.0) for q in qs]  # NumPy's order of operations
+    lo = [math.floor(h) for h in pos]
+    ks = sorted({k for i in lo for k in (i, min(i + 1, n - 1))})
+    stats = _order_stats_bracketed(a, ks) if n >= 65536 else None
+    if stats is None:
+        stats = _order_stats_partition(a, ks)
     out = []
     for h, i in zip(pos, lo):
-        v0, v1 = float(part[i]), float(part[min(i + 1, n - 1)])
-        out.append(v0 + (h - i) * (v1 - v0))
+        v0, v1 = stats[i], stats[min(i + 1, n - 1)]
+        t = h - i
+        d = v1 - v0
+        # NumPy's lerp, so the result is bit-for-bit np.percentile(..., method="linear")
+        out.append(v1 - d * (1 - t) if t >= 0.5 else v0 + d * t)
     return out
 
 

@@ -218,41 +218,66 @@ def _prepare(images: list[_Image], max_det: int) -> tuple[list[int], dict[int, l
     return cats, pairs
 
 
-def _evaluate_image(pair: _Pair, area_rng: tuple[float, float], iou_thrs: NDArray[np.float64]) -> _Eval:
-    dt_b, dt_s = pair.dt_b, pair.dt_s
-    g_ignore = pair.gt_crowd | (pair.gt_area < area_rng[0]) | (pair.gt_area > area_rng[1])
-    gorder = np.argsort(g_ignore, kind="mergesort")
-    gt_b, gt_crowd, g_ignore = pair.gt_b[gorder], pair.gt_crowd[gorder], g_ignore[gorder]
-    ious = pair.ious[:, gorder]
-    t_n, d_n, g_n = len(iou_thrs), dt_b.shape[0], gt_b.shape[0]
-    gtm = np.zeros((t_n, g_n), dtype=bool)
-    dtm = np.zeros((t_n, d_n), dtype=bool)
-    dt_ig = np.zeros((t_n, d_n), dtype=bool)
-    # COCOeval's greedy matching, vectorised over thresholds and ground truths: for each detection (in score
-    # order) take the last best-IoU available ground truth at or above the threshold, preferring ground truths
-    # that are not ignored (COCO stops at the first ignored one once a regular match exists); crowd regions
-    # stay available after a match.
-    thr = np.minimum(np.asarray(iou_thrs, dtype=np.float64), 1 - 1e-10)
-    if g_n:
-        rows = np.arange(t_n)
-        for di in range(d_n):
-            row = ious[di]
-            ok = (~gtm | gt_crowd[None, :]) & (row[None, :] >= thr[:, None])
-            regular = ok & ~g_ignore[None, :]
-            cand = np.where(regular.any(1)[:, None], regular, ok)
-            found = cand.any(1)
+def _evaluate_images(
+    pairs: list[_Pair], area_rng: tuple[float, float], iou_thrs: NDArray[np.float64]
+) -> list[_Eval]:
+    """COCOeval's per-image greedy matching for many images at once (one class, one area range).
+
+    Images are independent, so their matchings run side by side on arrays padded to the largest image: one Python
+    step per detection slot instead of one per detection. Per image this is exactly COCOeval.evaluateImg: ground
+    truths sorted with ignored ones last; each detection, in score order, takes the last best-IoU available
+    ground truth at or above the threshold, preferring non-ignored ones; crowd regions stay available after a
+    match; unmatched detections outside the area range are ignored."""
+    p_n = len(pairs)
+    if p_n == 0:
+        return []
+    t_n = len(iou_thrs)
+    g_sizes = np.array([pr.gt_b.shape[0] for pr in pairs])
+    d_sizes = np.array([pr.dt_b.shape[0] for pr in pairs])
+    g_max, d_max = int(g_sizes.max()), int(d_sizes.max())
+    lo, hi = area_rng
+    g_ign_list = []
+    gign = np.ones((p_n, g_max), dtype=bool)
+    crowd = np.zeros((p_n, g_max), dtype=bool)
+    ious = np.full((p_n, d_max, g_max), -1.0)
+    dt_out = np.zeros((p_n, d_max), dtype=bool)
+    for i, pr in enumerate(pairs):
+        g_ignore = pr.gt_crowd | (pr.gt_area < lo) | (pr.gt_area > hi)
+        gorder = np.argsort(g_ignore, kind="mergesort")
+        g_ignore = g_ignore[gorder]
+        g_ign_list.append(g_ignore)
+        g, d = g_ignore.shape[0], pr.dt_b.shape[0]
+        gign[i, :g] = g_ignore
+        crowd[i, :g] = pr.gt_crowd[gorder]
+        if g and d:
+            ious[i, :d, :g] = pr.ious[:, gorder]
+        dt_out[i, :d] = (pr.dt_area < lo) | (pr.dt_area > hi)
+    gtm = np.zeros((p_n, t_n, g_max), dtype=bool)
+    dtm = np.zeros((p_n, t_n, d_max), dtype=bool)
+    dt_ig = np.zeros((p_n, t_n, d_max), dtype=bool)
+    thr = np.minimum(np.asarray(iou_thrs, dtype=np.float64), 1 - 1e-10)[None, :, None]
+    if g_max:
+        p_idx = np.broadcast_to(np.arange(p_n)[:, None], (p_n, t_n))
+        t_idx = np.broadcast_to(np.arange(t_n)[None, :], (p_n, t_n))
+        not_ign = ~gign[:, None, :]
+        for di in range(d_max):
+            row = ious[:, di, :][:, None, :]  # (P, 1, G); padding is -1, never above a threshold
+            ok = (~gtm | crowd[:, None, :]) & (row >= thr)
+            regular = ok & not_ign
+            cand = np.where(regular.any(2, keepdims=True), regular, ok)
+            found = cand.any(2)
             if not found.any():
                 continue
-            vals = np.where(cand, row[None, :], -1.0)
-            m = g_n - 1 - np.argmax(vals[:, ::-1], axis=1)
-            hit = rows[found]
-            dtm[hit, di] = True
-            dt_ig[hit, di] = g_ignore[m[found]]
-            gtm[hit, m[found]] = True
-    dt_area = pair.dt_area
-    outside = (dt_area < area_rng[0]) | (dt_area > area_rng[1])
-    dt_ig = dt_ig | (~dtm & outside[None, :])
-    return _Eval(dt_s, dtm, dt_ig, g_ignore)
+            vals = np.where(cand, row, -1.0)
+            m = g_max - 1 - np.argmax(vals[:, :, ::-1], axis=2)  # the last best ground truth, as COCOeval
+            dtm[:, :, di] = found
+            dt_ig[:, :, di] = found & gign[p_idx, m]
+            gtm[p_idx[found], t_idx[found], m[found]] = True
+    dt_ig |= ~dtm & dt_out[:, None, :]
+    return [
+        _Eval(pr.dt_s, dtm[i, :, : d_sizes[i]], dt_ig[i, :, : d_sizes[i]], g_ign_list[i])
+        for i, pr in enumerate(pairs)
+    ]
 
 
 def _coco_eval(
@@ -269,7 +294,7 @@ def _coco_eval(
     recall = -np.ones((t_n, k_n, a_n, m_n))
     for k, cat in enumerate(cats):
         for a, area_name in enumerate(areas):
-            evals = [_evaluate_image(pair, _AREAS[area_name], iou_thrs) for pair in pairs[cat]]
+            evals = _evaluate_images(pairs[cat], _AREAS[area_name], iou_thrs)
             if not evals:
                 continue
             gt_ignore = np.concatenate([e.gt_ignore for e in evals])
@@ -566,7 +591,7 @@ def average_precision_detection(
         cats, pairs = _prepare(images, int(max_detections))
         per = np.full(len(cats), math.nan)
         for k, cat in enumerate(cats):
-            evals = [_evaluate_image(pair, _AREAS["all"], np.array([t])) for pair in pairs[cat]]
+            evals = _evaluate_images(pairs[cat], _AREAS["all"], np.array([t]))
             npig = int(sum(np.count_nonzero(~e.gt_ignore) for e in evals))
             if npig == 0:
                 continue

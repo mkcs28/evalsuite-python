@@ -135,3 +135,42 @@ def test_surface_distances_match_distance_transform(spacing):
     asd = float(es.average_surface_distance(a.astype(int), b.astype(int), labels=[1], spacing=spacing))
     assert hd == pytest.approx(max(d_ab.max(), d_ba.max()), abs=1e-12)
     assert asd == pytest.approx((d_ab.sum() + d_ba.sum()) / (d_ab.size + d_ba.size), abs=1e-12)
+
+
+def test_meteor_matches_nltk():
+    pytest.importorskip("nltk")
+    from nltk.stem.porter import PorterStemmer
+    from nltk.translate.meteor_score import meteor_score
+
+    class _NoWordNet:  # exact and stem matches only, as EvalSuite's default (no synonym data needed)
+        def synsets(self, _w):
+            return []
+
+    refs, preds = _corpus(9, k=10, nref=1)
+    st, wn = PorterStemmer(), _NoWordNet()
+    want = np.mean([meteor_score([r[0].split()], p.split(), stemmer=st, wordnet=wn) for r, p in zip(refs, preds)])
+    assert float(es.meteor([r[0] for r in refs], preds)) == pytest.approx(want, abs=1e-12)
+
+
+def test_surface_matches_binary_erosion():
+    from scipy import ndimage
+
+    from evalsuite.vision.segmentation import _structure, _surface
+
+    rng = np.random.default_rng(0)
+    for shape in [(1, 1), (1, 7), (5, 1), (2, 2), (40, 40), (9, 11, 13), (3, 4, 5, 6)]:
+        for _ in range(10):
+            m = ndimage.binary_dilation(rng.random(shape) < 0.1) if min(shape) > 2 else rng.random(shape) < 0.6
+            want = m & ~ndimage.binary_erosion(m, structure=_structure(m.ndim), border_value=0)
+            assert np.array_equal(_surface(m), want)
+
+
+def test_surface_distances_large_surfaces_use_trees():
+    from evalsuite.vision.segmentation import _nearest, _surface_distances
+
+    rng = np.random.default_rng(1)
+    a = rng.random((2100, 2100)) < 0.0012
+    b = rng.random((2100, 2100)) < 0.0012
+    d_ab, d_ba = _surface_distances(a, b, None)
+    pa, pb = np.argwhere(a).astype(float), np.argwhere(b).astype(float)
+    assert np.allclose(d_ab, _nearest(pa, pb)) and np.allclose(d_ba, _nearest(pb, pa))

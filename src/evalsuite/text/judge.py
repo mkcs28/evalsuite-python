@@ -266,14 +266,14 @@ def krippendorff_alpha(ratings: Any, *, level: str = "nominal") -> MetricResult:
     a = _reliability_matrix(ratings)
     if level not in ("nominal", "ordinal", "interval", "ratio"):
         raise InputValidationError("level must be 'nominal', 'ordinal', 'interval' or 'ratio'.")
-    values = np.unique(a[~np.isnan(a)])
+    mask = ~np.isnan(a)
+    values, codes = np.unique(a[mask], return_inverse=True)  # sorted values and each rating's code, one pass
     if values.size < 2:
         raise InputValidationError("Krippendorff's alpha needs at least two distinct rating values.")
     v = values.size
     # counts[u, c]: how many raters gave item u the value c (vectorised coincidence matrix)
-    mask = ~np.isnan(a)
-    items = np.broadcast_to(np.arange(a.shape[1]), a.shape)[mask]
-    codes = np.searchsorted(values, a[mask])
+    items = np.nonzero(mask)[1]  # item (column) of each rating, row-major like a[mask]
+    codes = codes.ravel()
     counts = np.bincount(items * v + codes, minlength=a.shape[1] * v).reshape(a.shape[1], v).astype(np.float64)
     m_u = counts.sum(axis=1)
     pairable = m_u >= 2

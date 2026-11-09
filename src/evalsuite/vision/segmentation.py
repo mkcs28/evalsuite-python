@@ -509,9 +509,31 @@ def _surface(mask: NDArray[np.bool_]) -> NDArray[np.bool_]:
     """Foreground pixels with at least one background neighbour (4/6-connectivity)."""
     if not mask.any():
         return mask
-    eroded = ndimage.binary_erosion(mask, structure=_structure(mask.ndim), border_value=0)
-    out: NDArray[np.bool_] = mask & ~eroded
+    # Erosion with the cross-shaped structure (border = background): a pixel stays interior only if it and its
+    # 2·ndim face neighbours are all foreground. Same result as ndimage.binary_erosion, without its overhead.
+    interior = mask.copy()
+    full = [slice(None)] * mask.ndim
+    for ax in range(mask.ndim):
+        lo, hi, first, last = list(full), list(full), list(full), list(full)
+        lo[ax], hi[ax] = slice(None, -1), slice(1, None)
+        first[ax], last[ax] = slice(0, 1), slice(-1, None)
+        interior[tuple(hi)] &= mask[tuple(lo)]  # neighbour before along this axis
+        interior[tuple(lo)] &= mask[tuple(hi)]  # neighbour after
+        interior[tuple(first)] = False  # pixels on the image border touch the background outside
+        interior[tuple(last)] = False
+    out: NDArray[np.bool_] = mask & ~interior
     return out
+
+
+def _nearest(src: NDArray[np.float64], dst: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Distance from each point of ``src`` to its nearest point of ``dst`` by direct comparison, in chunks of
+    rows so memory stays bounded; the square root is taken after the minimum (it is monotonic)."""
+    out = np.empty(src.shape[0])
+    step = max(1, 262144 // max(dst.shape[0], 1))
+    for i in range(0, src.shape[0], step):
+        diff = src[i : i + step, None, :] - dst[None, :, :]
+        out[i : i + step] = np.einsum("ijk,ijk->ij", diff, diff).min(axis=1)
+    return np.sqrt(out)
 
 
 def _surface_distances(
@@ -519,16 +541,19 @@ def _surface_distances(
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Nearest-neighbour distances between the two surfaces, both ways (A→B, B→A).
 
-    Uses k-d trees over the surface points only, which is much cheaper than a distance transform of the whole
-    image when surfaces are a small fraction of it; distances are the same exact Euclidean values."""
-    from scipy.spatial import cKDTree
-
+    Works on the surface points only (never a distance transform of the whole image): small surfaces are
+    compared directly, which beats building trees, and large ones use k-d trees. Both give the exact Euclidean
+    nearest-surface distance."""
     pa = np.argwhere(a_surface).astype(np.float64)
     pb = np.argwhere(b_surface).astype(np.float64)
     if spacing is not None:
         sc = np.asarray(spacing, dtype=np.float64)
         pa *= sc
         pb *= sc
+    if pa.shape[0] * pb.shape[0] <= 4_000_000:
+        return _nearest(pa, pb), _nearest(pb, pa)
+    from scipy.spatial import cKDTree
+
     d_ab = cKDTree(pb).query(pa)[0]
     d_ba = cKDTree(pa).query(pb)[0]
     return np.asarray(d_ab, dtype=np.float64), np.asarray(d_ba, dtype=np.float64)
@@ -594,9 +619,12 @@ def _surface_metric(
             UndefinedMetricWarning,
             stacklevel=3,
         )
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        per_class = np.nanmean(values, axis=0)
+    if not np.isnan(values).any():
+        per_class = values.mean(axis=0)  # nanmean's NaN bookkeeping is not needed
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            per_class = np.nanmean(values, axis=0)
     params: dict[str, Any] = {
         "spacing": None if spacing is None else tuple(float(s) for s in spacing),
         "ignore_index": ignore_index,
@@ -613,7 +641,8 @@ def _surface_metric(
     if np.all(np.isnan(per_class)):
         warnings.warn(f"{name} is undefined: no class occurs in any mask.", UndefinedMetricWarning, stacklevel=3)
         return MetricResult(metric, name, math.nan, params)
-    return MetricResult(metric, name, float(np.nanmean(per_class)), params)
+    finite = per_class[~np.isnan(per_class)]
+    return MetricResult(metric, name, float(finite.mean()), params)
 
 
 @register(

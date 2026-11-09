@@ -217,6 +217,16 @@ def embedding_similarity(
 
 
 # ---------------------------------------------------------------- MoverScore
+def _euclidean_cost(x: NDArray[np.float64], y: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Pairwise Euclidean distances from ‖x‖² + ‖y‖² − 2x·y (one matrix product), computed exactly as POT's
+    ``ot.dist(..., metric="euclidean")`` so transport costs match POT bit for bit."""
+    c = -2 * np.dot(x, y.T)
+    c += np.einsum("ij,ij->i", x, x)[:, None]
+    c += np.einsum("ij,ij->i", y, y)[None, :]
+    out: NDArray[np.float64] = np.sqrt(np.maximum(c, 0))
+    return out
+
+
 def _emd(
     a: NDArray[np.float64], b: NDArray[np.float64], cost: NDArray[np.float64], *, uniform: bool = False
 ) -> float:
@@ -227,10 +237,15 @@ def _emd(
     SciPy's Hungarian solver; general weights use linear programming (SciPy HiGHS). All three are exact."""
     try:
         import ot
-
-        return float(ot.emd2(a, b, cost))
     except ImportError:
-        pass
+        ot = None
+    if ot is not None:
+        try:
+            # The marginals are already validated and the duals are not used, so POT's checks and dual centring
+            # are skipped; the transport cost is unchanged.
+            return float(ot.emd2(a, b, cost, check_marginals=False, center_dual=False))
+        except TypeError:  # POT versions without these options
+            return float(ot.emd2(a, b, cost))
     n, m = cost.shape
     if uniform:
         from scipy.optimize import linear_sum_assignment
@@ -284,8 +299,7 @@ def moverscore(
     for k, (r, p) in enumerate(zip(refs, preds)):
         wr = _weights(rw[k], r.shape[0], "reference_weights")
         wp = _weights(pw[k], p.shape[0], "prediction_weights")
-        ru, pu = _unit(r), _unit(p)
-        cost = np.sqrt(np.maximum(((ru[:, None, :] - pu[None, :, :]) ** 2).sum(-1), 0))
+        cost = _euclidean_cost(_unit(r), _unit(p))
         uniform = rw[k] is None and pw[k] is None
         scores[k] = 1.0 - _emd(wr / wr.sum(), wp / wp.sum(), cost, uniform=uniform)
     return _finish("moverscore", "MoverScore", scores, average, {"weighted": reference_weights is not None})

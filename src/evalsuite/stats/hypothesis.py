@@ -1,13 +1,17 @@
 """Hypothesis tests for comparing scores, groups and categorical outcomes.
 
 Each test returns a :class:`TestResult` with the statistic, p-value, an effect size in ``estimate`` (named in
-``params["effect_size"]``) and, where standard, a confidence interval. Computation is delegated to SciPy, whose
-implementations are the reference; EvalSuite adds input validation, effect sizes and consistent results.
+``params["effect_size"]``) and, where standard, a confidence interval. SciPy is the reference: the common tests
+compute the same statistics directly (one ranking pass, closed-form tails, cached Shapiro–Wilk weights) and are
+tested to match SciPy, falling back to SciPy where it uses a different algorithm (exact permutation tests,
+older Shapiro–Wilk); EvalSuite adds input validation, effect sizes and consistent results.
 """
 
 from __future__ import annotations
 
+import functools
 import math
+import warnings
 from typing import TYPE_CHECKING, Literal, Optional
 
 import numpy as np
@@ -398,8 +402,89 @@ def shapiro_wilk_test(x: ArrayLike) -> TestResult:
     a = _vec(x, "x", 3)
     if np.ptp(a) == 0:
         raise StatisticalTestError("The Shapiro–Wilk test is undefined for constant data.")
-    res = stats.shapiro(a)
-    return TestResult("shapiro-wilk", float(res.statistic), float(res.pvalue), params={"n": int(a.shape[0])})
+    fast = _shapiro_fast(a)
+    if fast is None:
+        res = stats.shapiro(a)
+        w, p = float(res.statistic), float(res.pvalue)
+    else:
+        w, p = fast
+    return TestResult("shapiro-wilk", w, p, params={"n": int(a.shape[0])})
+
+
+def _scipy_has_numpy_swilk() -> bool:
+    try:
+        from scipy.stats import _morestats
+
+        return hasattr(_morestats, "_swilk_w")
+    except ImportError:  # pragma: no cover
+        return False
+
+
+@functools.lru_cache(maxsize=64)
+def _swilk_coefficients(n: int) -> NDArray[np.float64]:
+    """Royston's (1992) Shapiro–Wilk weights for sample size n (n > 3), exactly as scipy.stats.shapiro computes
+    them in SciPy >= 1.12. They depend only on n, so they are computed once per size."""
+    vdot = getattr(np, "vecdot", np.dot)
+    i = np.arange(1, n + 1, dtype=np.float64)
+    m = special.ndtri((i - 3 / 8) / (n + 1 / 4))
+    u = n**-0.5
+    mtm = vdot(m, m)
+    c = mtm**-0.5 * m
+    mnm1, mn = m[-2], m[-1]
+    cnm1, cn = c[-2], c[-1]
+    an = cn + 0.221157 * u - 0.147981 * u**2 - 2.071190 * u**3 + 4.434685 * u**4 - 2.706056 * u**5
+    anm1 = cnm1 + 0.042981 * u - 0.293762 * u**2 - 1.752461 * u**3 + 5.682633 * u**4 - 3.582633 * u**5
+    phi = (
+        (mtm - 2 * mn**2) / (1 - 2 * an**2)
+        if n <= 5
+        else (mtm - 2 * mn**2 - 2 * mnm1**2) / (1 - 2 * an**2 - 2 * anm1**2)
+    )
+    a: NDArray[np.float64] = np.asarray(phi**-0.5 * m, dtype=np.float64)
+    if n > 5:
+        a[-2] = anm1
+        a[1] = -anm1
+    a[-1] = an
+    a[0] = -an
+    a.setflags(write=False)
+    return a
+
+
+def _shapiro_fast(x: NDArray[np.float64]) -> Optional[tuple[float, float]]:
+    """scipy.stats.shapiro without its per-call overhead and with cached weights; None on SciPy < 1.12, whose
+    Fortran implementation (a different algorithm) is then used instead so results always match SciPy."""
+    if not _scipy_has_numpy_swilk():
+        return None
+    vdot = getattr(np, "vecdot", np.dot)
+    n = x.shape[0]
+    y = np.sort(x)
+    y -= x[n // 2]  # SciPy subtracts this element (of the unsorted input) for numerical stability
+    if n == 3:
+        c = math.sqrt(2) / 2
+        a3 = np.array([-c, 0.0, c])
+        yc = y - y.mean()
+        w = min(max(float(vdot(a3, y) ** 2 / vdot(yc, yc)), 0.75), 1.0)
+        return w, min(max(1.0 - 6 / math.pi * math.acos(math.sqrt(w)), 0.0), 1.0)
+    a = _swilk_coefficients(n)
+    yc = y - y.mean()
+    w = float(vdot(a, y) ** 2 / vdot(yc, yc))
+    if n <= 11:
+        u = n
+        gamma = -2.273 + 0.459 * u
+        mu = 0.5440 - 0.39978 * u + 0.025054 * u**2 - 0.0006714 * u**3
+        sigma = math.exp(1.3822 - 0.77857 * u + 0.062767 * u**2 - 0.0020322 * u**3)
+        g = -math.log(gamma - math.log(1 - w))
+    else:
+        lu = math.log(n)
+        mu = -1.5861 - 0.31082 * lu - 0.083751 * lu**2 + 0.0038915 * lu**3
+        sigma = math.exp(-0.4803 - 0.082676 * lu + 0.0030302 * lu**2)
+        g = math.log(1 - w)
+    if n > 5000:
+        warnings.warn(
+            f"scipy.stats.shapiro: For N > 5000, computed p-value may not be accurate. Current N is {n}.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return w, float(special.ndtr(-(g - mu) / sigma))
 
 
 def _table(table: ArrayLike) -> NDArray[np.float64]:

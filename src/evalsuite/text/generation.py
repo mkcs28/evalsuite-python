@@ -966,6 +966,15 @@ _REF_BANERJEE = (
 )
 
 
+@functools.lru_cache(maxsize=1)
+def _porter_stem() -> Callable[[str], str]:
+    """NLTK's Porter stemmer (the one NLTK's METEOR uses), memoised per word: stemming is a pure function of the
+    word, and the same words recur across a corpus, so each distinct word is stemmed once."""
+    from nltk.stem.porter import PorterStemmer
+
+    return functools.lru_cache(maxsize=2**16)(PorterStemmer().stem)
+
+
 def _meteor_match(
     hyp: list[tuple[int, str]], ref: list[tuple[int, str]]
 ) -> tuple[list[tuple[int, int]], Any, Any]:
@@ -1077,14 +1086,13 @@ def meteor(
     stem_fn: Optional[Callable[[str], str]]
     if stemmer == "porter":
         try:
-            from nltk.stem.porter import PorterStemmer
+            stem_fn = _porter_stem()
         except ImportError as exc:
             from ..core.exceptions import OptionalDependencyError
 
             raise OptionalDependencyError(
                 "nltk", "llm", "METEOR's default Porter stemmer (or pass stemmer=None)"
             ) from exc
-        stem_fn = PorterStemmer().stem
     elif stemmer is None or callable(stemmer):
         stem_fn = stemmer
     else:

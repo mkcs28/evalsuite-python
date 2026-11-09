@@ -127,3 +127,43 @@ def test_proportion_ci_clopper_pearson_matches_beta_quantiles():
     ci = es.proportion_ci(7, 40, method="clopper-pearson")
     assert ci.low == pytest.approx(stats.beta.ppf(0.025, 7, 34), rel=1e-12)
     assert ci.high == pytest.approx(stats.beta.ppf(0.975, 8, 33), rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "x",
+    [
+        np.random.default_rng(0).lognormal(0, 0.5, 200_000),
+        np.sort(np.random.default_rng(1).normal(size=150_000)),
+        np.sort(np.random.default_rng(2).normal(size=150_000))[::-1].copy(),
+        np.random.default_rng(3).integers(0, 5, 120_000).astype(float),
+        np.r_[np.zeros(70_000), np.ones(70_000)],
+    ],
+)
+def test_bracketed_quantiles_are_bit_identical_to_numpy(x):
+    from evalsuite.llmsys._common import quantiles
+
+    for qs in ([50, 90, 95, 99], [0, 12.5, 100], [33.3, 66.6, 99.9]):
+        assert quantiles(x, qs) == np.percentile(x, qs).tolist()
+
+
+def test_bracketed_quantiles_fall_back_when_the_sample_misses():
+    from evalsuite.llmsys import _common
+
+    # Every 16th value (the strided sample) is 0; the rest are 1, so brackets built from the sample miss.
+    x = np.ones(1 << 17)
+    x[:: max(1, x.size // 8192)] = 0.0
+    assert _common._order_stats_bracketed(x, [x.size // 2]) is None
+    assert _common.quantiles(x, [50, 99]) == np.percentile(x, [50, 99]).tolist()
+
+
+@pytest.mark.parametrize("n", [3, 4, 5, 6, 11, 12, 200, 5000])
+def test_shapiro_wilk_is_bit_identical_to_scipy(n):
+    x = np.random.default_rng(n).exponential(size=n)
+    got, ref = es.shapiro_wilk_test(x), stats.shapiro(x)
+    assert got.statistic == pytest.approx(ref[0], rel=1e-12) and got.p_value == pytest.approx(ref[1], rel=1e-10)
+
+
+def test_shapiro_wilk_large_sample_warns_like_scipy():
+    x = np.random.default_rng(0).normal(size=5001)
+    with pytest.warns(UserWarning, match="N > 5000"):
+        es.shapiro_wilk_test(x)
