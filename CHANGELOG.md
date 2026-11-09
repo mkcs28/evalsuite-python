@@ -6,6 +6,36 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-11-09
+
+Speed release and a second licence. No API changes; every result is unchanged (all 81 benchmark rows and
+204 per-metric comparisons agree with their reference libraries, as before).
+
+### Added
+- Dual licence: EvalSuite is now available under **MIT OR Apache-2.0**, at your option (`LICENSE`,
+  `LICENSE-APACHE`). Both texts ship in the wheel and sdist; the PyPI licence expression is `MIT OR Apache-2.0`.
+
+### Changed
+- Overall benchmark speed-up 2.06× → **3.07×** (75 of 81 rows faster, was 58); per-metric speed-up against
+  reference libraries 2.80× → **4.67×** (165 of 172 faster, was 138).
+- Classification: integer labels are found and encoded without sorting or `searchsorted`, and binary label sets
+  come straight from min/max; the confusion matrix counts without unit weights (binary `evaluate()` 37× → 98×
+  faster than scikit-learn, 10-class macro F1 3.4× → 16.5×, diagnostic report 0.22× → 1.1×).
+- Statistics: Wilcoxon, Mann–Whitney, Kruskal–Wallis and Friedman rank once with an unstable sort and bincount
+  rank sums (2–4× faster than SciPy, identical p-values including SciPy's exact/asymptotic switching); paired
+  t-test, χ² and Cramér's V, McNemar, proportion and accuracy intervals compute directly; Fisher's exact test sums
+  the hypergeometric pmf in log space (5–7× faster, within 1e-11 of SciPy).
+- Text: TER reuses edit-distance rows across shift candidates (0.61× → 1.5× sacreBLEU); BLEU, self-BLEU and ROUGE
+  (0.86× → 1.9× rouge-score)
+  build n-grams in C and memoise tokenisation like sacreBLEU and rouge-score; chrF has a tighter matching loop;
+  Fleiss' kappa (0.23× → 6×), Krippendorff's alpha (0.77× → 2.0×) and language-ID accuracy (0.38× → 3–7×) are vectorised.
+- MoverScore uses POT's network simplex when POT is installed and an exact assignment formulation otherwise
+  (0.07× → 0.9× POT).
+- Hausdorff and surface distances use k-d trees on the surface points instead of whole-image distance transforms.
+- Regression `evaluate()` shares squared errors between MSE, RMSE and R², and task inference checks a short leading
+  chunk for fractional values first (0.69× → 1.8× scikit-learn).
+- Benchmarks and README tables rerun on 0.5.4.
+
 ## [0.5.3] - 2026-11-09
 
 Performance release; benchmarks rerun. No API changes.
