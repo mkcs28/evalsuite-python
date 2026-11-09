@@ -102,12 +102,10 @@ def test_kruskal_all_identical_is_an_error():
 )
 @pytest.mark.parametrize("alternative", ["two-sided", "less", "greater"])
 def test_fisher_matches_scipy(table, alternative):
-    got, ref = (
-        es.fisher_exact_test(table, alternative=alternative),
-        stats.fisher_exact(table, alternative=alternative),
-    )
-    assert got.p_value == pytest.approx(ref.pvalue, rel=1e-9, abs=1e-12)
-    assert got.statistic == ref.statistic
+    got = es.fisher_exact_test(table, alternative=alternative)
+    odds, p = stats.fisher_exact(table, alternative=alternative)  # a plain tuple in SciPy < 1.11
+    assert got.p_value == pytest.approx(p, rel=1e-9, abs=1e-12)
+    assert got.statistic == odds
 
 
 def test_fisher_zero_margin():
