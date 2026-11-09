@@ -14,10 +14,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from scipy import stats
+    from scipy import special, stats
 else:
     from .._lazy import lazy_module
 
+    special = lazy_module("scipy.special")
     stats = lazy_module("scipy.stats")
 
 from ..core.exceptions import InputValidationError, StatisticalTestError
@@ -43,7 +44,7 @@ _ALTS = ("two-sided", "greater", "less")
 
 
 def _vec(x: ArrayLike, name: str, min_n: int = 2) -> NDArray[np.float64]:
-    a = to_numpy(x, name).astype(np.float64)
+    a = to_numpy(x, name).astype(np.float64, copy=False)
     check_finite(a, name)
     if a.ndim != 1:
         raise InputValidationError(f"{name} must be one-dimensional.")
@@ -86,12 +87,15 @@ def t_test(
     References: Welch BL. Biometrika. 1947;34(1-2):28-35. Student. Biometrika. 1908;6(1):1-25.
     """
     level = _check_level(level)
+    _alt(alternative)
     x, y = _vec(a, "a"), _vec(b, "b")
-    if x.var() == 0 and y.var() == 0:
-        raise StatisticalTestError("The t-test is undefined: both samples have zero variance.")
-    res = stats.ttest_ind(x, y, equal_var=equal_var, alternative=_alt(alternative))
     n1, n2 = x.shape[0], y.shape[0]
-    v1, v2 = x.var(ddof=1), y.var(ddof=1)
+    m1, m2 = float(x.mean()), float(y.mean())
+    # Two-pass variances (as NumPy/SciPy compute them), each sample read once more.
+    v1 = float(np.dot(x - m1, x - m1)) / (n1 - 1)
+    v2 = float(np.dot(y - m2, y - m2)) / (n2 - 1)
+    if v1 == 0 and v2 == 0:
+        raise StatisticalTestError("The t-test is undefined: both samples have zero variance.")
     if equal_var:
         df = n1 + n2 - 2
         sp2 = ((n1 - 1) * v1 + (n2 - 1) * v2) / df
@@ -99,12 +103,21 @@ def t_test(
     else:
         se = math.sqrt(v1 / n1 + v2 / n2)
         df = (v1 / n1 + v2 / n2) ** 2 / ((v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1)) if se else math.nan
-    diff = float(x.mean() - y.mean())
+    t = (m1 - m2) / se
+    # Student-t tail probabilities directly (what scipy.stats.ttest_ind returns), without re-reading the data.
+    if alternative == "two-sided":
+        p = 2.0 * float(special.stdtr(df, -abs(t)))
+    elif alternative == "less":
+        p = float(special.stdtr(df, t))
+    else:
+        p = float(special.stdtr(df, -t))
+    p = min(p, 1.0)
+    diff = m1 - m2
     pooled = math.sqrt(((n1 - 1) * v1 + (n2 - 1) * v2) / (n1 + n2 - 2))
     return TestResult(
         "welch-t" if not equal_var else "student-t",
-        float(res.statistic),
-        float(res.pvalue),
+        float(t),
+        p,
         alternative=alternative,
         estimate=diff,
         ci=_mean_diff_ci(diff, se, df, level, alternative, "mean_difference"),

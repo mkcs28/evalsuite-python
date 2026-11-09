@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-09
+
+Performance release; benchmarks rerun. No API changes.
+
+### Changed
+- `t_test` computes the t statistic and its p-value directly (Student-t tail via `scipy.special.stdtr`) from
+  one pass over each sample instead of calling `scipy.stats.ttest_ind` and recomputing means and variances;
+  identical to SciPy within 1e-15 and now faster than it (was 0.43×).
+- `latency_percentiles` and every LLM-systems latency/step/token summary take min, max and all percentiles
+  from a single `np.partition` instead of separate `np.percentile` calls (identical values, ~1.4× faster).
+- Statistical tests no longer copy inputs that are already float64.
+- CI: Python 3.9 tests run on ubuntu-22.04 (ubuntu-latest no longer ships 3.9); GitHub Actions updated
+  (checkout 7.0.1, setup-python 7.1.0, upload-artifact 7.0.2, download-artifact 8.0.2).
+- README and BENCHMARKS.md: all suites and the per-metric table rerun on 0.5.3.
+
 ## [0.5.2] - 2026-11-07
 
 Security and performance hardening. No API changes.

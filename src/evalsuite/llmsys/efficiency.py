@@ -119,10 +119,9 @@ def latency_percentiles(latencies: Any, *, unit: str = "s", percentile: float = 
     x = floats(latencies, "latencies", lo=0)
     if not 0 <= percentile <= 100:
         raise InputValidationError("percentile must be in [0, 100].")
-    s = summary(x)
-    return MetricResult(
-        "latency_percentiles", f"p{percentile:g} latency", float(np.percentile(x, percentile)), {"unit": unit, **s}
-    )
+    s = summary(x, extra=(percentile,))
+    value = s[f"p{percentile:g}"]
+    return MetricResult("latency_percentiles", f"p{percentile:g} latency", value, {"unit": unit, **s})
 
 
 @register(

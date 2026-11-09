@@ -113,19 +113,38 @@ def by_group(values: np.ndarray, groups: Optional[Sequence[Any]], name: str = "g
     return out
 
 
-def summary(a: np.ndarray) -> dict[str, float]:
-    """Mean, standard deviation, min, max and the p50/p90/p95/p99 percentiles (linear interpolation)."""
-    p50, p90, p95, p99 = np.percentile(a, [50, 90, 95, 99])
-    return {
+def quantiles(a: np.ndarray, qs: Sequence[float]) -> list[float]:
+    """Percentiles ``qs`` (0-100, linear interpolation, identical to ``np.percentile``) from one partition."""
+    n = a.size
+    pos = [(n - 1) * q / 100.0 for q in qs]
+    lo = [int(np.floor(h)) for h in pos]
+    kth = sorted({k for i in lo for k in (i, min(i + 1, n - 1))})
+    part = np.partition(a, kth)
+    out = []
+    for h, i in zip(pos, lo):
+        v0, v1 = float(part[i]), float(part[min(i + 1, n - 1)])
+        out.append(v0 + (h - i) * (v1 - v0))
+    return out
+
+
+def summary(a: np.ndarray, extra: Sequence[float] = ()) -> dict[str, float]:
+    """Mean, standard deviation, min, max and the p50/p90/p95/p99 percentiles (linear interpolation), plus any
+    ``extra`` percentiles under keys ``p<q>``; all order statistics come from one partition."""
+    qs = [0.0, 50.0, 90.0, 95.0, 99.0, 100.0, *extra]
+    v = quantiles(a, qs)
+    out = {
         "mean": float(a.mean()),
         "std": float(a.std(ddof=1)) if a.size > 1 else 0.0,
-        "min": float(a.min()),
-        "max": float(a.max()),
-        "p50": float(p50),
-        "p90": float(p90),
-        "p95": float(p95),
-        "p99": float(p99),
+        "min": v[0],
+        "max": v[5],
+        "p50": v[1],
+        "p90": v[2],
+        "p95": v[3],
+        "p99": v[4],
     }
+    for q, val in zip(extra, v[6:]):
+        out[f"p{q:g}"] = val
+    return out
 
 
 def lists_of(x: Any, name: str) -> list[list[Any]]:
