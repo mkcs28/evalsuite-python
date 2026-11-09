@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -46,8 +46,8 @@ jobs:
           - os: macos-latest
             python-version: "3.12"
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -61,8 +61,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.9"
       - run: python -m pip install --upgrade pip setuptools
@@ -76,8 +76,8 @@ jobs:
     needs: [lint, test]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip setuptools build twine
@@ -101,7 +101,7 @@ jobs:
           diff /tmp/smoke-whl.txt /tmp/smoke-tar.gz.txt
       - name: Audit runtime dependencies
         run: /tmp/clean-whl/bin/pip install pip-audit && /tmp/clean-whl/bin/pip-audit --skip-editable
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/
