@@ -1,4 +1,5 @@
 //! COCOeval's per-image greedy matching (`evaluateImg`), for many images of one class and one area range.
+#![allow(clippy::needless_range_loop)] // index loops mirror the reference COCO code over parallel arrays
 
 /// Inputs are padded to `d_max` detections and `g_max` ground truths per image:
 /// `ious[p][d][g]` (padding below every threshold), `gign[p][g]` (ignored ground truth; padding true),
