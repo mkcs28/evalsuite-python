@@ -5,7 +5,10 @@
 //! the same operations in the same order. Words are passed as integer ids (the caller maps each distinct token
 //! to an id), characters as Unicode code points.
 
+pub mod agreement;
 pub mod coco;
+pub mod curve;
+pub mod groups;
 pub mod hash;
 pub mod meteor;
 pub mod resample;

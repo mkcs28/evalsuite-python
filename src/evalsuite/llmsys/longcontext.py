@@ -15,7 +15,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
-from ._common import bools, floats, lists_of, rate, same_length, seq
+from ._common import bools, floats, group_agreement, lists_of, ragged_numbers, rate, same_length, seq
 
 __all__ = [
     "citation_coverage",
@@ -321,10 +321,19 @@ def compression_ratio(
 def citation_coverage(citations_per_statement: Any) -> MetricResult:
     """``citations_per_statement``: per output, the number of citations attached to each statement."""
     rows = lists_of(citations_per_statement, "citations_per_statement")
-    flat = np.array([float(v) > 0 for r in rows for v in r])
-    if flat.size == 0:
-        raise InputValidationError("No statements given.")
-    per = [np.mean([float(v) > 0 for v in r]) for r in rows if r]
+    native = ragged_numbers(rows)
+    if native is not None:
+        total = sum(map(len, rows))
+        if total == 0:
+            raise InputValidationError("No statements given.")
+        flat = np.zeros(total, dtype=bool)
+        flat[: sum(st[3] for st in native)] = True  # rate() uses only the count and the total
+        per = [st[3] / len(r) for st, r in zip(native, rows) if r]
+    else:
+        flat = np.array([float(v) > 0 for r in rows for v in r])
+        if flat.size == 0:
+            raise InputValidationError("No statements given.")
+        per = [np.mean([float(v) > 0 for v in r]) for r in rows if r]
     return rate("citation_coverage", "Citation coverage", flat, {"mean_per_output": float(np.mean(per))})
 
 
@@ -343,16 +352,26 @@ def cross_document_consistency(answers: Any, *, normalize: Optional[Callable[[An
     from itertools import combinations
 
     rows = seq(answers, "answers")
-    full, pair = [], []
+    normed = []
     for i, r in enumerate(rows):
         vals = list(r.values()) if isinstance(r, Mapping) else list(r) if isinstance(r, (list, tuple)) else None
         if vals is None or len(vals) < 2:
             raise InputValidationError(f"answers[{i}] needs at least two answers.")
-        v = [
-            normalize(a) if normalize else (" ".join(a.lower().split()) if isinstance(a, str) else a) for a in vals
-        ]
-        full.append(all(x == v[0] for x in v))
-        pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
+        normed.append(
+            [
+                normalize(a) if normalize else (" ".join(a.lower().split()) if isinstance(a, str) else a)
+                for a in vals
+            ]
+        )
+    native = group_agreement(normed)
+    if native is not None:
+        full = [st[0] for st in native[0]]
+        pair = [st[1] / st[2] for st in native[0]]
+    else:
+        full, pair = [], []
+        for v in normed:
+            full.append(all(x == v[0] for x in v))
+            pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
     return MetricResult(
         "cross_document_consistency",
         "Cross-document consistency",

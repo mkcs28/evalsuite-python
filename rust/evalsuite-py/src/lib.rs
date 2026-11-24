@@ -9,7 +9,7 @@
 //! loops only compute per-example results; every sum is then taken sequentially in example order, so results
 //! are bit-identical for any number of threads.
 
-use evalsuite_core::{coco, meteor, resample, ter, text};
+use evalsuite_core::{agreement, coco, curve, groups, meteor, resample, ter, text};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -460,6 +460,105 @@ fn bootstrap_indices(
     Ok(())
 }
 
+/// An `(address, element count)` array view.
+type View = (usize, usize);
+
+/// ROC AUC and average precision of binary curves, one per column, in parallel. Each column is
+/// `(y, score, weight)` float64 views of equal length. Returns `(auc, ap, positive weight, negative weight)` per
+/// column; AUC/AP are NaN where undefined (the caller raises).
+#[pyfunction]
+fn curve_scores(
+    py: Python<'_>,
+    columns: Vec<(View, View, View)>,
+) -> PyResult<Vec<(f64, f64, f64, f64)>> {
+    let mut cols: Vec<(&[f64], &[f64], &[f64])> = Vec::with_capacity(columns.len());
+    for (y, s, w) in &columns {
+        let (y, s, w): (&[f64], &[f64], &[f64]) =
+            (view(y.0, y.1)?, view(s.0, s.1)?, view(w.0, w.1)?);
+        same_len(y.len(), s.len(), "y and score")?;
+        same_len(w.len(), s.len(), "weights and score")?;
+        cols.push((y, s, w));
+    }
+    Ok(py.detach(|| {
+        cols.par_iter()
+            .map(|&(y, s, w)| curve::curve_scores(y, s, w))
+            .collect()
+    }))
+}
+
+/// Agreement within each group of answer ids: `(unanimous, equal pairs, pairs, modal count, mode)` per group.
+#[pyfunction]
+fn group_stats(py: Python<'_>, groups: Vec<Vec<u32>>) -> Vec<(bool, u64, u64, u64, u32)> {
+    py.detach(|| {
+        groups
+            .par_iter()
+            .with_min_len(64)
+            .map(|g| {
+                let s = groups::group_stats(g);
+                (s.unanimous, s.equal_pairs, s.pairs, s.modal_count, s.mode)
+            })
+            .collect()
+    })
+}
+
+/// Per row of numbers (read directly from the Python sequences), how many values lie strictly below the row's
+/// threshold; `None` if any value or threshold is NaN or infinite.
+#[pyfunction]
+fn count_below(
+    py: Python<'_>,
+    rows: Vec<Vec<f64>>,
+    thresholds: Vec<f64>,
+) -> PyResult<Option<Vec<u64>>> {
+    same_len(rows.len(), thresholds.len(), "rows and thresholds")?;
+    Ok(py.detach(|| groups::count_below(&rows, &thresholds)))
+}
+
+/// Per-row statistics of ragged rows of numbers (each row a sequence of floats, read directly from the Python
+/// objects): `(NumPy sum, min, max, count > 0)` per row, or `None` if a value is NaN or infinite. Rows that are
+/// not sequences of numbers raise `TypeError` (the caller falls back to its Python path).
+#[pyfunction]
+fn ragged_stats(py: Python<'_>, rows: Vec<Vec<f64>>) -> Option<Vec<(f64, f64, f64, u64)>> {
+    py.detach(|| {
+        if rows.iter().flatten().any(|v| !v.is_finite()) {
+            return None;
+        }
+        Some(
+            rows.par_iter()
+                .with_min_len(256)
+                .map(|r| groups::row_stats(r))
+                .collect(),
+        )
+    })
+}
+
+fn check_players(rows: &[(usize, usize, f64)], m: usize) -> PyResult<()> {
+    if rows.iter().any(|&(a, b, _)| a >= m || b >= m) {
+        return Err(PyValueError::new_err("player index out of range"));
+    }
+    Ok(())
+}
+
+/// Sequential Elo ratings of `m` players from `(a, b, outcome for a)` rows.
+#[pyfunction]
+fn elo_ratings(
+    rows: Vec<(usize, usize, f64)>,
+    m: usize,
+    k: f64,
+    initial: f64,
+    scale: f64,
+    base: f64,
+) -> PyResult<Vec<f64>> {
+    check_players(&rows, m)?;
+    Ok(agreement::elo(&rows, m, k, initial, scale, base))
+}
+
+/// Bradley–Terry win matrix (m × m, row-major) from `(a, b, outcome for a)` rows.
+#[pyfunction]
+fn win_matrix(rows: Vec<(usize, usize, f64)>, m: usize) -> PyResult<Vec<f64>> {
+    check_players(&rows, m)?;
+    Ok(agreement::win_matrix(&rows, m))
+}
+
 /// `compensated` (below) must be `sys.version_info >= (3, 12)`: it selects the float summation of Python's
 /// built-in `sum()` so results match the running interpreter (see `evalsuite_core::text::PySum`).
 ///
@@ -571,6 +670,12 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(coco_evaluate, m)?)?;
     m.add_function(wrap_pyfunction!(code_counts, m)?)?;
     m.add_function(wrap_pyfunction!(bootstrap_indices, m)?)?;
+    m.add_function(wrap_pyfunction!(curve_scores, m)?)?;
+    m.add_function(wrap_pyfunction!(group_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(count_below, m)?)?;
+    m.add_function(wrap_pyfunction!(elo_ratings, m)?)?;
+    m.add_function(wrap_pyfunction!(ragged_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(win_matrix, m)?)?;
     m.add_function(wrap_pyfunction!(cider_totals, m)?)?;
     m.add_function(wrap_pyfunction!(codebleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(distinct_ngrams, m)?)?;

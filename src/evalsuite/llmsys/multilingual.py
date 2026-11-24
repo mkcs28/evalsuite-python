@@ -17,7 +17,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
-from ._common import bools, by_group, floats, rate, same_length, seq
+from ._common import bools, by_group, floats, group_agreement, rate, same_length, seq
 
 __all__ = [
     "bitext_mining_accuracy",
@@ -321,16 +321,25 @@ def cross_lingual_consistency(
 ) -> MetricResult:
     """``answers_by_language``: per question, a mapping language -> answer (at least two languages)."""
     rows = seq(answers_by_language, "answers_by_language")
-    full, pair = [], []
+    normed = []
     for i, r in enumerate(rows):
         if not isinstance(r, Mapping) or len(r) < 2:
             raise InputValidationError(f"answers_by_language[{i}] must map at least two languages to answers.")
-        v = [
-            normalize(a) if normalize else (" ".join(a.lower().split()) if isinstance(a, str) else a)
-            for a in r.values()
-        ]
-        full.append(all(x == v[0] for x in v))
-        pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
+        normed.append(
+            [
+                normalize(a) if normalize else (" ".join(a.lower().split()) if isinstance(a, str) else a)
+                for a in r.values()
+            ]
+        )
+    native = group_agreement(normed)
+    if native is not None:
+        full = [st[0] for st in native[0]]
+        pair = [st[1] / st[2] for st in native[0]]
+    else:
+        full, pair = [], []
+        for v in normed:
+            full.append(all(x == v[0] for x in v))
+            pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
     return MetricResult(
         "cross_lingual_consistency",
         "Cross-lingual consistency",

@@ -20,6 +20,7 @@ else:
 
     stats = lazy_module("scipy.stats")
 
+from .._native import core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -158,10 +159,14 @@ def bradley_terry(
     or lose every comparison, otherwise the MLE does not exist."""
     names, rows = _comparisons(comparisons)
     m = len(names)
-    wins = np.zeros((m, m))
-    for a, b, o in rows:
-        wins[a, b] += o
-        wins[b, a] += 1 - o
+    c = core
+    if c is not None:
+        wins = np.array(c.win_matrix(rows, m)).reshape(m, m)
+    else:
+        wins = np.zeros((m, m))
+        for a, b, o in rows:
+            wins[a, b] += o
+            wins[b, a] += 1 - o
     games = wins + wins.T
     total_w = wins.sum(axis=1)
     if np.any(total_w == 0) or np.any(total_w == games.sum(axis=1)):
@@ -225,11 +230,15 @@ def elo_ratings(
     names, rows = _comparisons(comparisons)
     if k <= 0 or scale <= 0 or base <= 1:
         raise InputValidationError("k and scale must be positive and base > 1.")
-    r = np.full(len(names), float(initial))
-    for a, b, o in rows:
-        ea = 1 / (1 + base ** ((r[b] - r[a]) / scale))
-        r[a] += k * (o - ea)
-        r[b] += k * ((1 - o) - (1 - ea))
+    c = core
+    if c is not None:
+        r = np.array(c.elo_ratings(rows, len(names), float(k), float(initial), float(scale), float(base)))
+    else:
+        r = np.full(len(names), float(initial))
+        for a, b, o in rows:
+            ea = 1 / (1 + base ** ((r[b] - r[a]) / scale))
+            r[a] += k * (o - ea)
+            r[b] += k * ((1 - o) - (1 - ea))
     return MetricResult(
         "elo_ratings",
         "Elo rating",

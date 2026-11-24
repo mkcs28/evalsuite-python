@@ -18,6 +18,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..llmsys._common import ragged_numbers
 from ._common import per_item
 
 __all__ = [
@@ -190,7 +191,15 @@ def groundedness(support_scores: Any, *, average: Optional[str] = "macro") -> Me
     if not answers:
         raise InputValidationError("support_scores must be a non-empty list of score lists (one per answer).")
     sums, counts = [], []
-    for i, a in enumerate(answers):
+    native = ragged_numbers(answers)
+    if native is not None:
+        for i, ((total, lo, hi, _), a) in enumerate(zip(native, answers)):
+            m = len(a)
+            if m and (lo < 0 or hi > 1):
+                raise InputValidationError(f"support_scores[{i}] must be finite values in [0, 1].")
+            sums.append(float(total))
+            counts.append(m)
+    for i, a in enumerate(answers if native is None else ()):
         arr = np.asarray(list(a), dtype=float)
         if arr.size and (not np.all(np.isfinite(arr)) or arr.min() < 0 or arr.max() > 1):
             raise InputValidationError(f"support_scores[{i}] must be finite values in [0, 1].")

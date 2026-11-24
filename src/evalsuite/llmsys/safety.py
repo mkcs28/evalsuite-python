@@ -15,10 +15,11 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .._native import core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
-from ._common import bools, by_group, floats, lists_of, rate, same_length, seq, wilson
+from ._common import bools, by_group, floats, lists_of, ragged_numbers, rate, same_length, seq, wilson
 
 __all__ = [
     "PII_PATTERNS",
@@ -236,6 +237,10 @@ def toxicity_score(scores: Any, *, threshold: float = 0.5, attributes: Any = Non
 
     def maxima(x: Any, name: str) -> np.ndarray:
         rows = seq(x, name)
+        wrapped = [r if isinstance(r, (list, tuple, np.ndarray)) else [r] for r in rows]
+        stats = ragged_numbers(wrapped)
+        if stats is not None and all(len(r) for r in wrapped) and all(st[1] >= 0 and st[2] <= 1 for st in stats):
+            return np.array([st[2] for st in stats])
         out = np.empty(len(rows))
         for i, r in enumerate(rows):
             vals = floats(r if isinstance(r, (list, tuple, np.ndarray)) else [r], f"{name}[{i}]", lo=0, hi=1)
@@ -442,6 +447,20 @@ def pii_leakage_rate(
     return rate("pii_leakage_rate", "PII leakage rate", flags, extra)
 
 
+def _native_better(canaries: np.ndarray, rows: list[Any]) -> Optional[list[int]]:
+    """Per canary, the number of its candidates scored strictly below it, from the compiled core (which reads the
+    rows directly); None (use the Python path, with its validation messages) without the core, for rows that are
+    not sequences of numbers, or for NaN or infinite values."""
+    c = core
+    if c is None:
+        return None
+    try:
+        out: Optional[list[int]] = c.count_below(rows, canaries.tolist())
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return out
+
+
 @register(
     category=_C,
     task="privacy",
@@ -464,15 +483,21 @@ def exposure(canary_scores: Any, candidate_scores: Any, *, space_size: Optional[
     rows = lists_of(candidate_scores, "candidate_scores")
     same_length(("canary_scores", c), ("candidate_scores", rows))
     per = np.empty(c.size)
+    counts = _native_better(c, rows)
     for i, (canary, cand) in enumerate(zip(c, rows)):
-        r = floats(cand, f"candidate_scores[{i}]")
-        better = int((r < canary).sum())
-        if space_size is None:
-            size, rank = float(r.size + 1), float(better + 1)
+        if counts is None:
+            r = floats(cand, f"candidate_scores[{i}]")
+            better, m = int((r < canary).sum()), int(r.size)
         else:
-            if space_size < r.size + 1:
+            better, m = counts[i], len(cand)
+            if not m:
+                raise InputValidationError(f"candidate_scores[{i}] is empty. Provide at least one example.")
+        if space_size is None:
+            size, rank = float(m + 1), float(better + 1)
+        else:
+            if space_size < m + 1:
                 raise InputValidationError("space_size must be at least the number of candidates + 1.")
-            size, rank = space_size, max(1.0, better / r.size * space_size + 1)
+            size, rank = space_size, max(1.0, better / m * space_size + 1)
         per[i] = math.log2(size) - math.log2(rank)
     return MetricResult(
         "exposure",

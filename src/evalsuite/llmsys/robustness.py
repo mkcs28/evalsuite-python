@@ -19,7 +19,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
-from ._common import bools, floats, lists_of, rate, same_length, seq
+from ._common import bools, floats, group_agreement, lists_of, rate, same_length, seq
 
 __all__ = [
     "add_typos",
@@ -198,11 +198,16 @@ def paraphrase_consistency(answers: Any, *, normalize: Optional[Callable[[Any], 
     rows = lists_of(answers, "answers")
     if any(len(r) < 2 for r in rows):
         raise InputValidationError("Every item needs answers to at least two paraphrases.")
-    full, pair = [], []
-    for r in rows:
-        v = [_norm(a, normalize) for a in r]
-        full.append(all(x == v[0] for x in v))
-        pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
+    normed = [[_norm(a, normalize) for a in r] for r in rows]
+    native = group_agreement(normed)
+    if native is not None:
+        full = [st[0] for st in native[0]]
+        pair = [st[1] / st[2] for st in native[0]]
+    else:
+        full, pair = [], []
+        for v in normed:
+            full.append(all(x == v[0] for x in v))
+            pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
     return MetricResult(
         "paraphrase_consistency",
         "Paraphrase consistency",
@@ -321,12 +326,18 @@ def response_stability(samples: Any, *, normalize: Optional[Callable[[Any], Any]
     rows = lists_of(samples, "samples")
     if any(len(r) < 2 for r in rows):
         raise InputValidationError("Every prompt needs at least two samples.")
-    pair, unanimous, modal = [], [], []
-    for r in rows:
-        v = [_norm(a, normalize) for a in r]
-        pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
-        unanimous.append(all(x == v[0] for x in v))
-        modal.append(Counter(map(repr, v)).most_common(1)[0][1] / len(v))
+    normed = [[_norm(a, normalize) for a in r] for r in rows]
+    native = group_agreement(normed)
+    if native is not None:
+        pair = [st[1] / st[2] for st in native[0]]
+        unanimous = [st[0] for st in native[0]]
+        modal = [st[3] / len(v) for st, v in zip(native[0], normed)]
+    else:
+        pair, unanimous, modal = [], [], []
+        for v in normed:
+            pair.append(np.mean([x == y for x, y in combinations(v, 2)]))
+            unanimous.append(all(x == v[0] for x in v))
+            modal.append(Counter(map(repr, v)).most_common(1)[0][1] / len(v))
     return MetricResult(
         "response_stability",
         "Response stability",

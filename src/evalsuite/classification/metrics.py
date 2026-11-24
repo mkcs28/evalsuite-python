@@ -16,6 +16,7 @@ from typing import Any, Literal, Optional
 
 import numpy as np
 
+from .._native import array_view, core
 from ..core.context import ClassificationContext
 from ..core.exceptions import InputValidationError, MetricInputError, UnsupportedTaskError
 from ..core.registry import register
@@ -548,7 +549,48 @@ def _require_both_classes(tps: FloatArray, fps: FloatArray, what: str) -> None:
         )
 
 
+CurveStats = tuple[float, float, float, float]
+
+
+def _native_curves(columns: list[tuple[FloatArray, FloatArray, FloatArray]]) -> list[CurveStats]:
+    """(ROC AUC, AP, positive weight, negative weight) of each (y, score, w) column, from the compiled core: one
+    stable sort per column, columns in parallel, bit for bit as ``_binary_curve`` + ``_binary_auc``/``_ap``."""
+    c = core
+    if c is None:  # pragma: no cover - callers check
+        raise RuntimeError("compiled core unavailable")
+    keep = []
+    views = []
+    for col in columns:
+        triple = []
+        for a in col:
+            arr, v = array_view(a, np.float64)
+            keep.append(arr)
+            triple.append(v)
+        views.append(tuple(triple))
+    out: list[CurveStats] = c.curve_scores(views)
+    return out
+
+
+def _auc_of(stats: CurveStats) -> float:
+    auc, _, tp, fp = stats
+    if tp == 0 or fp == 0:
+        missing = "positive" if tp == 0 else "negative"
+        raise MetricInputError(
+            f"ROC AUC is undefined because y_true contains no {missing} observations. "
+            "It needs at least one positive and one negative example."
+        )
+    return float(auc)
+
+
+def _ap_of(stats: CurveStats) -> float:
+    if stats[2] == 0:
+        raise MetricInputError("Average precision is undefined because y_true contains no positive observations.")
+    return float(stats[1])
+
+
 def _binary_auc(y: FloatArray, score: FloatArray, w: FloatArray) -> float:
+    if core is not None and y.size:
+        return _auc_of(_native_curves([(y, score, w)])[0])
     fps, tps, _ = _binary_curve(y, score, w)
     _require_both_classes(tps, fps, "ROC AUC")
     fpr = np.r_[0.0, fps / fps[-1]]
@@ -558,6 +600,8 @@ def _binary_auc(y: FloatArray, score: FloatArray, w: FloatArray) -> float:
 
 
 def _binary_ap(y: FloatArray, score: FloatArray, w: FloatArray) -> float:
+    if core is not None and y.size:
+        return _ap_of(_native_curves([(y, score, w)])[0])
     fps, tps, _ = _binary_curve(y, score, w)
     if tps[-1] == 0:
         raise MetricInputError("Average precision is undefined because y_true contains no positive observations.")
@@ -606,6 +650,21 @@ def roc_auc(
     return _roc_auc(ctx, average=average, multi_class=multi_class, pos_label=pos_label)
 
 
+def _context_curves(ctx: ClassificationContext, key: str, columns: Any) -> list[CurveStats]:
+    cache = ctx.__dict__.setdefault("_curve_cache", {})
+    if key not in cache:
+        cache[key] = _native_curves(columns())
+    out: list[CurveStats] = cache[key]
+    return out
+
+
+def _binary_curve_stats(ctx: ClassificationContext, pos_label: Any) -> CurveStats:
+    idx = positive_index(ctx, pos_label)
+    return _context_curves(
+        ctx, f"binary:{idx}", lambda: [(_binary_target(ctx, pos_label), ctx.y_prob, ctx.weights)]
+    )[0]
+
+
 def _per_column(
     ctx: ClassificationContext,
     fn: Any,
@@ -622,9 +681,19 @@ def _per_column(
         if ctx.target_type == "multilabel"
         else (ctx.true_idx[:, None] == np.arange(ctx.labels.shape[0])[None, :]).astype(float)
     )
+    native = core is not None and fn in (_binary_auc, _binary_ap) and y.size > 0
+    pick = _auc_of if fn is _binary_auc else _ap_of
     if average == "micro":
+        if native:
+            # ROC AUC and AP share one sort: the curves are cached on the context for the other metric.
+            stats = _context_curves(ctx, "micro", lambda: [(y.ravel(), p.ravel(), np.repeat(w, y.shape[1]))])
+            return MetricResult(metric, name, pick(stats[0]), params)
         return MetricResult(metric, name, fn(y.ravel(), p.ravel(), np.repeat(w, y.shape[1])), params)
-    scores = np.array([fn(y[:, j], p[:, j], w) for j in range(y.shape[1])])
+    if native:
+        stats = _context_curves(ctx, "columns", lambda: [(y[:, j], p[:, j], w) for j in range(y.shape[1])])
+        scores = np.array([pick(st) for st in stats])
+    else:
+        scores = np.array([fn(y[:, j], p[:, j], w) for j in range(y.shape[1])])
     if average is None:
         return MetricResult(metric, name, scores, params, labels=tuple(ctx.labels.tolist()))
     if average == "macro":
@@ -644,6 +713,8 @@ def _roc_auc(
     params: dict[str, Any] = {"average": avg}
     if ctx.target_type == "binary":
         params["pos_label"] = 1 if pos_label is None else pos_label
+        if core is not None and ctx.n:
+            return MetricResult("roc_auc", "ROC AUC", _auc_of(_binary_curve_stats(ctx, pos_label)), params)
         return MetricResult(
             "roc_auc", "ROC AUC", _binary_auc(_binary_target(ctx, pos_label), ctx.y_prob, ctx.weights), params
         )
@@ -712,6 +783,10 @@ def _average_precision(
     params: dict[str, Any] = {"average": avg}
     if ctx.target_type == "binary":
         params["pos_label"] = 1 if pos_label is None else pos_label
+        if core is not None and ctx.n:
+            return MetricResult(
+                "average_precision", "Average precision", _ap_of(_binary_curve_stats(ctx, pos_label)), params
+            )
         return MetricResult(
             "average_precision",
             "Average precision",

@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .._native import Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.result import MetricResult
 
@@ -213,3 +214,36 @@ def lists_of(x: Any, name: str) -> list[list[Any]]:
             raise InputValidationError(f"{name}[{i}] must be a list.")
         out.append(list(r))
     return out
+
+
+GroupStats = tuple[bool, int, int, int, int]  # unanimous, equal pairs, pairs, modal count, mode id
+
+
+def group_agreement(groups: list[list[Any]]) -> Optional[tuple[list[GroupStats], list[Any]]]:
+    """Per group of (already normalised) answers, from the compiled core: whether all agree, the number of equal
+    and of all unordered pairs, the modal count and the modal answer (first seen among ties). Returns the stats
+    and the id -> answer table, or None when the core is unavailable or an answer is not a string (the callers
+    then use their Python loops, whose ``==`` semantics for other types the ids would not reproduce)."""
+    c = core
+    if c is None or not all(type(a) is str for g in groups for a in g):
+        return None
+    v = Vocab()
+    stats: list[GroupStats] = c.group_stats([v.encode(g) for g in groups])
+    return stats, list(v.ids)
+
+
+RowStats = tuple[float, float, float, int]  # NumPy sum, min, max, count > 0
+
+
+def ragged_numbers(rows: list[Any]) -> Optional[list[RowStats]]:
+    """Per-row (NumPy sum, min, max, count > 0) of rows of numbers, read directly by the compiled core. None (the
+    caller uses its Python loop, with its own conversions and validation messages) without the core, for rows
+    that are not sequences of numbers, or when a value is NaN or infinite."""
+    c = core
+    if c is None:
+        return None
+    try:
+        stats: Optional[list[RowStats]] = c.ragged_stats(rows)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return stats

@@ -17,9 +17,14 @@ import pytest
 
 import evalsuite as es
 from evalsuite import _native
+from evalsuite.classification import metrics as clf_mod
+from evalsuite.llmsys import _common as llm_common_mod
 from evalsuite.llmsys import code as code_mod
+from evalsuite.llmsys import safety as safety_mod
 from evalsuite.stats import _resolve as resolve_mod
 from evalsuite.text import generation as generation_mod
+from evalsuite.text import judge as judge_mod
+from evalsuite.text import reasoning as reasoning_mod
 from evalsuite.vision import detection as detection_mod
 
 needs_core = pytest.mark.skipif(not _native.HAVE_NATIVE, reason="compiled core not built")
@@ -27,7 +32,17 @@ needs_core = pytest.mark.skipif(not _native.HAVE_NATIVE, reason="compiled core n
 
 @contextlib.contextmanager
 def pure_python():
-    mods = (generation_mod, detection_mod, resolve_mod, code_mod)
+    mods = (
+        generation_mod,
+        detection_mod,
+        resolve_mod,
+        code_mod,
+        clf_mod,
+        llm_common_mod,
+        safety_mod,
+        reasoning_mod,
+        judge_mod,
+    )
     saved = [m.core for m in mods], resolve_mod.MetricCall._setup_compression
     for m in mods:
         m.core = None
@@ -330,3 +345,122 @@ def test_native_resampling(stratify):
 def test_resampling_argument_is_checked():
     with pytest.raises(es.InputValidationError):
         es.bootstrap_ci("accuracy", [0, 1] * 20, [0, 1] * 20, resampling="fast")
+
+
+def _probs(rng, n, k, ties):
+    p = rng.dirichlet(np.ones(k), n)
+    return np.round(p, 2) if ties else p
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(8))
+def test_roc_auc_and_average_precision_match_python(seed):
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(20, 3000))
+    ties = bool(seed % 2)
+    w = rng.random(n) * 2 if seed % 3 == 0 else None
+    yb = rng.integers(0, 2, n)
+    pb = np.round(rng.random(n), 2) if ties else rng.random(n)
+    y3 = rng.integers(0, 4, n)
+    p3 = _probs(rng, n, 4, ties)
+    ym = rng.integers(0, 2, (n, 3))
+    pm = np.round(rng.random((n, 3)), 2) if ties else rng.random((n, 3))
+    cases = [
+        lambda: es.roc_auc(yb, pb, sample_weight=w).value,
+        lambda: es.average_precision(yb, pb, sample_weight=w).value,
+        lambda: es.roc_auc(y3, p3, average=None, sample_weight=w).value,
+        lambda: es.roc_auc(y3, p3, average="weighted").value,
+        lambda: es.roc_auc(y3, p3, multi_class="ovo").value,
+        lambda: es.average_precision(y3, p3, average="macro", sample_weight=w).value,
+        lambda: es.roc_auc(ym, pm, average="micro").value,
+        lambda: es.average_precision(ym, pm, average=None).value,
+        lambda: [
+            float(v["value"]) for v in es.evaluate(y3, p3.argmax(1), y_prob=p3).to_dict()["metrics"].values()
+        ],
+        lambda: es.roc_auc(np.zeros(n, int), pb).value,  # undefined: same error type
+    ]
+    for case in cases:
+        assert_same(*both(case))
+
+
+def _answers(rnd, groups, size):
+    pool = ["Paris", "paris ", "PARIS", "London", "Rome", "rome", "Berlin", "Madrid", ""]
+    return [[rnd.choice(pool) for _ in range(rnd.randint(2, size))] for _ in range(groups)]
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(6))
+def test_llm_consistency_metrics_match_python(seed):
+    rnd = random.Random(seed)  # noqa: S311 - test data
+    rows = _answers(rnd, rnd.randint(1, 60), 9)
+    langs = [{f"l{j}": a for j, a in enumerate(r)} for r in rows]
+    refs = [rnd.choice(r) for r in rows]
+    cases = [
+        lambda: es.paraphrase_consistency(rows).to_dict(),
+        lambda: es.response_stability(rows).to_dict(),
+        lambda: es.cross_document_consistency(rows).to_dict(),
+        lambda: es.cross_lingual_consistency(langs).to_dict(),
+        lambda: es.majority_vote_accuracy(refs, rows, average=None).value.tolist(),
+        lambda: es.majority_vote_accuracy(refs, rows, normalize=False).value,
+        lambda: es.paraphrase_consistency([[1, 1.0, True], [2, "2"]]).to_dict(),  # non-strings: Python path
+    ]
+    for case in cases:
+        a, b = both(case)
+        assert a == b
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_exposure_matches_python(seed):
+    rng = np.random.default_rng(seed)
+    k = int(rng.integers(1, 50))
+    canary = np.round(rng.normal(size=k), 1)
+    cands = [np.round(rng.normal(size=int(rng.integers(1, 40))), 1).tolist() for _ in range(k)]
+    for kw in ({}, {"space_size": 1e6}):
+        a, b = both(lambda kw=kw: es.exposure(canary, cands, **kw).to_dict())
+        assert a == b
+    assert both(lambda: es.exposure([0.5], [[]]))[0] == both(lambda: es.exposure([0.5], [[]]))[1]
+    assert both(lambda: es.exposure([0.5], [[float("nan")]]))[0][0] == "error"
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_ragged_number_metrics_match_python(seed):
+    rng = np.random.default_rng(seed)
+    rows = [np.round(rng.random(int(rng.integers(0, 30))), 2).tolist() for _ in range(int(rng.integers(1, 80)))]
+    rows[0] = rows[0] or [0.5]
+    counts = [[int(x) for x in rng.integers(0, 3, int(rng.integers(0, 6)))] for _ in range(len(rows))]
+    counts[0] = counts[0] or [1]
+    tox = [r or [0.0] for r in rows]
+    cases = [
+        lambda: es.groundedness(rows).to_dict(),
+        lambda: es.groundedness(rows, average="micro").to_dict(),
+        lambda: repr(es.groundedness(rows, average=None).value.tolist()),
+        lambda: es.groundedness([[0.5, 1.5]]).to_dict(),  # out of range: same error
+        lambda: es.citation_coverage(counts).to_dict(),
+        lambda: es.toxicity_score(tox, attributes={"hate": tox}).to_dict(),
+        lambda: es.toxicity_score([0.2, [0.9, 0.1], 0.4]).to_dict(),
+        lambda: es.toxicity_score([[1.2]]).to_dict(),
+    ]
+    for case in cases:
+        a, b = both(case)
+        assert a == b
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_elo_and_bradley_terry_match_python(seed):
+    rnd = random.Random(seed)  # noqa: S311 - test data
+    models = [f"m{i}" for i in range(rnd.randint(2, 9))]
+    comps = []
+    for _ in range(rnd.randint(1, 400)):
+        a, b = rnd.sample(models, 2)
+        comps.append((a, b, rnd.choice(["win", "loss", "tie"])))
+    for case in (
+        lambda: es.elo_ratings(comps).value.tolist(),
+        lambda: es.elo_ratings(comps, k=32, base=2.0, scale=100.0).value.tolist(),
+        lambda: es.bradley_terry(comps).value.tolist(),
+        lambda: es.bradley_terry(comps, scale="elo").value.tolist(),
+    ):
+        a, b = both(case)
+        assert a == b

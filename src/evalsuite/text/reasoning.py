@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .._native import Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -85,12 +86,26 @@ def majority_vote_accuracy(
     refs = as_references(references, len(groups))
     f = _norm(normalize)
     scores = []
-    for i, (answers, rs) in enumerate(zip(groups, refs)):
-        if isinstance(answers, str) or not answers:
-            raise InputValidationError(f"samples[{i}] must be a non-empty list of answer strings.")
-        votes = Counter(f(str(a)) for a in answers)
-        top = votes.most_common(1)[0][0]  # Counter keeps first-seen order among ties
-        scores.append(float(any(top == f(r) for r in rs)))
+    c = core
+    if c is not None:
+        normed = []
+        for i, answers in enumerate(groups):
+            if isinstance(answers, str) or not answers:
+                raise InputValidationError(f"samples[{i}] must be a non-empty list of answer strings.")
+            normed.append([f(str(a)) for a in answers])
+        v = Vocab()
+        stats = c.group_stats([v.encode(g) for g in normed])
+        table = list(v.ids)
+        for st, rs in zip(stats, refs):
+            top = table[st[4]]  # the modal answer, first seen among ties, as Counter.most_common
+            scores.append(float(any(top == f(r) for r in rs)))
+    else:
+        for i, (answers, rs) in enumerate(zip(groups, refs)):
+            if isinstance(answers, str) or not answers:
+                raise InputValidationError(f"samples[{i}] must be a non-empty list of answer strings.")
+            votes = Counter(f(str(a)) for a in answers)
+            top = votes.most_common(1)[0][0]  # Counter keeps first-seen order among ties
+            scores.append(float(any(top == f(r) for r in rs)))
     arr = np.array(scores)
     value: Any = arr if average is None else float(arr.mean())
     return MetricResult("majority_vote_accuracy", "Majority-vote accuracy", value, {"n_questions": len(scores)})

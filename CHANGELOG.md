@@ -6,6 +6,33 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-24
+
+More of EvalSuite runs in the compiled Rust core. Every result is unchanged: each new kernel is bit-identical to
+the Python implementation it replaces (checked by `tests/test_native.py`), which stays as the fallback.
+
+### Added
+- **ROC AUC and average precision** in the core: one stable sort per column, columns in parallel, with NumPy's
+  pairwise summation reproduced exactly. `evaluate()` now shares that sort between ROC AUC and average precision
+  (cached on its context), so it sorts each probability column once instead of twice. `evaluate()` with
+  probabilities: 2.5× faster (binary) to 4.3× (5-class, 1M samples); `roc_auc` 2.6×, `average_precision` 2×.
+- **LLM-systems consistency metrics** (`paraphrase_consistency`, `response_stability`,
+  `cross_document_consistency`, `cross_lingual_consistency`, `majority_vote_accuracy`): answer groups are
+  counted in the core (equal pairs from answer counts, O(m) instead of O(m²) pair comparisons): 1.4–4.8×.
+- **Rows of numbers read directly by the core** (no per-row NumPy arrays): `groundedness` 5×,
+  `citation_coverage` 7.8×, `toxicity_score` 6×, `exposure` 3×.
+- **Pairwise preferences**: sequential `elo_ratings` 3.6×, and the Bradley–Terry win matrix.
+- Parity tests for every new kernel (ties, sample weights, micro/macro/weighted/per-class, one-vs-one,
+  non-string answers, invalid inputs raising the same errors).
+
+### Not ported, on purpose
+- Retrieval metrics: already 11–15× faster than ranx in Python; mapping document ids to the core cost more than
+  it saved.
+- Krippendorff's alpha: already one vectorised NumPy pass; a compiled version was only 1.5× faster and could not
+  reproduce NumPy's matrix-multiply rounding, so results would have changed in the last digit.
+- Fleiss' kappa and judge agreement are single vectorised integer passes; metrics built on Python's `ast`, JSON
+  or regular expressions (syntax validity, tool-call keys, answer normalisation) stay in Python.
+
 ## [0.6.1] - 2026-11-24
 
 Finishes the Rust port. Results are unchanged (bit-identical to the Python reference) unless you opt in to
