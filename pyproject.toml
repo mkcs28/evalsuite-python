@@ -14,7 +14,7 @@ license-files = ["LICENSE", "LICENSE-APACHE"]
 requires-python = ">=3.9"
 authors = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
 maintainers = [{ name = "Manoj Kumar C S" }, { name = "Nikhil D Bharadwaj" }]
-keywords = ["evaluation", "metrics", "segmentation", "object detection", "mAP", "clinical", "diagnostic accuracy", "calibration", "statistical tests", "machine learning", "statistics", "classification", "regression", "reproducibility"]
+keywords = ["evaluation", "metrics", "segmentation", "object detection", "mAP", "clinical", "diagnostic accuracy", "calibration", "statistical tests", "machine learning", "statistics", "classification", "regression", "reproducibility", "rust"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
@@ -31,6 +31,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Typing :: Typed",

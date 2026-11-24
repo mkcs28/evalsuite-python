@@ -11,6 +11,8 @@ EvalSuite brings classification, regression, clinical, statistical, segmentation
 evaluation into one consistent, validated, documented framework.
 
 > **Status: stable (0.6.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **0.6.0 adds a compiled Rust core**: same API and identical results, with text metrics, COCO matching and
+> bootstrap resampling several times faster (prebuilt wheels for Linux, macOS and Windows).
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
