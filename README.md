@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.5.5).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **Status: stable (0.6.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
@@ -25,6 +25,12 @@ The package is installed as `evalsuite-python` and imported as `evalsuite`:
 ```python
 import evalsuite as es
 ```
+
+EvalSuite has a **compiled core written in Rust**. pip installs a prebuilt wheel on Linux (x86_64, aarch64;
+glibc and musl), macOS (Apple silicon, Intel) and Windows (x64, arm64) for Python 3.9 to 3.14, so no compiler
+is needed. Anywhere else pip falls back to a pure-Python wheel that gives exactly the same results, more slowly.
+`evalsuite._native.backend()` says which one is in use (`"rust"` or `"python"`), and
+`EVALSUITE_PURE_PYTHON=1` selects the Python implementations on any install.
 
 ## Why EvalSuite
 
@@ -266,50 +272,53 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.5.5, Python 3.13,
+Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.6.0, Python 3.13,
 NumPy 2.5, Linux x86_64). **Overall: 81 of 81 rows agree with the reference** (largest
-difference 2.5e-14), 81 are faster, and the geometric-mean speed-up across all
-27 cases and three sizes is **3.29×**. At 1,000,000 samples (pixels for
+difference 2.8e-14), 81 are faster, and the geometric-mean speed-up across all
+27 cases and three sizes is **3.70×**. At 1,000,000 samples (pixels for
 segmentation; 1,000 images for detection and 50 for Hausdorff; 10,000 examples for the LLM cases), in
 alphabetical order:
 
 | Case | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
 | --- | --- | ---: | ---: | ---: |
-| 10 classes: macro F1 | scikit-learn | 7.1 | 113.7 | **15.9×** |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.4 | 2.8 | **2.0×** |
-| binary: 8 label metrics via evaluate() | scikit-learn | 9.3 | 841.2 | **90.2×** |
-| binary: ROC AUC | scikit-learn | 171.4 | 294.0 | **1.7×** |
-| calibration: slope and intercept | statsmodels | 227.7 | 1188.2 | **5.2×** |
-| clinical: diagnostic report (7 CIs) | statsmodels | 5.0 | 5.4 | **1.1×** |
-| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 19.5 | 352.0 | **18.1×** |
-| decision curve: 99 thresholds | NumPy loop | 149.2 | 200.9 | **1.3×** |
-| detection: COCO evaluation (1000 images) | pycocotools | 369.0 | 683.1 | **1.9×** |
-| multiple testing: Hochberg (n p-values) | statsmodels | 78.8 | 84.9 | **1.1×** |
-| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 9.4 | 13.5 | **1.4×** |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 120.5 | 589.9 | **4.9×** |
-| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 30.9 | 224.5 | **7.3×** |
-| segmentation: Hausdorff distance (50 images) | SciPy | 7.1 | 13.3 | **1.9×** |
-| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.2 | **11.1×** |
-| statistics: Mann–Whitney U | SciPy | 148.0 | 317.1 | **2.1×** |
-| statistics: Welch t-test | SciPy | 7.1 | 9.7 | **1.4×** |
-| structured: JSON Schema compliance (10000 documents) | jsonschema | 98.0 | 223.3 | **2.3×** |
-| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 431.3 | 523.0 | **1.2×** |
-| systems: confidence AUROC (n answers) | scikit-learn | 160.5 | 273.0 | **1.7×** |
-| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 6.7 | 7.2 | **1.1×** |
-| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 105.0 | 225.6 | **2.1×** |
-| systems: latency p50 / p95 / p99 (n requests) | NumPy | 10.8 | 12.2 | **1.1×** |
-| systems: maintainability index (1000 programs) | radon | 90.3 | 99.3 | **1.1×** |
-| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 1435.8 | 2056.4 | **1.4×** |
-| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 124.7 | 384.4 | **3.1×** |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 354.7 | 618.6 | **1.7×** |
+| 10 classes: macro F1 | scikit-learn | 10.2 | 107.4 | **10.5×** |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.3 | 2.9 | **2.3×** |
+| binary: 8 label metrics via evaluate() | scikit-learn | 11.2 | 818.5 | **73.1×** |
+| binary: ROC AUC | scikit-learn | 175.4 | 292.8 | **1.7×** |
+| calibration: slope and intercept | statsmodels | 234.7 | 938.0 | **4.0×** |
+| clinical: diagnostic report (7 CIs) | statsmodels | 4.3 | 4.4 | **1.0×** |
+| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 18.8 | 309.7 | **16.5×** |
+| decision curve: 99 thresholds | NumPy loop | 149.3 | 230.1 | **1.5×** |
+| detection: COCO evaluation (1000 images) | pycocotools | 268.5 | 628.8 | **2.3×** |
+| multiple testing: Hochberg (n p-values) | statsmodels | 69.4 | 81.2 | **1.2×** |
+| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 7.4 | 12.0 | **1.6×** |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 121.7 | 546.7 | **4.5×** |
+| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 34.2 | 200.8 | **5.9×** |
+| segmentation: Hausdorff distance (50 images) | SciPy | 11.0 | 13.4 | **1.2×** |
+| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.2 | **12.0×** |
+| statistics: Mann–Whitney U | SciPy | 152.1 | 323.0 | **2.1×** |
+| statistics: Welch t-test | SciPy | 7.7 | 11.6 | **1.5×** |
+| structured: JSON Schema compliance (10000 documents) | jsonschema | 88.9 | 224.7 | **2.5×** |
+| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 385.3 | 505.1 | **1.3×** |
+| systems: confidence AUROC (n answers) | scikit-learn | 166.0 | 265.3 | **1.6×** |
+| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 10.8 | 12.1 | **1.1×** |
+| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 79.1 | 209.2 | **2.6×** |
+| systems: latency p50 / p95 / p99 (n requests) | NumPy | 13.7 | 15.4 | **1.1×** |
+| systems: maintainability index (1000 programs) | radon | 84.5 | 93.4 | **1.1×** |
+| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 215.2 | 1962.8 | **9.1×** |
+| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 71.0 | 363.4 | **5.1×** |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 154.6 | 608.3 | **3.9×** |
 
 **Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
 statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
 independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
-comparisons agree**, and against the libraries the geometric-mean speed-up is **4.97×** (172 of 172
+comparisons agree**, and against the libraries the geometric-mean speed-up is **5.99×** (172 of 172
 measurements faster). Per-metric table in BENCHMARKS.md.
 
-**Every row is faster than its reference.** `evaluate()` validates inputs once and builds the confusion
+**Every row is faster than its reference.** The text metrics (BLEU, chrF, TER, ROUGE, METEOR), COCO
+matching and bootstrap resampling run in the compiled Rust core; bootstrap intervals, paired bootstrap tests and
+`compare()` evaluate confusion-matrix metrics from counts of each resample's (true, predicted) pairs instead of
+copies of the data. `evaluate()` validates inputs once and builds the confusion
 matrix once for all metrics, and integer labels are encoded without sorting. The rank tests rank the data once
 with a single unstable sort; t-tests, χ², Fisher and McNemar compute their statistics directly, and
 Shapiro–Wilk caches its weights per sample size. Percentiles select exactly from a small bracketed window
@@ -386,12 +395,20 @@ throughput, token usage, cost, resource utilization, energy per request, request
 
 ## Development
 
+Building from source needs a Rust toolchain ([rustup](https://rustup.rs)); the compiled core is in `rust/`
+(`evalsuite-core`, pure Rust, and `evalsuite-py`, the PyO3 bindings), built by maturin.
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]"                 # builds the Rust core into evalsuite._core
 pytest --cov=evalsuite
+EVALSUITE_PURE_PYTHON=1 pytest -q       # the same suite without the compiled core
 ruff check . && ruff format --check . && mypy
+cargo test --manifest-path rust/Cargo.toml -p evalsuite-core
 ```
+
+Every compiled kernel is a port of a Python implementation that stays in the package as the reference and
+fallback; `tests/test_native.py` checks that the two give identical results. See CONTRIBUTING.md.
 
 ## Links
 

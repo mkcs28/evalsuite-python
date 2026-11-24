@@ -30,8 +30,11 @@ fallback, and the two are tested against each other for every kernel.
   without the core and requires the binary wheel, the pure wheel and the sdist to give identical results.
 
 ### Changed
-- TER about 12× faster (now about 19× sacreBLEU), self-BLEU 10×, chrF 7×, BLEU and ROUGE 2–5×, METEOR 2×,
-  bootstrap confidence intervals about 5× and paired bootstrap tests and `compare()` about 2× faster than 0.5.5.
+- Benchmarks: overall geometric-mean speed-up 3.29× → **3.70×** (81 of 81 rows faster), per-metric speed-up
+  against reference libraries 4.97× → **5.99×** (172 of 172 faster); every comparison still agrees.
+- Against 0.5.5: TER about 12× faster (now about 19× sacreBLEU), self-BLEU 10×, chrF 7×, BLEU and ROUGE 2–5×,
+  METEOR 2×, bootstrap confidence intervals about 5×, paired bootstrap tests and `compare()` about 2×.
+  Corpus BLEU and chrF together are now 8.3× sacreBLEU, METEOR 4.9× NLTK and COCO evaluation 2.3× pycocotools.
 - Build backend: maturin (was hatchling); building from the sdist needs a Rust toolchain.
 
 ## [0.5.5] - 2026-11-09

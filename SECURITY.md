@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are released for the latest minor version of `evalsuite-python` (currently 0.5.x).
+Security fixes are released for the latest minor version of `evalsuite-python` (currently 0.6.x).
 
 ## Reporting a vulnerability
 
@@ -25,6 +25,16 @@ changelog unless you prefer otherwise.
 - Untrusted text is handled defensively: XML with a DTD or entities is rejected before parsing, deeply
   nested JSON/XML/Python source is reported as invalid instead of crashing the interpreter, and the
   built-in PII detectors run in linear time on adversarial input.
+
+## The compiled core
+
+Since 0.6.0 the hot loops run in a Rust extension (`evalsuite._core`, source in `rust/`). Its only `unsafe` code
+reads NumPy arrays in place: the Python side passes the data address of an array it has checked to be
+C-contiguous with the expected type and keeps referenced for the call, and Rust only reads it. Every kernel is
+tested against the Python implementation it replaces. Rust dependencies are limited to PyO3, pinned in
+`rust/Cargo.lock`, and kept current by Dependabot. Wheels are built in CI from the tagged commit and published
+with PyPI Trusted Publishing. To run without native code, set `EVALSUITE_PURE_PYTHON=1`: the core is then never
+loaded and the Python implementations give the same results.
 
 ## Patterns you supply
 
