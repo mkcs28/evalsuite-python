@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
+from .._native import PY_SUM_COMPENSATED, Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -671,6 +672,15 @@ def _corpus_bleu(refs: list[list[list[str]]], hyps: list[list[str]], weighted: O
     num: dict[int, float] = {n: 0.0 for n in range(1, 5)}
     den: dict[int, float] = {n: 0.0 for n in range(1, 5)}
     hyp_len = ref_len = 0
+    if core is not None:
+        v = Vocab()
+        h_ids = [v.encode(h) for h in hyps]
+        r_ids = [[v.encode(r) for r in rs] for rs in refs]
+        kw = None if weighted is None else [t in weighted for t in v.ids]
+        nums, dens, hyp_len, ref_len = core.codebleu_stats(h_ids, r_ids, kw, PY_SUM_COMPENSATED)
+        num = {n: nums[n - 1] for n in range(1, 5)}
+        den = {n: dens[n - 1] for n in range(1, 5)}
+        refs, hyps = [], []  # already counted
     for rs, h in zip(refs, hyps):
         for n in range(1, 5):
             hc = _ngrams(h, n)

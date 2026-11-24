@@ -8,6 +8,7 @@ or when ``EVALSUITE_PURE_PYTHON=1`` is set. Both give identical results.
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any, Optional
 
 core: Optional[Any]
@@ -20,6 +21,10 @@ else:
         core = None
 
 HAVE_NATIVE = core is not None
+
+# Python >= 3.12 sums floats with compensated (Neumaier) summation in the built-in sum(); kernels that port code
+# using sum() over floats take this flag so their results match the running interpreter bit for bit.
+PY_SUM_COMPENSATED = sys.version_info >= (3, 12)
 
 
 def backend() -> str:

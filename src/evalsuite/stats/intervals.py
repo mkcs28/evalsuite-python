@@ -17,6 +17,7 @@ else:
     special = lazy_module("scipy.special")
     stats = lazy_module("scipy.stats")
 
+from .._native import array_view, core
 from ..core.exceptions import EvalSuiteError, InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike
 from ..core.validation import to_numpy
@@ -41,16 +42,57 @@ def _check_resamples(n_resamples: int) -> int:
     return int(n_resamples)
 
 
+RESAMPLING = ("numpy", "native")
+
+
+def check_resampling(resampling: str) -> str:
+    if resampling not in RESAMPLING:
+        raise InputValidationError("resampling must be 'numpy' or 'native'.")
+    if resampling == "native" and core is None:
+        raise InputValidationError(
+            "resampling='native' needs the compiled core, which is not available (pure-Python install or "
+            "EVALSUITE_PURE_PYTHON=1)."
+        )
+    return resampling
+
+
+def _strata_groups(n: int, strata: NDArray[Any]) -> list[NDArray[np.intp]]:
+    values = np.unique(strata, axis=0) if strata.ndim > 1 else np.unique(strata)
+    return [
+        np.flatnonzero(np.all(strata == value, axis=1) if strata.ndim > 1 else strata == value) for value in values
+    ]
+
+
 def resample_indices(
-    n: int, n_resamples: int, rng: np.random.Generator, strata: Optional[NDArray[Any]] = None
+    n: int,
+    n_resamples: int,
+    rng: np.random.Generator,
+    strata: Optional[NDArray[Any]] = None,
+    resampling: str = "numpy",
 ) -> NDArray[np.int64]:
-    """(n_resamples, n) indices drawn with replacement, optionally within strata (keeps class balance)."""
+    """(n_resamples, n) indices drawn with replacement, optionally within strata (keeps class balance).
+
+    ``resampling="native"`` draws them in the compiled core (xoshiro256++, in parallel) from one seed taken from
+    ``rng``: reproducible for a given ``random_state`` and thread count–independent, but a different stream from
+    NumPy's, so intervals differ (statistically equivalently) from the default."""
+    if resampling == "native":
+        c = core
+        if c is None:  # pragma: no cover - checked by check_resampling
+            raise InputValidationError("resampling='native' needs the compiled core.")
+        seed = int(rng.integers(0, 2**63))
+        groups = None
+        if strata is not None:
+            parts = _strata_groups(n, strata)
+            members, view = array_view(np.concatenate(parts), np.int64)
+            groups = (view, [0, *np.cumsum([p.shape[0] for p in parts]).tolist()])
+        out = np.empty((n_resamples, n), dtype=np.int64)
+        c.bootstrap_indices((int(out.ctypes.data), int(out.size)), n, seed, groups)
+        return out
     if strata is None:
         return rng.integers(0, n, size=(n_resamples, n))
     out = np.empty((n_resamples, n), dtype=np.int64)
     pos = 0
-    for value in np.unique(strata, axis=0) if strata.ndim > 1 else np.unique(strata):
-        members = np.flatnonzero(np.all(strata == value, axis=1) if strata.ndim > 1 else strata == value)
+    for members in _strata_groups(n, strata):
         k = members.shape[0]
         out[:, pos : pos + k] = members[rng.integers(0, k, size=(n_resamples, k))]
         pos += k
@@ -110,25 +152,29 @@ def bootstrap_ci(
     random_state: Optional[int] = None,
     stratify: Optional[bool] = None,
     jackknife_groups: int = 1000,
+    resampling: str = "numpy",
     **metric_kwargs: Any,
 ) -> ConfidenceInterval:
     """Bootstrap confidence interval for any metric.
 
-    ``metric`` is a metric function (``es.f1``) or its name (``"f1"``). Pass ``y_pred`` for label/value
-    metrics or ``y_prob`` for probability metrics; extra keyword arguments go to the metric (for example
-    ``average="macro"``). Resampling is stratified by class for classification targets unless
-    ``stratify=False``, so every resample contains every class. For classification metrics that accept
-    ``labels``, the full label set is fixed across resamples.
+        ``metric`` is a metric function (``es.f1``) or its name (``"f1"``). Pass ``y_pred`` for label/value
+        metrics or ``y_prob`` for probability metrics; extra keyword arguments go to the metric (for example
+        ``average="macro"``). Resampling is stratified by class for classification targets unless
+        ``stratify=False``, so every resample contains every class. For classification metrics that accept
+        ``labels``, the full label set is fixed across resamples.
 
-    ``method``: ``"bca"`` (bias-corrected and accelerated; default, Efron 1987), ``"percentile"`` or
-    ``"basic"``. Set ``random_state`` for reproducible intervals. Resamples on which the metric is undefined
-    are counted in ``params["failed_resamples"]``; more than 10% raises :class:`StatisticalTestError`.
+        ``method``: ``"bca"`` (bias-corrected and accelerated; default, Efron 1987), ``"percentile"`` or
+        ``"basic"``. Set ``random_state`` for reproducible intervals. Resamples on which the metric is undefined
+        are counted in ``params["failed_resamples"]``; more than 10% raises :class:`StatisticalTestError`.
+    ``resampling="native"`` (opt-in) draws the resample indices in the compiled core instead of NumPy: faster on
+    large inputs and still reproducible with ``random_state``, but a different random stream from the default.
 
-    References: Efron B. Better bootstrap confidence intervals. JASA. 1987;82(397):171-185.
-    Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman & Hall; 1993.
+        References: Efron B. Better bootstrap confidence intervals. JASA. 1987;82(397):171-185.
+        Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman & Hall; 1993.
     """
     level = _check_level(level)
     n_resamples = _check_resamples(n_resamples)
+    resampling = check_resampling(resampling)
     if method not in ("percentile", "basic", "bca"):
         raise InputValidationError("method must be 'bca', 'percentile' or 'basic'.")
     fn, name = resolve_metric(metric)
@@ -136,7 +182,7 @@ def bootstrap_ci(
     estimate = call()
     rng = np.random.default_rng(random_state)
     use_strata = call.categorical if stratify is None else bool(stratify)
-    idx = resample_indices(call.n, n_resamples, rng, call.y_true if use_strata else None)
+    idx = resample_indices(call.n, n_resamples, rng, call.y_true if use_strata else None, resampling)
     boot, failed = bootstrap_distribution(call, idx)
     if failed > MAX_FAILED_FRACTION * n_resamples:
         raise StatisticalTestError(
@@ -150,6 +196,7 @@ def bootstrap_ci(
         "random_state": random_state,
         "stratified": use_strata,
         "failed_resamples": failed,
+        "resampling": resampling,
         **{k: v for k, v in metric_kwargs.items()},
     }
     if method == "percentile":

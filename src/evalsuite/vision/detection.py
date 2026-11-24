@@ -310,6 +310,8 @@ def _coco_eval(
     areas: Sequence[str],
 ) -> tuple[list[int], NDArray[np.float64], NDArray[np.float64]]:
     """precision (T, R, K, A, M) and recall (T, K, A, M); -1 where undefined (no ground truth)."""
+    if core is not None:
+        return _coco_eval_native(images, iou_thrs, max_dets, areas)
     top = max(max_dets)
     cats, pairs = _prepare(images, top)
     t_n, r_n, k_n, a_n, m_n = len(iou_thrs), _REC_THRS.size, len(cats), len(areas), len(max_dets)
@@ -346,6 +348,52 @@ def _coco_eval(
                     q[valid] = pr[idx[valid]]
                     precision[ti, :, k, a, m] = q
     return cats, precision, recall
+
+
+def _coco_eval_native(
+    images: list[_Image],
+    iou_thrs: NDArray[np.float64],
+    max_dets: Sequence[int],
+    areas: Sequence[str],
+) -> tuple[list[int], NDArray[np.float64], NDArray[np.float64]]:
+    """:func:`_coco_eval` in the compiled core: preparation, matching and accumulation, parallel over classes."""
+    c = core
+    if c is None:  # pragma: no cover - only called with the core
+        raise RuntimeError("compiled core not available")
+
+    def cat(parts: list[NDArray[Any]], dtype: Any, shape: tuple[int, ...]) -> NDArray[Any]:
+        return np.concatenate(parts).astype(dtype, copy=False) if parts else np.zeros(shape, dtype=dtype)
+
+    gt_off = np.cumsum([0] + [im.gt_boxes.shape[0] for im in images]).astype(np.int64)
+    dt_off = np.cumsum([0] + [im.dt_boxes.shape[0] for im in images]).astype(np.int64)
+    arrays = [
+        (cat([im.gt_boxes.reshape(-1, 4) for im in images], np.float64, (0, 4)), np.float64),
+        (cat([im.gt_labels for im in images], np.int64, (0,)), np.int64),
+        (cat([im.gt_crowd for im in images], np.bool_, (0,)), np.bool_),
+        (cat([im.gt_area for im in images], np.float64, (0,)), np.float64),
+        (gt_off, np.int64),
+        (cat([im.dt_boxes.reshape(-1, 4) for im in images], np.float64, (0, 4)), np.float64),
+        (cat([im.dt_labels for im in images], np.int64, (0,)), np.int64),
+        (cat([im.dt_scores for im in images], np.float64, (0,)), np.float64),
+        (dt_off, np.int64),
+    ]
+    held, views = [], []
+    for arr, dtype in arrays:
+        a, v = array_view(arr, dtype)
+        held.append(a)
+        views.append(v)
+    cats, raw_p, raw_r = c.coco_evaluate(
+        *views,
+        [float(t) for t in iou_thrs],
+        [int(m) for m in max_dets],
+        [_AREAS[a] for a in areas],
+        [float(r) for r in _REC_THRS],
+    )
+    del held
+    t_n, r_n, k_n, a_n, m_n = len(iou_thrs), _REC_THRS.size, len(cats), len(areas), len(max_dets)
+    precision = np.frombuffer(raw_p, dtype=np.float64).reshape(t_n, r_n, k_n, a_n, m_n).copy()
+    recall = np.frombuffer(raw_r, dtype=np.float64).reshape(t_n, k_n, a_n, m_n).copy()
+    return [int(k) for k in cats], precision, recall
 
 
 def _mean_valid(x: NDArray[np.float64]) -> float:

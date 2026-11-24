@@ -23,6 +23,7 @@ from .intervals import (
     _check_resamples,
     binary_scores,
     bootstrap_distribution,
+    check_resampling,
     delong_covariance,
     delong_placements,
     resample_indices,
@@ -138,6 +139,7 @@ def paired_bootstrap_test(
     random_state: Optional[int] = None,
     stratify: Optional[bool] = None,
     alternative: Literal["two-sided", "greater", "less"] = "two-sided",
+    resampling: str = "numpy",
     **metric_kwargs: Any,
 ) -> TestResult:
     """Paired bootstrap test for any metric: is metric(A) − metric(B) different from 0?
@@ -146,10 +148,13 @@ def paired_bootstrap_test(
     distribution (difference re-centred on 0 under the null), with the +1 correction so it is never 0:
     p = (1 + #{|δ* − δ̂| ≥ |δ̂|}) / (B + 1) for a two-sided test. ``ci`` is the percentile interval of δ*.
 
+    ``resampling="native"`` (opt-in) draws the resample indices in the compiled core; see :func:`bootstrap_ci`.
+
     Reference: Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman & Hall; 1993, ch. 16.
     """
     level = _check_level(level)
     n_resamples = _check_resamples(n_resamples)
+    resampling = check_resampling(resampling)
     if alternative not in ("two-sided", "greater", "less"):
         raise InputValidationError("alternative must be 'two-sided', 'greater' or 'less'.")
     fn, name = resolve_metric(metric)
@@ -170,7 +175,7 @@ def paired_bootstrap_test(
     observed = call_a() - call_b()
     rng = np.random.default_rng(random_state)
     use_strata = call_a.categorical if stratify is None else bool(stratify)
-    idx = resample_indices(call_a.n, n_resamples, rng, call_a.y_true if use_strata else None)
+    idx = resample_indices(call_a.n, n_resamples, rng, call_a.y_true if use_strata else None, resampling)
     da, fa = bootstrap_distribution(call_a, idx)
     db, fb = bootstrap_distribution(call_b, idx)
     diff = da - db

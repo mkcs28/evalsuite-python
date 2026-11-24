@@ -30,8 +30,10 @@ changelog unless you prefer otherwise.
 
 Since 0.6.0 the hot loops run in a Rust extension (`evalsuite._core`, source in `rust/`). Its only `unsafe` code
 reads NumPy arrays in place: the Python side passes the data address of an array it has checked to be
-C-contiguous with the expected type and keeps referenced for the call, and Rust only reads it. Every kernel is
-tested against the Python implementation it replaces. Rust dependencies are limited to PyO3, pinned in
+C-contiguous with the expected type and keeps referenced for the call, and Rust only reads it. The one exception,
+`resampling="native"` bootstrap draws, writes into an int64 array the Python side has just allocated for that
+call (alignment and size are checked first). Every kernel is tested against the Python implementation it
+replaces. Rust dependencies are limited to PyO3 and rayon, pinned in
 `rust/Cargo.lock`, and kept current by Dependabot. Wheels are built in CI from the tagged commit and published
 with PyPI Trusted Publishing. To run without native code, set `EVALSUITE_PURE_PYTHON=1`: the core is then never
 loaded and the Python implementations give the same results.

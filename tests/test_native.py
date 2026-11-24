@@ -17,6 +17,7 @@ import pytest
 
 import evalsuite as es
 from evalsuite import _native
+from evalsuite.llmsys import code as code_mod
 from evalsuite.stats import _resolve as resolve_mod
 from evalsuite.text import generation as generation_mod
 from evalsuite.vision import detection as detection_mod
@@ -26,15 +27,17 @@ needs_core = pytest.mark.skipif(not _native.HAVE_NATIVE, reason="compiled core n
 
 @contextlib.contextmanager
 def pure_python():
-    saved = (generation_mod.core, detection_mod.core, resolve_mod.core, resolve_mod.MetricCall._setup_compression)
-    generation_mod.core = detection_mod.core = resolve_mod.core = None
+    mods = (generation_mod, detection_mod, resolve_mod, code_mod)
+    saved = [m.core for m in mods], resolve_mod.MetricCall._setup_compression
+    for m in mods:
+        m.core = None
     resolve_mod.MetricCall._setup_compression = lambda self: None
     try:
         yield
     finally:
-        generation_mod.core, detection_mod.core, resolve_mod.core, resolve_mod.MetricCall._setup_compression = (
-            saved
-        )
+        for m, c in zip(mods, saved[0]):
+            m.core = c
+        resolve_mod.MetricCall._setup_compression = saved[1]
 
 
 def both(fn):
@@ -141,6 +144,13 @@ TEXT_CASES = {
         ).value
     ),
     "meteor": lambda r, p: es.meteor(r, p, average=None).value,
+    "cider": lambda r, p: float(es.cider(r, p)),
+    "cider_per_example_o2": lambda r, p: es.cider(r, p, max_order=2, sigma=3.0, average=None).value,
+    "distinct_1": lambda r, p: float(es.distinct_n(p)),
+    "distinct_3_lower": lambda r, p: float(es.distinct_n(p, n=3, lowercase=True)),
+    "codebleu_bleu_terms": lambda r, p: [
+        es.codebleu([x[0] for x in r], p).params[k] for k in ("ngram_match", "weighted_ngram_match")
+    ],
     "meteor_no_stem": lambda r, p: (
         es.meteor(r, p, stemmer=None, average=None, alpha=0.8, beta=2.5, gamma=0.3).value
     ),
@@ -263,3 +273,60 @@ def test_core_rejects_bad_arguments():
         core.ter_corpus([[1]], [])
     assert core.chrf_f([0.0, 0.0, 0.0], 1, 2.0, False) == 0.0
     del codes, idx
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(6))
+def test_coco_full_evaluation_with_ties_and_areas(seed):
+    rng = np.random.default_rng(100 + seed)
+    yt, yp = _scene(rng)
+    for t, p in zip(yt, yp):
+        p["scores"] = np.round(p["scores"], 1)  # many tied scores: the stable sort order must match
+        t["area"] = rng.uniform(10, 20000, len(t["labels"]))
+    assert_same(*both(lambda: [float(es.detection_report(yt, yp)[k]) for k in COCO_KEYS]))
+
+
+@needs_core
+def test_results_do_not_depend_on_thread_count():
+    code = (
+        "import evalsuite as es, numpy as np, random;"
+        "r=random.Random(1);W='a b c d e f g'.split();"
+        "s=lambda:' '.join(r.choices(W,k=r.randint(3,30)));"
+        "refs=[[s(),s()] for _ in range(300)];preds=[s() for _ in range(300)];"
+        "print(repr([float(es.bleu(refs,preds)),float(es.chrf(refs,preds)),float(es.ter(refs,preds)),"
+        "float(es.cider(refs,preds)),float(es.meteor(refs,preds,stemmer=None)),"
+        "float(es.bootstrap_ci('accuracy',np.arange(500)%3,np.arange(500)%2,random_state=0,resampling='native').low)]))"
+    )
+    out = []
+    for threads in ("1", "4"):
+        env = {**os.environ, "EVALSUITE_NUM_THREADS": threads}
+        out.append(
+            subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True)  # noqa: S603 - fixed command
+        )
+    assert out[0].stdout == out[1].stdout
+
+
+@needs_core
+@pytest.mark.parametrize("stratify", [False, True])
+def test_native_resampling(stratify):
+    rng = np.random.default_rng(0)
+    y = rng.integers(0, 3, 400)
+    p = np.where(rng.random(400) < 0.7, y, rng.integers(0, 3, 400))
+    kw = {"random_state": 5, "stratify": stratify, "resampling": "native"}
+    a = es.bootstrap_ci("f1", y, p, average="macro", **kw)
+    b = es.bootstrap_ci("f1", y, p, average="macro", **kw)
+    assert (a.low, a.high) == (b.low, b.high) and a.params["resampling"] == "native"
+    ref = es.bootstrap_ci("f1", y, p, average="macro", random_state=5, stratify=stratify)
+    assert abs(a.low - ref.low) < 0.03 and abs(a.high - ref.high) < 0.03
+    from evalsuite.stats.intervals import resample_indices
+
+    idx = resample_indices(400, 200, np.random.default_rng(1), y if stratify else None, "native")
+    assert idx.shape == (200, 400) and idx.min() >= 0 and idx.max() < 400
+    if stratify:
+        assert all((np.bincount(y[row], minlength=3) == np.bincount(y, minlength=3)).all() for row in idx)
+    assert es.paired_bootstrap_test("accuracy", y, p, y, resampling="native", random_state=0).p_value < 0.01
+
+
+def test_resampling_argument_is_checked():
+    with pytest.raises(es.InputValidationError):
+        es.bootstrap_ci("accuracy", [0, 1] * 20, [0, 1] * 20, resampling="fast")

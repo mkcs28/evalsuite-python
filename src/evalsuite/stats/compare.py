@@ -17,7 +17,7 @@ from ..core.result import _json_safe, _latex_escape, _latex_table
 from ..core.types import ArrayLike
 from ._resolve import MetricCall, as_items, as_observations, is_categorical, resolve_metric
 from .effect import adjust_pvalues
-from .intervals import _check_level, _check_resamples, bootstrap_distribution, resample_indices
+from .intervals import _check_level, _check_resamples, bootstrap_distribution, check_resampling, resample_indices
 from .paired import delong_test, mcnemar_test
 
 if TYPE_CHECKING:
@@ -271,6 +271,7 @@ def compare(
     stratify: Optional[bool] = None,
     sample_weight: Optional[ArrayLike] = None,
     metric_kwargs: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    resampling: str = "numpy",
 ) -> ComparisonResult:
     """Compare models evaluated on the same test set.
 
@@ -285,9 +286,11 @@ def compare(
     Pairs are every model against ``baseline`` if given, otherwise all pairs. p-values are adjusted within
     each metric (``correction``: "holm", "bonferroni", "hochberg", "bh", "by"); ``significant`` uses the adjusted
     p-value and ``alpha``. ``metric_kwargs`` passes options per metric, e.g. ``{"f1": {"average": "macro"}}``.
+    ``resampling="native"`` (opt-in) draws the bootstrap indices in the compiled core; see :func:`bootstrap_ci`.
     """
     level = _check_level(level)
     n_resamples = _check_resamples(n_resamples)
+    resampling = check_resampling(resampling)
     predictions = dict(predictions or {})
     probabilities = dict(probabilities or {})
     names = list(dict.fromkeys([*predictions, *probabilities]))
@@ -343,7 +346,7 @@ def compare(
 
     rng = np.random.default_rng(random_state)
     use_strata = categorical if stratify is None else bool(stratify)
-    idx = resample_indices(yt.shape[0], n_resamples, rng, yt if use_strata else None)
+    idx = resample_indices(yt.shape[0], n_resamples, rng, yt if use_strata else None, resampling)
     a = (1 - level) / 2
     boot: dict[tuple[str, str], np.ndarray] = {}
     estimates: list[dict[str, Any]] = []

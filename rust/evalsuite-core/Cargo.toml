@@ -12,3 +12,4 @@ keywords = ["evaluation", "metrics", "nlp", "statistics", "machine-learning"]
 categories = ["science", "algorithms"]
 
 [dependencies]
+rayon = "1.12"

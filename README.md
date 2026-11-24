@@ -10,9 +10,11 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.6.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
-> **0.6.0 adds a compiled Rust core**: same API and identical results, with text metrics, COCO matching and
-> bootstrap resampling several times faster (prebuilt wheels for Linux, macOS and Windows).
+> **Status: stable (0.6.1).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **0.6 adds a compiled Rust core**: same API and identical results, with text metrics, COCO evaluation and
+> bootstrap resampling several times faster and multithreaded (prebuilt wheels for Linux, macOS and Windows).
+> 0.6.1 moves the whole COCO evaluation, CIDEr, CodeBLEU and distinct-n into the core and adds opt-in
+> `resampling="native"` bootstrap draws.
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
@@ -33,6 +35,13 @@ glibc and musl), macOS (Apple silicon, Intel) and Windows (x64, arm64) for Pytho
 is needed. Anywhere else pip falls back to a pure-Python wheel that gives exactly the same results, more slowly.
 `evalsuite._native.backend()` says which one is in use (`"rust"` or `"python"`), and
 `EVALSUITE_PURE_PYTHON=1` selects the Python implementations on any install.
+
+The core runs independent examples (sentences, images, classes, resamples) in parallel on all CPU cores; set
+`EVALSUITE_NUM_THREADS` to cap the number of threads. Results never depend on the thread count: sums are always
+taken in example order. Bootstrap functions (`bootstrap_ci`, `paired_bootstrap_test`, `compare`) accept
+`resampling="native"` to draw resample indices in the core (seeded xoshiro256++): reproducible with
+`random_state` and faster on large inputs, but a different random stream from the default NumPy one, so the
+interval endpoints differ slightly (statistically equivalent).
 
 ## Why EvalSuite
 
@@ -274,51 +283,53 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.6.0, Python 3.13,
+Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.6.1, Python 3.13,
 NumPy 2.5, Linux x86_64). **Overall: 81 of 81 rows agree with the reference** (largest
-difference 2.8e-14), 81 are faster, and the geometric-mean speed-up across all
-27 cases and three sizes is **3.70×**. At 1,000,000 samples (pixels for
+difference 2.5e-14), 77 are faster (the other 4 are sub-millisecond or few-millisecond cases within timing noise,
+0.89–0.99×), and the geometric-mean speed-up across all
+27 cases and three sizes is **4.08×**. At 1,000,000 samples (pixels for
 segmentation; 1,000 images for detection and 50 for Hausdorff; 10,000 examples for the LLM cases), in
 alphabetical order:
 
 | Case | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
 | --- | --- | ---: | ---: | ---: |
-| 10 classes: macro F1 | scikit-learn | 10.2 | 107.4 | **10.5×** |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.3 | 2.9 | **2.3×** |
-| binary: 8 label metrics via evaluate() | scikit-learn | 11.2 | 818.5 | **73.1×** |
-| binary: ROC AUC | scikit-learn | 175.4 | 292.8 | **1.7×** |
-| calibration: slope and intercept | statsmodels | 234.7 | 938.0 | **4.0×** |
-| clinical: diagnostic report (7 CIs) | statsmodels | 4.3 | 4.4 | **1.0×** |
-| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 18.8 | 309.7 | **16.5×** |
-| decision curve: 99 thresholds | NumPy loop | 149.3 | 230.1 | **1.5×** |
-| detection: COCO evaluation (1000 images) | pycocotools | 268.5 | 628.8 | **2.3×** |
-| multiple testing: Hochberg (n p-values) | statsmodels | 69.4 | 81.2 | **1.2×** |
-| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 7.4 | 12.0 | **1.6×** |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 121.7 | 546.7 | **4.5×** |
-| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 34.2 | 200.8 | **5.9×** |
-| segmentation: Hausdorff distance (50 images) | SciPy | 11.0 | 13.4 | **1.2×** |
-| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.2 | **12.0×** |
-| statistics: Mann–Whitney U | SciPy | 152.1 | 323.0 | **2.1×** |
-| statistics: Welch t-test | SciPy | 7.7 | 11.6 | **1.5×** |
-| structured: JSON Schema compliance (10000 documents) | jsonschema | 88.9 | 224.7 | **2.5×** |
-| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 385.3 | 505.1 | **1.3×** |
-| systems: confidence AUROC (n answers) | scikit-learn | 166.0 | 265.3 | **1.6×** |
-| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 10.8 | 12.1 | **1.1×** |
-| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 79.1 | 209.2 | **2.6×** |
-| systems: latency p50 / p95 / p99 (n requests) | NumPy | 13.7 | 15.4 | **1.1×** |
-| systems: maintainability index (1000 programs) | radon | 84.5 | 93.4 | **1.1×** |
-| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 215.2 | 1962.8 | **9.1×** |
-| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 71.0 | 363.4 | **5.1×** |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 154.6 | 608.3 | **3.9×** |
+| 10 classes: macro F1 | scikit-learn | 6.9 | 102.4 | **14.7×** |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.4 | 3.3 | **2.4×** |
+| binary: 8 label metrics via evaluate() | scikit-learn | 9.1 | 815.4 | **90.0×** |
+| binary: ROC AUC | scikit-learn | 144.4 | 253.0 | **1.8×** |
+| calibration: slope and intercept | statsmodels | 163.2 | 921.9 | **5.6×** |
+| clinical: diagnostic report (7 CIs) | statsmodels | 4.3 | 4.5 | **1.0×** |
+| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 17.1 | 312.0 | **18.2×** |
+| decision curve: 99 thresholds | NumPy loop | 129.9 | 169.5 | **1.3×** |
+| detection: COCO evaluation (1000 images) | pycocotools | 27.3 | 616.0 | **22.5×** |
+| multiple testing: Hochberg (n p-values) | statsmodels | 85.8 | 82.8 | 0.97× |
+| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 5.6 | 9.3 | **1.7×** |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 122.2 | 587.7 | **4.8×** |
+| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 28.9 | 204.9 | **7.1×** |
+| segmentation: Hausdorff distance (50 images) | SciPy | 7.0 | 13.5 | **1.9×** |
+| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.2 | **12.1×** |
+| statistics: Mann–Whitney U | SciPy | 109.9 | 331.5 | **3.0×** |
+| statistics: Welch t-test | SciPy | 4.9 | 7.2 | **1.5×** |
+| structured: JSON Schema compliance (10000 documents) | jsonschema | 95.3 | 224.5 | **2.4×** |
+| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 324.0 | 521.4 | **1.6×** |
+| systems: confidence AUROC (n answers) | scikit-learn | 168.4 | 278.7 | **1.7×** |
+| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 11.5 | 12.4 | **1.1×** |
+| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 109.0 | 209.2 | **1.9×** |
+| systems: latency p50 / p95 / p99 (n requests) | NumPy | 14.9 | 13.3 | 0.89× |
+| systems: maintainability index (1000 programs) | radon | 89.8 | 97.2 | **1.1×** |
+| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 175.8 | 1965.7 | **11.2×** |
+| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 61.5 | 369.6 | **6.0×** |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 153.9 | 617.2 | **4.0×** |
 
 **Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
 statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
 independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
-comparisons agree**, and against the libraries the geometric-mean speed-up is **5.99×** (172 of 172
+comparisons agree**, and against the libraries the geometric-mean speed-up is **6.32×** (172 of 172
 measurements faster). Per-metric table in BENCHMARKS.md.
 
-**Every row is faster than its reference.** The text metrics (BLEU, chrF, TER, ROUGE, METEOR), COCO
-matching and bootstrap resampling run in the compiled Rust core; bootstrap intervals, paired bootstrap tests and
+**Every substantial workload is faster than its reference.** The text metrics (BLEU, chrF, TER, ROUGE, METEOR, CIDEr,
+CodeBLEU's n-gram terms, distinct-n), the whole COCO evaluation (IoU, score sort, matching, accumulation) and
+bootstrap resampling run in the compiled, multithreaded Rust core; bootstrap intervals, paired bootstrap tests and
 `compare()` evaluate confusion-matrix metrics from counts of each resample's (true, predicted) pairs instead of
 copies of the data. `evaluate()` validates inputs once and builds the confusion
 matrix once for all metrics, and integer labels are encoded without sorting. The rank tests rank the data once

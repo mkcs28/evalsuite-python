@@ -7,7 +7,7 @@ authors:
     given-names: "Manoj Kumar"
   - family-names: "Bharadwaj"
     given-names: "Nikhil D"
-version: "0.6.0"
+version: "0.6.1"
 date-released: "2026-11-24"
 license:
   - MIT

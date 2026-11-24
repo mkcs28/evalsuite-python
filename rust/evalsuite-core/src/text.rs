@@ -253,6 +253,253 @@ pub fn chrf_segment(
     best
 }
 
+/// Python's built-in `sum()` over floats, exactly: Python >= 3.12 uses Neumaier's compensated summation
+/// (CPython `builtin_sum_impl`), earlier versions add sequentially. `compensated` selects which.
+pub struct PySum {
+    total: f64,
+    c: f64,
+    compensated: bool,
+}
+
+impl PySum {
+    pub fn new(compensated: bool) -> Self {
+        PySum {
+            total: 0.0,
+            c: 0.0,
+            compensated,
+        }
+    }
+
+    #[inline]
+    pub fn add(&mut self, x: f64) {
+        if self.compensated {
+            let t = self.total + x;
+            if self.total.abs() >= x.abs() {
+                self.c += (self.total - t) + x;
+            } else {
+                self.c += (x - t) + self.total;
+            }
+            self.total = t;
+        } else {
+            self.total += x;
+        }
+    }
+
+    pub fn value(&self) -> f64 {
+        // As CPython: the compensation is applied only when non-zero and finite.
+        if self.compensated && self.c != 0.0 && self.c.is_finite() {
+            self.total + self.c
+        } else {
+            self.total
+        }
+    }
+}
+
+/// Counts of every n-gram (orders `1..=n`) of `seq`, in first-occurrence order: all unigrams by first
+/// occurrence, then all bigrams, and so on, as a Python `Counter` updated order by order iterates them.
+fn ordered_counts(seq: &[u32], n: usize) -> Vec<(&[u32], u32)> {
+    let mut out: Vec<(&[u32], u32)> = Vec::new();
+    for k in 1..=n {
+        if seq.len() < k {
+            break;
+        }
+        let mut index: FxMap<&[u32], usize> = FxMap::default();
+        for w in seq.windows(k) {
+            match index.get(w) {
+                Some(&i) => out[i].1 += 1,
+                None => {
+                    index.insert(w, out.len());
+                    out.push((w, 1));
+                }
+            }
+        }
+    }
+    out
+}
+
+struct CiderVec<'a> {
+    /// Per order: (n-gram, weight) in first-occurrence order, plus a lookup.
+    weights: Vec<Vec<(&'a [u32], f64)>>,
+    lookup: Vec<FxMap<&'a [u32], f64>>,
+    norms: Vec<f64>,
+    length: i64,
+}
+
+fn cider_vec<'a>(
+    counts: &[(&'a [u32], u32)],
+    n: usize,
+    df: &FxMap<&[u32], u32>,
+    ref_len: f64,
+) -> CiderVec<'a> {
+    let mut weights: Vec<Vec<(&'a [u32], f64)>> = vec![Vec::new(); n];
+    let mut lookup: Vec<FxMap<&'a [u32], f64>> = vec![FxMap::default(); n];
+    let mut sq = vec![0.0f64; n];
+    let mut length = 0i64;
+    for &(g, tf) in counts {
+        let k = g.len() - 1;
+        let d = f64::from(df.get(g).copied().unwrap_or(0));
+        let w = f64::from(tf) * (ref_len - d.max(1.0).ln());
+        weights[k].push((g, w));
+        lookup[k].insert(g, w);
+        sq[k] += w * w;
+        if k == 1 {
+            // pycocoevalcap uses the bigram count as the sentence "length" (kept for identical scores)
+            length += i64::from(tf);
+        }
+    }
+    CiderVec {
+        weights,
+        lookup,
+        norms: sq.into_iter().map(f64::sqrt).collect(),
+        length,
+    }
+}
+
+#[allow(clippy::needless_range_loop)] // `k` indexes several per-order arrays at once
+/// CIDEr-D per prediction, before the final mean: for each prediction, the `n` per-order totals summed over its
+/// references (pycocoevalcap / EvalSuite's `cider`). The caller averages them and scales by 10 / len(refs).
+pub fn cider_totals(
+    hyps: &[&[u32]],
+    refs: &[Vec<&[u32]>],
+    n: usize,
+    sigma: f64,
+    compensated: bool,
+) -> Vec<Vec<f64>> {
+    use rayon::prelude::*;
+
+    let ctest: Vec<Vec<(&[u32], u32)>> = hyps.iter().map(|h| ordered_counts(h, n)).collect();
+    type Counts<'c> = Vec<(&'c [u32], u32)>;
+    let crefs: Vec<Vec<Counts<'_>>> = refs
+        .iter()
+        .map(|rs| rs.iter().map(|r| ordered_counts(r, n)).collect())
+        .collect();
+    // Document frequency: in how many images' reference sets each n-gram occurs.
+    let mut df: FxMap<&[u32], u32> = FxMap::default();
+    for rs in &crefs {
+        let mut seen: FxMap<&[u32], ()> = FxMap::default();
+        for r in rs {
+            for &(g, _) in r {
+                seen.insert(g, ());
+            }
+        }
+        for g in seen.into_keys() {
+            *df.entry(g).or_insert(0) += 1;
+        }
+    }
+    let ref_len = (crefs.len() as f64).ln();
+    let two_s2 = 2.0 * (sigma * sigma);
+    ctest
+        .par_iter()
+        .zip(crefs.par_iter())
+        .with_min_len(16)
+        .map(|(t, rs)| {
+            let vh = cider_vec(t, n, &df, ref_len);
+            let mut total = vec![0.0f64; n];
+            for r in rs {
+                let vr = cider_vec(r, n, &df, ref_len);
+                let dl = (vh.length - vr.length) as f64;
+                let damp = (-(dl * dl) / two_s2).exp();
+                for k in 0..n {
+                    let mut acc = PySum::new(compensated);
+                    for &(g, w) in &vh.weights[k] {
+                        let rv = vr.lookup[k].get(g).copied().unwrap_or(0.0);
+                        acc.add(w.min(rv) * rv);
+                    }
+                    let mut val = acc.value();
+                    if vh.norms[k] != 0.0 && vr.norms[k] != 0.0 {
+                        val /= vh.norms[k] * vr.norms[k];
+                    }
+                    total[k] += val * damp;
+                }
+            }
+            total
+        })
+        .collect()
+}
+
+/// CodeBLEU's BLEU statistics for one example: per order `n = 1..=4`, the (numerator, denominator) terms in the
+/// order the reference implementation adds them (one term per order; with keyword weighting, one per reference),
+/// plus the hypothesis length and the closest reference length.
+pub fn codebleu_example(
+    hyp: &[u32],
+    refs: &[&[u32]],
+    keyword: Option<&[bool]>,
+    compensated: bool,
+) -> (Vec<Vec<(f64, f64)>>, i64, i64) {
+    let mut terms: Vec<Vec<(f64, f64)>> = vec![Vec::new(); 4];
+    for n in 1..=4usize {
+        let hc = ngram_counts(hyp, n);
+        match keyword {
+            None => {
+                let mut maxc: FxMap<&[u32], u32> = FxMap::default();
+                for r in refs {
+                    for (g, c) in ngram_counts(r, n) {
+                        let e = maxc.entry(g).or_insert(0);
+                        *e = (*e).max(c);
+                    }
+                }
+                let num: u64 = hc
+                    .iter()
+                    .map(|(g, &c)| u64::from(c.min(maxc.get(g).copied().unwrap_or(0))))
+                    .sum();
+                let total: u64 = hc.values().map(|&c| u64::from(c)).sum();
+                terms[n - 1].push((num as f64, total.max(1) as f64));
+            }
+            Some(kw) => {
+                for r in refs {
+                    // Reference n-grams in first-occurrence order (the order the reference implementation sums them).
+                    let rc: Vec<(&[u32], u32)> = ordered_counts(r, n)
+                        .into_iter()
+                        .filter(|(g, _)| g.len() == n)
+                        .collect();
+                    if n == 1 {
+                        let wt = |g: &[u32]| if kw[g[0] as usize] { 1.0 } else { 0.2 };
+                        let mut num = PySum::new(compensated);
+                        let mut den = PySum::new(compensated);
+                        for &(g, c) in &rc {
+                            let clipped = c.min(hc.get(g).copied().unwrap_or(0));
+                            num.add(f64::from(clipped) * wt(g));
+                            den.add(f64::from(c) * wt(g));
+                        }
+                        let d = den.value();
+                        terms[0].push((num.value(), if d < 1.0 { 1.0 } else { d }));
+                    } else {
+                        let num: u64 = rc
+                            .iter()
+                            .map(|&(g, c)| u64::from(c.min(hc.get(g).copied().unwrap_or(0))))
+                            .sum();
+                        let den: u64 = rc.iter().map(|&(_, c)| u64::from(c)).sum();
+                        terms[n - 1].push((num as f64, den.max(1) as f64));
+                    }
+                }
+            }
+        }
+    }
+    let hl = hyp.len() as i64;
+    let closest = refs
+        .iter()
+        .map(|r| r.len() as i64)
+        .min_by_key(|&rl| ((rl - hl).abs(), rl))
+        .unwrap_or(0);
+    (terms, hl, closest)
+}
+
+/// (distinct n-grams, total n-grams) over all sequences.
+pub fn distinct_ngrams(seqs: &[&[u32]], n: usize) -> (u64, u64) {
+    let mut seen: FxMap<&[u32], ()> = FxMap::default();
+    let mut total = 0u64;
+    for s in seqs {
+        if n == 0 || s.len() < n {
+            continue;
+        }
+        for w in s.windows(n) {
+            seen.insert(w, ());
+            total += 1;
+        }
+    }
+    (seen.len() as u64, total)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -17,7 +17,7 @@ from typing import Any, Callable, Literal, Optional
 
 import numpy as np
 
-from .._native import Vocab, core
+from .._native import PY_SUM_COMPENSATED, Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -968,13 +968,17 @@ def distinct_n(predictions: Any, *, n: int = 1, lowercase: bool = False) -> Metr
     """Distinct-n over the whole set of predictions (``n=1`` Distinct-1, ``n=2`` Distinct-2)."""
     preds = as_texts(predictions, "predictions")
     n = check_positive_int(n, "n")
-    counts: Counter[tuple[str, ...]] = Counter()
-    for p in preds:
-        counts.update(word_ngrams((p.lower() if lowercase else p).split(), n))
-    total = sum(counts.values())
+    if core is not None:
+        v = Vocab()
+        unique, total = core.distinct_ngrams([v.encode((p.lower() if lowercase else p).split()) for p in preds], n)
+    else:
+        counts: Counter[tuple[str, ...]] = Counter()
+        for p in preds:
+            counts.update(word_ngrams((p.lower() if lowercase else p).split(), n))
+        unique, total = len(counts), sum(counts.values())
     if total == 0:
         raise InputValidationError(f"The predictions contain no {n}-grams.")
-    return MetricResult("distinct_n", f"Distinct-{n}", len(counts) / total, {"n": n, "total_ngrams": total})
+    return MetricResult("distinct_n", f"Distinct-{n}", unique / total, {"n": n, "total_ngrams": total})
 
 
 @register(
@@ -1308,6 +1312,18 @@ def cider(
     def words(s: str) -> list[str]:
         return tok(s.lower() if lowercase else s)
 
+    if core is not None:
+        v = Vocab()
+        totals = core.cider_totals(
+            [v.encode(words(p)) for p in preds],
+            [[v.encode(words(r)) for r in rs] for rs in refs],
+            n,
+            float(sigma),
+            PY_SUM_COMPENSATED,
+        )
+        arr = np.array([float(np.mean(np.array(t))) / len(rs) * 10.0 for t, rs in zip(totals, refs)])
+        value_n: Any = arr if average is None else float(arr.mean())
+        return MetricResult("cider", "CIDEr-D", value_n, {"max_order": n, "sigma": sigma})
     ctest = [_cider_counts(words(p), n) for p in preds]
     crefs = [[_cider_counts(words(r), n) for r in rs] for rs in refs]
     df: Counter[tuple[str, ...]] = Counter()

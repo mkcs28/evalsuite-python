@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-24
+
+Finishes the Rust port. Results are unchanged (bit-identical to the Python reference) unless you opt in to
+`resampling="native"`.
+
+### Added
+- Whole COCO evaluation in the core: IoU matrices (with the crowd rule), stable descending score sort, ignored
+  ground truth, greedy matching, precision/recall accumulation and the 101-point interpolation, in parallel
+  over classes (`detection_report`, `mean_average_precision`).
+- Compiled CIDEr-D, CodeBLEU (n-gram and keyword-weighted n-gram terms) and distinct-n.
+- Multithreading: every per-example kernel (BLEU, chrF, TER, ROUGE, METEOR, CIDEr, CodeBLEU, COCO, resample
+  counting) runs on all cores; `EVALSUITE_NUM_THREADS` caps the threads. Sums stay in example order, so the
+  thread count never changes a result.
+- Opt-in `resampling="native"` for `bootstrap_ci`, `paired_bootstrap_test` and `compare`: resample indices are
+  drawn in the core (seeded xoshiro256++, one stream per resample, written straight into the index array).
+  About 3× faster bootstrap on 100,000 observations; reproducible with `random_state` and independent of the
+  thread count, but a different random stream from the default `"numpy"`. The default is unchanged.
+- Parity tests for the new kernels, tied scores and user areas in COCO, thread-count invariance and native
+  resampling.
+
+### Fixed
+- The ported float sums follow the running interpreter's built-in `sum()` (compensated summation on Python
+  3.12+, sequential before), so CIDEr and CodeBLEU agree with the Python path to the last bit on every Python.
+
 ## [0.6.0] - 2026-11-24
 
 EvalSuite now has a **compiled core written in Rust**. The public API is unchanged and every result is identical:

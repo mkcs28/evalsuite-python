@@ -2,13 +2,21 @@
 //!
 //! Built against the stable ABI (abi3, Python >= 3.9), so one wheel per platform serves every supported Python.
 //! Arrays are read in place through `(address, length)` views of checked, C-contiguous NumPy arrays (the buffer
-//! protocol joined the stable ABI only in Python 3.11); token sequences cross as lists of integer ids. The Python package decides when to call these and keeps
-//! its own implementation as the reference and fallback.
+//! protocol joined the stable ABI only in Python 3.11); token sequences cross as lists of integer ids. The
+//! Python package decides when to call these and keeps its own implementation as the reference and fallback.
+//!
+//! Work runs on all CPU cores (rayon; `EVALSUITE_NUM_THREADS` limits it) with the GIL released. Parallel
+//! loops only compute per-example results; every sum is then taken sequentially in example order, so results
+//! are bit-identical for any number of threads.
 
 use evalsuite_core::{coco, meteor, resample, ter, text};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use rayon::prelude::*;
+
+/// Smallest number of examples per parallel task: tiny corpora run on one thread without scheduling overhead.
+const MIN_PER_TASK: usize = 16;
 
 /// A read-only view of a C-contiguous NumPy array, passed as `(data address, element count)`.
 ///
@@ -29,8 +37,39 @@ fn view<'a, T>(addr: usize, len: usize) -> PyResult<&'a [T]> {
     Ok(unsafe { std::slice::from_raw_parts(addr as *const T, len) })
 }
 
+/// Booleans are read as bytes (any non-zero byte is true), never reinterpreted as Rust `bool`.
+fn bools(v: (usize, usize)) -> PyResult<Vec<bool>> {
+    Ok(view::<u8>(v.0, v.1)?.iter().map(|&b| b != 0).collect())
+}
+
+fn offsets(v: (usize, usize)) -> PyResult<Vec<usize>> {
+    view::<i64>(v.0, v.1)?
+        .iter()
+        .map(|&x| {
+            usize::try_from(x).map_err(|_| PyValueError::new_err("offsets must be non-negative"))
+        })
+        .collect()
+}
+
 fn chars(s: &str) -> Vec<u32> {
     s.chars().map(u32::from).collect()
+}
+
+fn same_len(a: usize, b: usize, what: &str) -> PyResult<()> {
+    if a != b {
+        return Err(PyValueError::new_err(format!(
+            "{what} must have the same length"
+        )));
+    }
+    Ok(())
+}
+
+fn f64_bytes<'py>(py: Python<'py>, v: &[f64]) -> Bound<'py, PyBytes> {
+    let mut out = Vec::with_capacity(v.len() * 8);
+    for x in v {
+        out.extend_from_slice(&x.to_ne_bytes());
+    }
+    PyBytes::new(py, &out)
 }
 
 /// BLEU statistics `[hyp_len, ref_len, correct_1..N, total_1..N]` for each segment.
@@ -41,14 +80,11 @@ fn bleu_stats(
     refs: Vec<Vec<Vec<u32>>>,
     order: usize,
 ) -> PyResult<Vec<Vec<i64>>> {
-    if hyps.len() != refs.len() {
-        return Err(PyValueError::new_err(
-            "hyps and refs must have the same length",
-        ));
-    }
+    same_len(hyps.len(), refs.len(), "hyps and refs")?;
     Ok(py.detach(|| {
-        hyps.iter()
-            .zip(refs.iter())
+        hyps.par_iter()
+            .zip(refs.par_iter())
+            .with_min_len(MIN_PER_TASK)
             .map(|(h, rs)| {
                 let rr: Vec<&[u32]> = rs.iter().map(|r| r.as_slice()).collect();
                 text::bleu_stats(h, &rr, order)
@@ -62,6 +98,8 @@ fn bleu_stats(
 fn self_bleu_stats(py: Python<'_>, toks: Vec<Vec<u32>>, order: usize) -> Vec<Vec<i64>> {
     py.detach(|| {
         (0..toks.len())
+            .into_par_iter()
+            .with_min_len(MIN_PER_TASK)
             .map(|i| {
                 let others: Vec<&[u32]> = toks
                     .iter()
@@ -82,18 +120,22 @@ fn ter_corpus(
     hyps: Vec<Vec<u32>>,
     refs: Vec<Vec<Vec<u32>>>,
 ) -> PyResult<(f64, f64)> {
-    if hyps.len() != refs.len() {
-        return Err(PyValueError::new_err(
-            "hyps and refs must have the same length",
-        ));
-    }
+    same_len(hyps.len(), refs.len(), "hyps and refs")?;
     Ok(py.detach(|| {
+        let per: Vec<(i64, f64)> = hyps
+            .par_iter()
+            .zip(refs.par_iter())
+            .with_min_len(1)
+            .map(|(h, rs)| {
+                let best = rs.iter().map(|r| ter::ter_edits(h, r)).min().unwrap_or(0);
+                let total: usize = rs.iter().map(|r| r.len()).sum();
+                (best, total as f64 / rs.len().max(1) as f64)
+            })
+            .collect();
         let (mut edits, mut ref_len) = (0.0f64, 0.0f64);
-        for (h, rs) in hyps.iter().zip(refs.iter()) {
-            let best = rs.iter().map(|r| ter::ter_edits(h, r)).min().unwrap_or(0);
-            edits += best as f64;
-            let total: usize = rs.iter().map(|r| r.len()).sum();
-            ref_len += total as f64 / rs.len().max(1) as f64;
+        for (e, r) in per {
+            edits += e as f64;
+            ref_len += r;
         }
         (edits, ref_len)
     }))
@@ -101,24 +143,33 @@ fn ter_corpus(
 
 /// Clipped n-gram overlaps for each (reference, prediction) pair.
 #[pyfunction]
-fn ngram_overlaps(py: Python<'_>, ts: Vec<Vec<u32>>, ps: Vec<Vec<u32>>, n: usize) -> Vec<i64> {
-    py.detach(|| {
-        ts.iter()
-            .zip(ps.iter())
+fn ngram_overlaps(
+    py: Python<'_>,
+    ts: Vec<Vec<u32>>,
+    ps: Vec<Vec<u32>>,
+    n: usize,
+) -> PyResult<Vec<i64>> {
+    same_len(ts.len(), ps.len(), "ts and ps")?;
+    Ok(py.detach(|| {
+        ts.par_iter()
+            .zip(ps.par_iter())
+            .with_min_len(MIN_PER_TASK)
             .map(|(t, p)| text::ngram_overlap(t, p, n))
             .collect()
-    })
+    }))
 }
 
 /// Longest-common-subsequence lengths for each (reference, prediction) pair.
 #[pyfunction]
-fn lcs_lengths(py: Python<'_>, ts: Vec<Vec<u32>>, ps: Vec<Vec<u32>>) -> Vec<i64> {
-    py.detach(|| {
-        ts.iter()
-            .zip(ps.iter())
+fn lcs_lengths(py: Python<'_>, ts: Vec<Vec<u32>>, ps: Vec<Vec<u32>>) -> PyResult<Vec<i64>> {
+    same_len(ts.len(), ps.len(), "ts and ps")?;
+    Ok(py.detach(|| {
+        ts.par_iter()
+            .zip(ps.par_iter())
+            .with_min_len(MIN_PER_TASK)
             .map(|(t, p)| text::lcs_length(t, p) as i64)
             .collect()
-    })
+    }))
 }
 
 /// ROUGE-Lsum `(hits, reference tokens, prediction tokens)` for each (reference, prediction) pair of sentence lists.
@@ -127,20 +178,22 @@ fn rouge_lsum_hits(
     py: Python<'_>,
     ts: Vec<Vec<Vec<u32>>>,
     ps: Vec<Vec<Vec<u32>>>,
-) -> Vec<(i64, i64, i64)> {
-    py.detach(|| {
-        ts.iter()
-            .zip(ps.iter())
+) -> PyResult<Vec<(i64, i64, i64)>> {
+    same_len(ts.len(), ps.len(), "ts and ps")?;
+    Ok(py.detach(|| {
+        ts.par_iter()
+            .zip(ps.par_iter())
+            .with_min_len(MIN_PER_TASK)
             .map(|(t, p)| {
                 let tt: Vec<&[u32]> = t.iter().map(|s| s.as_slice()).collect();
                 let pp: Vec<&[u32]> = p.iter().map(|s| s.as_slice()).collect();
                 text::rouge_lsum_hits(&tt, &pp)
             })
             .collect()
-    })
+    }))
 }
 
-/// Corpus chrF statistics (summed best-reference statistics of every example).
+/// Corpus chrF statistics (summed best-reference statistics of every example, in example order).
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn chrf_corpus(
@@ -161,26 +214,28 @@ fn chrf_corpus(
         ));
     }
     Ok(py.detach(|| {
-        let order = char_order + word_order;
-        let mut total = vec![0.0f64; 3 * order];
-        for i in 0..n {
-            let hc = chars(&hyp_lines[i]);
-            let h = text::ChrfText {
-                chars: &hc,
-                words: &hyp_words[i],
-            };
-            let rcs: Vec<Vec<u32>> = ref_lines[i].iter().map(|s| chars(s)).collect();
-            let rs: Vec<text::ChrfText<'_>> = rcs
-                .iter()
-                .zip(ref_words[i].iter())
-                .map(|(c, w)| text::ChrfText { chars: c, words: w })
-                .collect();
-            if let Some(best) =
+        let per: Vec<Option<Vec<f64>>> = (0..n)
+            .into_par_iter()
+            .with_min_len(MIN_PER_TASK)
+            .map(|i| {
+                let hc = chars(&hyp_lines[i]);
+                let h = text::ChrfText {
+                    chars: &hc,
+                    words: &hyp_words[i],
+                };
+                let rcs: Vec<Vec<u32>> = ref_lines[i].iter().map(|s| chars(s)).collect();
+                let rs: Vec<text::ChrfText<'_>> = rcs
+                    .iter()
+                    .zip(ref_words[i].iter())
+                    .map(|(c, w)| text::ChrfText { chars: c, words: w })
+                    .collect();
                 text::chrf_segment(&h, &rs, char_order, word_order, beta, eps_smoothing)
-            {
-                for (t, v) in total.iter_mut().zip(best) {
-                    *t += v;
-                }
+            })
+            .collect();
+        let mut total = vec![0.0f64; 3 * (char_order + word_order)];
+        for best in per.into_iter().flatten() {
+            for (t, v) in total.iter_mut().zip(best) {
+                *t += v;
             }
         }
         total
@@ -206,11 +261,7 @@ fn meteor_scores(
     beta: f64,
     gamma: f64,
 ) -> PyResult<Vec<f64>> {
-    if hyps.len() != refs.len() {
-        return Err(PyValueError::new_err(
-            "hyps and refs must have the same length",
-        ));
-    }
+    same_len(hyps.len(), refs.len(), "hyps and refs")?;
     if let Some(st) = &stem_of {
         let max_id = hyps
             .iter()
@@ -229,8 +280,9 @@ fn meteor_scores(
                 .map(|st| ws.iter().map(|&w| st[w as usize]).collect())
                 .unwrap_or_default()
         };
-        hyps.iter()
-            .zip(refs.iter())
+        hyps.par_iter()
+            .zip(refs.par_iter())
+            .with_min_len(MIN_PER_TASK)
             .map(|(h, rs)| {
                 let hs = stem(h);
                 let mut best = f64::NEG_INFINITY;
@@ -274,17 +326,70 @@ fn coco_match<'py>(
         ));
     }
     let ious: &[f64] = view(ious.0, ious.1)?;
-    // Booleans are read as bytes (any non-zero byte is true), never reinterpreted as Rust `bool`.
-    let as_bools = |v: (usize, usize)| -> PyResult<Vec<bool>> {
-        Ok(view::<u8>(v.0, v.1)?.iter().map(|&b| b != 0).collect())
-    };
-    let (gi, cr, out) = (as_bools(gign)?, as_bools(crowd)?, as_bools(dt_out)?);
+    let (gi, cr, out) = (bools(gign)?, bools(crowd)?, bools(dt_out)?);
     let (dtm, dt_ig) =
         py.detach(|| coco::match_images(ious, &gi, &cr, &out, n_images, d_max, g_max, &thresholds));
     let to_bytes = |v: Vec<bool>| -> Vec<u8> { v.into_iter().map(u8::from).collect() };
     Ok((
         PyBytes::new(py, &to_bytes(dtm)),
         PyBytes::new(py, &to_bytes(dt_ig)),
+    ))
+}
+
+/// Full COCO bbox evaluation. Views: `gt_boxes`/`dt_boxes` float64 `[n][4]`, `gt_labels`/`dt_labels` int64,
+/// `gt_crowd` bool, `gt_area`/`dt_scores` float64, `gt_off`/`dt_off` int64 image offsets (`n_images + 1`).
+/// Returns `(classes, precision bytes [t][r][k][a][m], recall bytes [t][k][a][m])`.
+#[pyfunction]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn coco_evaluate<'py>(
+    py: Python<'py>,
+    gt_boxes: (usize, usize),
+    gt_labels: (usize, usize),
+    gt_crowd: (usize, usize),
+    gt_area: (usize, usize),
+    gt_off: (usize, usize),
+    dt_boxes: (usize, usize),
+    dt_labels: (usize, usize),
+    dt_scores: (usize, usize),
+    dt_off: (usize, usize),
+    iou_thrs: Vec<f64>,
+    max_dets: Vec<usize>,
+    areas: Vec<(f64, f64)>,
+    rec_thrs: Vec<f64>,
+) -> PyResult<(Vec<i64>, Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+    let (go, doff) = (offsets(gt_off)?, offsets(dt_off)?);
+    let (n_gt, n_dt) = (gt_labels.1, dt_labels.1);
+    let monotone = |o: &[usize], n: usize| {
+        !o.is_empty() && o[0] == 0 && *o.last().unwrap() == n && o.windows(2).all(|w| w[0] <= w[1])
+    };
+    if go.len() != doff.len()
+        || !monotone(&go, n_gt)
+        || !monotone(&doff, n_dt)
+        || gt_boxes.1 != 4 * n_gt
+        || gt_crowd.1 != n_gt
+        || gt_area.1 != n_gt
+        || dt_boxes.1 != 4 * n_dt
+        || dt_scores.1 != n_dt
+    {
+        return Err(PyValueError::new_err("inconsistent detection arrays"));
+    }
+    let crowd = bools(gt_crowd)?;
+    let img = coco::Images {
+        gt_boxes: view(gt_boxes.0, gt_boxes.1)?,
+        gt_labels: view(gt_labels.0, gt_labels.1)?,
+        gt_crowd: &crowd,
+        gt_area: view(gt_area.0, gt_area.1)?,
+        gt_off: &go,
+        dt_boxes: view(dt_boxes.0, dt_boxes.1)?,
+        dt_labels: view(dt_labels.0, dt_labels.1)?,
+        dt_scores: view(dt_scores.0, dt_scores.1)?,
+        dt_off: &doff,
+    };
+    let ev = py.detach(|| coco::evaluate(&img, &iou_thrs, &max_dets, &areas, &rec_thrs));
+    Ok((
+        ev.cats,
+        f64_bytes(py, &ev.precision),
+        f64_bytes(py, &ev.recall),
     ))
 }
 
@@ -310,8 +415,148 @@ fn code_counts<'py>(
     Ok(PyBytes::new(py, &bytes))
 }
 
+/// Fill `out` (a writable, C-contiguous int64 NumPy array of `rows × n` elements, given as an `(address, length)`
+/// view that the caller keeps alive and does not touch during the call) with bootstrap indices from the core's
+/// seeded generator. `strata` is `(members, offsets)`: an int64 view of each stratum's members, concatenated, and
+/// the stratum boundaries.
+#[pyfunction]
+#[pyo3(signature = (out, n, seed, strata=None))]
+fn bootstrap_indices(
+    py: Python<'_>,
+    out: (usize, usize),
+    n: usize,
+    seed: u64,
+    strata: Option<((usize, usize), Vec<usize>)>,
+) -> PyResult<()> {
+    let groups = match &strata {
+        None => None,
+        Some((members, offsets)) => {
+            let m: &[i64] = view(members.0, members.1)?;
+            let ok = offsets.first() == Some(&0)
+                && offsets.last() == Some(&n)
+                && offsets.windows(2).all(|w| w[0] < w[1])
+                && m.len() == n
+                && m.iter().all(|&i| i >= 0 && (i as usize) < n);
+            if !ok {
+                return Err(PyValueError::new_err("invalid strata"));
+            }
+            Some((m, offsets.as_slice()))
+        }
+    };
+    if n == 0 || out.1 % n != 0 {
+        return Err(PyValueError::new_err("output size must be a multiple of n"));
+    }
+    if out.1 > 0 && (out.0 == 0 || out.0 % std::mem::align_of::<i64>() != 0) {
+        return Err(PyValueError::new_err("invalid output buffer"));
+    }
+    let dst: &mut [i64] = if out.1 == 0 {
+        &mut []
+    } else {
+        // SAFETY: the caller passes a live, aligned, writable int64 buffer of exactly `out.1` elements that
+        // nothing else reads or writes until this call returns (see `_native.array_view` and `resample_indices`).
+        unsafe { std::slice::from_raw_parts_mut(out.0 as *mut i64, out.1) }
+    };
+    py.detach(|| resample::fill_bootstrap_indices(dst, n, seed, groups));
+    Ok(())
+}
+
+/// `compensated` (below) must be `sys.version_info >= (3, 12)`: it selects the float summation of Python's
+/// built-in `sum()` so results match the running interpreter (see `evalsuite_core::text::PySum`).
+///
+/// CIDEr-D per-order totals for each prediction (see `evalsuite_core::text::cider_totals`).
+#[pyfunction]
+fn cider_totals(
+    py: Python<'_>,
+    hyps: Vec<Vec<u32>>,
+    refs: Vec<Vec<Vec<u32>>>,
+    n: usize,
+    sigma: f64,
+    compensated: bool,
+) -> PyResult<Vec<Vec<f64>>> {
+    same_len(hyps.len(), refs.len(), "hyps and refs")?;
+    Ok(py.detach(|| {
+        let h: Vec<&[u32]> = hyps.iter().map(|x| x.as_slice()).collect();
+        let r: Vec<Vec<&[u32]>> = refs
+            .iter()
+            .map(|rs| rs.iter().map(|x| x.as_slice()).collect())
+            .collect();
+        text::cider_totals(&h, &r, n, sigma, compensated)
+    }))
+}
+
+/// CodeBLEU's corpus BLEU statistics `(num[4], den[4], hyp_len, ref_len)`, accumulated in example order.
+/// `keyword[w]` marks keyword token ids for the keyword-weighted variant (omit for plain BLEU).
+#[pyfunction]
+#[pyo3(signature = (hyps, refs, keyword, compensated))]
+#[allow(clippy::type_complexity)]
+fn codebleu_stats(
+    py: Python<'_>,
+    hyps: Vec<Vec<u32>>,
+    refs: Vec<Vec<Vec<u32>>>,
+    keyword: Option<Vec<bool>>,
+    compensated: bool,
+) -> PyResult<(Vec<f64>, Vec<f64>, i64, i64)> {
+    same_len(hyps.len(), refs.len(), "hyps and refs")?;
+    if let Some(kw) = &keyword {
+        let max_id = refs.iter().flatten().flatten().copied().max();
+        if max_id.is_some_and(|m| m as usize >= kw.len()) {
+            return Err(PyValueError::new_err("keyword must cover every token id"));
+        }
+    }
+    Ok(py.detach(|| {
+        let per: Vec<_> = hyps
+            .par_iter()
+            .zip(refs.par_iter())
+            .with_min_len(MIN_PER_TASK)
+            .map(|(h, rs)| {
+                let rr: Vec<&[u32]> = rs.iter().map(|r| r.as_slice()).collect();
+                text::codebleu_example(h, &rr, keyword.as_deref(), compensated)
+            })
+            .collect();
+        let (mut num, mut den) = (vec![0.0f64; 4], vec![0.0f64; 4]);
+        let (mut hl, mut rl) = (0i64, 0i64);
+        for (terms, h, r) in per {
+            for (n, ts) in terms.iter().enumerate() {
+                for &(a, b) in ts {
+                    num[n] += a;
+                    den[n] += b;
+                }
+            }
+            hl += h;
+            rl += r;
+        }
+        (num, den, hl, rl)
+    }))
+}
+
+/// `(distinct n-grams, total n-grams)` over all sequences.
+#[pyfunction]
+fn distinct_ngrams(py: Python<'_>, seqs: Vec<Vec<u32>>, n: usize) -> (u64, u64) {
+    py.detach(|| {
+        let s: Vec<&[u32]> = seqs.iter().map(|x| x.as_slice()).collect();
+        text::distinct_ngrams(&s, n)
+    })
+}
+
+/// Number of threads the core uses.
+#[pyfunction]
+fn num_threads() -> usize {
+    rayon::current_num_threads()
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // EVALSUITE_NUM_THREADS caps the worker threads (default: one per CPU core). Read once, at import.
+    if let Some(n) = std::env::var("EVALSUITE_NUM_THREADS")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+    {
+        if n > 0 {
+            let _ = rayon::ThreadPoolBuilder::new()
+                .num_threads(n)
+                .build_global();
+        }
+    }
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(bleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(self_bleu_stats, m)?)?;
@@ -323,6 +568,12 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(chrf_f, m)?)?;
     m.add_function(wrap_pyfunction!(meteor_scores, m)?)?;
     m.add_function(wrap_pyfunction!(coco_match, m)?)?;
+    m.add_function(wrap_pyfunction!(coco_evaluate, m)?)?;
     m.add_function(wrap_pyfunction!(code_counts, m)?)?;
+    m.add_function(wrap_pyfunction!(bootstrap_indices, m)?)?;
+    m.add_function(wrap_pyfunction!(cider_totals, m)?)?;
+    m.add_function(wrap_pyfunction!(codebleu_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(distinct_ngrams, m)?)?;
+    m.add_function(wrap_pyfunction!(num_threads, m)?)?;
     Ok(())
 }
