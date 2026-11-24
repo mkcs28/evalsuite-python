@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from .._native import array_view, core
 from ..core.exceptions import InputValidationError
 from ..core.export import PathLike, csv_text, html_document, html_table, save_as
 from ..core.registry import register
@@ -252,6 +253,28 @@ def _evaluate_images(
         if g and d:
             ious[i, :d, :g] = pr.ious[:, gorder]
         dt_out[i, :d] = (pr.dt_area < lo) | (pr.dt_area > hi)
+    if core is not None and d_max:
+        a_iou, v_iou = array_view(ious, np.float64)
+        a_gi, v_gi = array_view(gign, np.bool_)
+        a_cr, v_cr = array_view(crowd, np.bool_)
+        a_out, v_out = array_view(dt_out, np.bool_)
+        raw_m, raw_i = core.coco_match(
+            v_iou,
+            v_gi,
+            v_cr,
+            v_out,
+            p_n,
+            d_max,
+            g_max,
+            [float(t) for t in iou_thrs],
+        )
+        del a_iou, a_gi, a_cr, a_out
+        dtm = np.frombuffer(raw_m, dtype=np.bool_).reshape(p_n, t_n, d_max)
+        dt_ig = np.frombuffer(raw_i, dtype=np.bool_).reshape(p_n, t_n, d_max)
+        return [
+            _Eval(pr.dt_s, dtm[i, :, : d_sizes[i]], dt_ig[i, :, : d_sizes[i]], g_ign_list[i])
+            for i, pr in enumerate(pairs)
+        ]
     gtm = np.zeros((p_n, t_n, g_max), dtype=bool)
     dtm = np.zeros((p_n, t_n, d_max), dtype=bool)
     dt_ig = np.zeros((p_n, t_n, d_max), dtype=bool)

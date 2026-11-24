@@ -17,6 +17,7 @@ from typing import Any, Callable, Literal, Optional
 
 import numpy as np
 
+from .._native import Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -130,6 +131,19 @@ def _bleu_stats(hyp: list[str], refs: list[list[str]], order: int) -> list[float
     return [hyp_len, closest, *correct, *total]
 
 
+def _bleu_segment_stats(
+    hyps: list[list[str]], refs: list[list[list[str]]], order: int
+) -> list[list[int]] | list[list[float]]:
+    """BLEU statistics of every segment: compiled core when available, else :func:`_bleu_stats`."""
+    if core is not None:
+        v = Vocab()
+        stats: list[list[int]] = core.bleu_stats(
+            [v.encode(h) for h in hyps], [[v.encode(r) for r in rs] for rs in refs], order
+        )
+        return stats
+    return [_bleu_stats(h, rs, order) for h, rs in zip(hyps, refs)]
+
+
 def _bleu_from_stats(
     stats: Sequence[float], order: int, smooth: str, smooth_value: Optional[float], effective_order: bool
 ) -> tuple[float, list[float], float]:
@@ -209,8 +223,8 @@ def bleu(
     tok = _tokenizer(tokenize)
     hyp_tok = _prep(preds, lowercase, tok)
     acc = [0.0] * (2 + 2 * order)
-    for h, rs in zip(hyp_tok, refs):
-        for i, v in enumerate(_bleu_stats(h, _prep(rs, lowercase, tok), order)):
+    for seg in _bleu_segment_stats(hyp_tok, [_prep(rs, lowercase, tok) for rs in refs], order):
+        for i, v in enumerate(seg):
             acc[i] += v
     stats = np.asarray(acc)
     score, precisions, bp = _bleu_from_stats(acc, order, smooth, smooth_value, effective_order)
@@ -261,14 +275,8 @@ def sentence_bleu(
     order = check_positive_int(max_order, "max_order")
     smooth = _check_smooth(smooth)
     tok = _tokenizer(tokenize)
-    scores = np.array(
-        [
-            _bleu_from_stats(_bleu_stats(h, _prep(rs, lowercase, tok), order), order, smooth, smooth_value, True)[
-                0
-            ]
-            for h, rs in zip(_prep(preds, lowercase, tok), refs)
-        ]
-    )
+    segs = _bleu_segment_stats(_prep(preds, lowercase, tok), [_prep(rs, lowercase, tok) for rs in refs], order)
+    scores = np.array([_bleu_from_stats(seg, order, smooth, smooth_value, True)[0] for seg in segs])
     value: Any = scores if average is None else float(scores.mean())
     return MetricResult("sentence_bleu", "Sentence BLEU", value, {"max_order": order, "smooth": smooth})
 
@@ -303,6 +311,46 @@ def _chrf_ngrams(sent: str, char_order: int, word_order: int, whitespace: bool) 
             for n in range(1, word_order + 1)
         ]
     return out
+
+
+def _chrf_native(
+    preds: list[str],
+    refs: list[list[str]],
+    char_order: int,
+    word_order: int,
+    beta: float,
+    lowercase: bool,
+    whitespace: bool,
+    eps_smoothing: bool,
+) -> Optional[list[float]]:
+    """Summed best-reference chrF statistics from the compiled core, or None to use the Python path (no core,
+    or text the core cannot take, such as lone surrogates)."""
+    if core is None:
+        return None
+    v = Vocab()
+
+    def parts(sent: str) -> tuple[str, list[int]]:
+        sent = sent.lower() if lowercase else sent
+        # Whitespace is removed here, with Python's definition of whitespace, not in the core.
+        line = sent if whitespace else "".join(sent.split())
+        return line, (v.encode(_chrf_words(sent)) if word_order else [])
+
+    try:
+        hp = [parts(h) for h in preds]
+        rp = [[parts(r) for r in rs] for rs in refs]
+        total: list[float] = core.chrf_corpus(
+            [h[0] for h in hp],
+            [h[1] for h in hp],
+            [[r[0] for r in rs] for rs in rp],
+            [[r[1] for r in rs] for rs in rp],
+            char_order,
+            word_order,
+            float(beta),
+            eps_smoothing,
+        )
+    except UnicodeEncodeError:
+        return None
+    return total
 
 
 def _chrf_f(stats: Sequence[float], order: int, beta: float, eps_smoothing: bool) -> float:
@@ -361,8 +409,9 @@ def chrf(
     if isinstance(word_order, bool) or not isinstance(word_order, (int, np.integer)) or word_order < 0:
         raise InputValidationError("word_order must be an integer >= 0 (2 gives chrF++).")
     order = char_order + int(word_order)
-    total = [0.0] * (3 * order)
-    for hyp, rs in zip(preds, refs):
+    native = _chrf_native(preds, refs, char_order, int(word_order), beta, lowercase, whitespace, eps_smoothing)
+    total = native if native is not None else [0.0] * (3 * order)
+    for hyp, rs in zip(preds, refs) if native is None else ():
         h = _chrf_ngrams(hyp.lower() if lowercase else hyp, char_order, word_order, whitespace)
         best: Optional[list[float]] = None
         best_f = -1.0
@@ -599,11 +648,17 @@ def ter(references: Any, predictions: Any, *, case_sensitive: bool = False) -> M
 
     edits = 0.0
     ref_len = 0.0
-    for hyp, rs in zip(preds, refs):
-        h = tok(hyp)
-        rws = [tok(r) for r in rs]
-        edits += min(_ter_edits(h, r) for r in rws)
-        ref_len += sum(len(r) for r in rws) / len(rws)
+    if core is not None:
+        v = Vocab()
+        edits, ref_len = core.ter_corpus(
+            [v.encode(tok(h)) for h in preds], [[v.encode(tok(r)) for r in rs] for rs in refs]
+        )
+    else:
+        for hyp, rs in zip(preds, refs):
+            h = tok(hyp)
+            rws = [tok(r) for r in rs]
+            edits += min(_ter_edits(h, r) for r in rws)
+            ref_len += sum(len(r) for r in rws) / len(rws)
     value = 100 * edits / ref_len if ref_len > 0 else (100.0 if edits > 0 else 0.0)
     return MetricResult(
         "ter", "TER", value, {"case_sensitive": case_sensitive, "edits": edits, "ref_len": ref_len}
@@ -717,6 +772,66 @@ def _rouge_lsum(ts: list[list[str]], ps: list[list[str]]) -> tuple[float, float,
 _MEASURES = {"precision": 0, "recall": 1, "fmeasure": 2}
 
 
+def _rouge_triples_native(
+    variant: str,
+    preds: list[str],
+    refs: list[list[str]],
+    stemmer: Optional[Callable[[str], str]],
+    sents: Callable[[str], list[list[str]]],
+) -> list[list[tuple[float, float, float]]]:
+    """(precision, recall, F) for every (prediction, reference) pair: counts from the compiled core, then the
+    same float formulas as :func:`_rouge_n`, :func:`_rouge_l` and :func:`_rouge_lsum`."""
+    c = core
+    if c is None:  # pragma: no cover - only called with the core
+        raise RuntimeError("compiled core not available")
+    v = Vocab()
+    out: list[list[tuple[float, float, float]]] = []
+    flat: list[tuple[float, float, float]] = []
+    sizes: list[int] = []
+    if variant == "Lsum":
+        ts: list[list[list[int]]] = []
+        ps: list[list[list[int]]] = []
+        for pred, rs in zip(preds, refs):
+            psents = [v.encode(s) for s in sents(pred)]
+            sizes.append(len(rs))
+            for ref in rs:
+                ts.append([v.encode(s) for s in sents(ref)])
+                ps.append(psents)
+        for ts_i, ps_i, (hits, m, n) in zip(ts, ps, c.rouge_lsum_hits(ts, ps)):
+            if not ts_i or not ps_i or not m or not n:
+                flat.append((0.0, 0.0, 0.0))
+            else:
+                prec, rec = hits / n, hits / m
+                flat.append((prec, rec, _f(prec, rec)))
+    else:
+        tt: list[list[int]] = []
+        pp: list[list[int]] = []
+        for pred, rs in zip(preds, refs):
+            p = v.encode(_rouge_tok(pred, stemmer))
+            sizes.append(len(rs))
+            for ref in rs:
+                tt.append(v.encode(_rouge_tok(ref, stemmer)))
+                pp.append(p)
+        if variant == "L":
+            for t, p, lcs in zip(tt, pp, c.lcs_lengths(tt, pp)):
+                if not t or not p:
+                    flat.append((0.0, 0.0, 0.0))
+                else:
+                    prec, rec = lcs / len(p), lcs / len(t)
+                    flat.append((prec, rec, _f(prec, rec)))
+        else:
+            n = int(variant)
+            for t, p, inter in zip(tt, pp, c.ngram_overlaps(tt, pp, n)):
+                prec = inter / max(len(p) - n + 1, 1)
+                rec = inter / max(len(t) - n + 1, 1)
+                flat.append((prec, rec, _f(prec, rec)))
+    pos = 0
+    for k in sizes:
+        out.append(flat[pos : pos + k])
+        pos += k
+    return out
+
+
 def _rouge(
     variant: str,
     references: Any,
@@ -736,15 +851,25 @@ def _rouge(
     def sents(text: str) -> list[list[str]]:
         return [_rouge_tok(s, stemmer) for s in text.split("\n") if len(s)]
 
+    all_triples = (
+        _rouge_triples_native(variant, preds, refs, stemmer, sents)
+        if core is not None
+        else [
+            [
+                _rouge_lsum(sents(ref), sents(pred))
+                if variant == "Lsum"
+                else (
+                    _rouge_l(_rouge_tok(ref, stemmer), _rouge_tok(pred, stemmer))
+                    if variant == "L"
+                    else _rouge_n(_rouge_tok(ref, stemmer), _rouge_tok(pred, stemmer), int(variant))
+                )
+                for ref in rs
+            ]
+            for pred, rs in zip(preds, refs)
+        ]
+    )
     scores = []
-    for pred, rs in zip(preds, refs):
-        triples = []
-        for ref in rs:
-            if variant == "Lsum":
-                triples.append(_rouge_lsum(sents(ref), sents(pred)))
-            else:
-                t, p = _rouge_tok(ref, stemmer), _rouge_tok(pred, stemmer)
-                triples.append(_rouge_l(t, p) if variant == "L" else _rouge_n(t, p, int(variant)))
+    for triples in all_triples:
         best = max(range(len(triples)), key=lambda i: (triples[i][2], -i))  # highest F, first on ties
         scores.append(triples[best][k])
     arr = np.array(scores)
@@ -873,10 +998,12 @@ def self_bleu(predictions: Any, *, max_order: int = 4, tokenize: Any = "13a") ->
     order = check_positive_int(max_order, "max_order")
     tok = _tokenizer(tokenize)
     toks = [tok(p.rstrip()) for p in preds]
-    scores = [
-        _bleu_from_stats(_bleu_stats(toks[i], toks[:i] + toks[i + 1 :], order), order, "exp", None, True)[0]
-        for i in range(len(toks))
-    ]
+    if core is not None:
+        v = Vocab()
+        segs = core.self_bleu_stats([v.encode(t) for t in toks], order)
+    else:
+        segs = [_bleu_stats(toks[i], toks[:i] + toks[i + 1 :], order) for i in range(len(toks))]
+    scores = [_bleu_from_stats(seg, order, "exp", None, True)[0] for seg in segs]
     return MetricResult("self_bleu", "Self-BLEU", float(np.mean(scores)), {"max_order": order})
 
 
@@ -1102,10 +1229,20 @@ def meteor(
     for name, v in (("alpha", alpha), ("gamma", gamma)):
         if not 0 <= v <= 1:
             raise InputValidationError(f"{name} must be in [0, 1].")
-    scores = [
-        max(_meteor_single(tok(p), tok(r), stem_fn, synonyms, alpha, beta, gamma) for r in rs)
-        for p, rs in zip(preds, refs)
-    ]
+    if core is not None and synonyms is None:
+        words = Vocab()
+        h_ids = [words.encode([w.lower() for w in tok(p)]) for p in preds]
+        r_ids = [[words.encode([w.lower() for w in tok(r)]) for r in rs] for rs in refs]
+        stem_of = None
+        if stem_fn is not None:  # each distinct word is stemmed once
+            stems = Vocab()
+            stem_of = stems.encode(stem_fn(w) for w in words.ids)
+        scores = core.meteor_scores(h_ids, r_ids, stem_of, float(alpha), float(beta), float(gamma))
+    else:
+        scores = [
+            max(_meteor_single(tok(p), tok(r), stem_fn, synonyms, alpha, beta, gamma) for r in rs)
+            for p, rs in zip(preds, refs)
+        ]
     arr = np.array(scores)
     value: Any = arr if average is None else float(arr.mean())
     return MetricResult(

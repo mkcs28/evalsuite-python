@@ -38,6 +38,19 @@ checks = {
         )
     ),
     "n_metrics": len(es.list_metrics()),
+    # Kernels of the compiled core (identical in the pure-Python fallback; the fingerprints are compared).
+    "bleu": float(es.bleu([["the cat sat on the mat"]], ["the cat sat on the mat"])),
+    "chrf": float(es.chrf([["the cat sat on the mat"]], ["the cat sat on a mat"], word_order=2)),
+    "ter": float(es.ter([["a b c d"]], ["c d a b"])),
+    "rouge_l": float(es.rouge_l(["the cat sat on the mat"], ["the cat on the mat"])),
+    "rouge_lsum": float(es.rouge_lsum(["the cat sat.\nit was happy"], ["the cat sat\nit was"])),
+    "meteor": float(es.meteor(["the cat sat on the mat"], ["the cat on mat"], stemmer=None)),
+    "bootstrap": [
+        round(v, 12)
+        for v in (lambda ci: (ci.low, ci.high))(
+            es.bootstrap_ci(es.accuracy, [0, 1] * 30, [0, 1, 1, 0] * 15, n_resamples=200, random_state=0)
+        )
+    ],
 }
 expected_values = {
     "accuracy": 0.75,
@@ -47,6 +60,9 @@ expected_values = {
     "dice": 2 / 3,
     "box_iou": 25 / 175,
     "map": 1.0,
+    "bleu": 100.0,
+    "ter": 25.0,
+    "rouge_l": 2 * (5 / 5) * (5 / 6) / (5 / 5 + 5 / 6),
 }
 for key, want in expected_values.items():
     got = checks[key]

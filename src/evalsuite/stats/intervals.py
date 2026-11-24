@@ -61,11 +61,13 @@ def bootstrap_distribution(call: MetricCall, indices: NDArray[np.int64]) -> tupl
     """Metric value on each resample; resamples where the metric is undefined become NaN."""
     values = np.empty(indices.shape[0])
     failed = 0
+    # Confusion-matrix metrics: count every resample's (true, predicted) pairs in one compiled pass.
+    counts = call.batch_code_counts(indices)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # zero-division warnings inside resamples are expected noise
         for b, idx in enumerate(indices):
             try:
-                values[b] = call(idx)
+                values[b] = call(idx) if counts is None else call.from_counts(counts[b], idx)
             except EvalSuiteError:
                 values[b] = np.nan
                 failed += 1
@@ -77,12 +79,19 @@ def _jackknife(call: MetricCall, n: int, rng: np.random.Generator, groups: int) 
     blocks = [np.array([i]) for i in range(n)] if n <= groups else np.array_split(rng.permutation(n), groups)
     everything = np.arange(n)
     out = np.empty(len(blocks))
+    # Confusion-matrix metrics: the counts without a block are the full counts minus the block's.
+    full = call.code_counts(everything) if call.compressible else None
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for j, block in enumerate(blocks):
-            keep = np.setdiff1d(everything, block, assume_unique=True)
             try:
-                out[j] = call(keep)
+                if full is not None:
+                    counts = full - call.code_counts(block)
+                    if np.count_nonzero(counts) >= 2:
+                        out[j] = call.from_counts(counts)
+                        continue
+                keep = np.setdiff1d(everything, block, assume_unique=True)
+                out[j] = call(keep, compress=False)
             except EvalSuiteError:
                 out[j] = np.nan
     return out

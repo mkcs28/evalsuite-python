@@ -10,10 +10,31 @@ from typing import Any, Optional
 import numpy as np
 from numpy.typing import NDArray
 
+from .._native import array_view, core
 from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.validation import target_type, to_numpy
 
 MetricFn = Callable[..., Any]
+
+# Label metrics computed from the confusion matrix alone, all accepting sample_weight: on a resample they equal
+# the same metric on the resample's distinct (true, predicted) pairs weighted by how often each occurs (tested
+# bit for bit in tests/stats/test_resample_compression.py).
+_CONFUSION_METRICS = frozenset(
+    {
+        "accuracy",
+        "balanced_accuracy",
+        "cohen_kappa",
+        "f1",
+        "fbeta",
+        "jaccard",
+        "mcc",
+        "npv",
+        "precision",
+        "recall",
+        "specificity",
+    }
+)
+_MAX_COMPRESSED_CLASSES = 64
 
 
 def resolve_metric(metric: Any) -> tuple[MetricFn, str]:
@@ -125,8 +146,78 @@ class MetricCall:
                 self.kwargs["labels"] = np.unique(present)
         if self.weight is not None and "sample_weight" not in params:
             raise InputValidationError(f"{getattr(fn, '__name__', 'This metric')} does not accept sample_weight.")
+        self._codes: Optional[NDArray[np.uint32]] = None
+        self._labels: Optional[NDArray[Any]] = None
+        self._k = 0
+        if y_pred is not None:
+            self._setup_compression()
 
-    def __call__(self, idx: Optional[NDArray[np.int64]] = None) -> float:
+    def _setup_compression(self) -> None:
+        """Enable counting-based evaluation for confusion-matrix metrics on unweighted 1-D labels: each
+        observation becomes one code (true class × k + predicted class), and a resample is summarised by how
+        often each code occurs, so the metric runs on at most k² weighted pairs instead of n observations."""
+        fn = self.fn
+        if (
+            getattr(fn, "__module__", "") != "evalsuite.classification.metrics"
+            or getattr(fn, "__name__", "") not in _CONFUSION_METRICS
+            or self.weight is not None
+            or not self.categorical
+            or self.y_true.ndim != 1
+            or self.second.ndim != 1
+            or self.y_true.dtype != self.second.dtype
+            or self.y_true.dtype.kind not in "biuU"
+        ):
+            return
+        try:
+            labels = np.unique(np.concatenate([self.y_true, self.second]))
+        except TypeError:  # pragma: no cover - same-dtype arrays are comparable
+            return
+        k = labels.shape[0]
+        if k > _MAX_COMPRESSED_CLASSES:
+            return
+        t = np.searchsorted(labels, self.y_true)
+        p = np.searchsorted(labels, self.second)
+        self._codes = (t * k + p).astype(np.uint32)
+        self._labels = labels
+        self._k = k
+
+    @property
+    def compressible(self) -> bool:
+        return self._codes is not None
+
+    def code_counts(self, idx: NDArray[np.int64]) -> NDArray[np.int64]:
+        """How often each (true, predicted) code occurs among the observations ``idx``."""
+        if self._codes is None:  # pragma: no cover - guarded by callers
+            raise RuntimeError("not compressible")
+        return np.bincount(self._codes[idx], minlength=self._k * self._k)
+
+    def batch_code_counts(self, indices: NDArray[np.int64]) -> Optional[NDArray[np.uint64]]:
+        """Code counts for every row of ``indices`` at once (compiled core), or None without it."""
+        if self._codes is None or core is None or indices.ndim != 2 or indices.shape[0] == 0:
+            return None
+        kk = self._k * self._k
+        codes, codes_v = array_view(self._codes, np.uint32)
+        idx, idx_v = array_view(indices, np.int64)  # resample indices are int64 already: no copy
+        raw = core.code_counts(codes_v, kk, idx_v, idx.shape[0])
+        del codes, idx
+        counts: NDArray[np.uint64] = np.frombuffer(raw, dtype=np.uint64).reshape(indices.shape[0], kk)
+        return counts
+
+    def from_counts(self, counts: NDArray[Any], idx: Optional[NDArray[np.int64]] = None) -> float:
+        """The metric on observations summarised by ``counts`` (equal to calling it on them directly)."""
+        if self._labels is None:  # pragma: no cover - guarded by callers
+            raise RuntimeError("not compressible")
+        nz = np.flatnonzero(counts)
+        if nz.shape[0] < 2 and idx is not None:
+            return self(idx, compress=False)  # a single distinct pair: use the observations themselves
+        k = self._k
+        kw = dict(self.kwargs)
+        kw["sample_weight"] = counts[nz].astype(np.float64)
+        return float(self.fn(self._labels[nz // k], self._labels[nz % k], **kw))
+
+    def __call__(self, idx: Optional[NDArray[np.int64]] = None, *, compress: bool = True) -> float:
+        if compress and idx is not None and self._codes is not None:
+            return self.from_counts(self.code_counts(idx), idx)
         if idx is None:
             yt, s, w = self.y_true, self.second, self.weight
         else:

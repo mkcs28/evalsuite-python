@@ -1,4 +1,6 @@
-# Publish to PyPI when a version tag is pushed (git tag v0.3.1 && git push origin v0.3.1),
+# Build the sdist, the pure-Python wheel and binary wheels with the compiled core (Linux x86_64/aarch64 glibc and
+# musl, macOS arm64/x86_64, Windows x64/arm64; abi3 for Python >= 3.9), test them, and publish to PyPI when a
+# version tag is pushed (git tag v0.3.1 && git push origin v0.3.1),
 # or when a release is created in the GitHub UI with a new tag (the tag push triggers this workflow).
 # Uses PyPI Trusted Publishing: no API tokens are stored. Configure a publisher on pypi.org for project
 # "evalsuite-python", owner "mkcs28", repository "evalsuite-python", workflow "release.yml", environment "pypi".
@@ -24,6 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Checks, tests, the sdist and the pure-Python wheel (the fallback for platforms without a binary wheel).
   build:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -35,12 +38,17 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - name: Tag must match the package version
+      - name: Tag must match the package version (Python and Rust)
         id: version
         run: |
           version=$(python -c "import re;print(re.search(r'__version__ = \"(.+)\"', open('src/evalsuite/version.py').read()).group(1))")
+          cargo_version=$(python -c "import re;print(re.search(r'^version = \"(.+)\"', open('rust/Cargo.toml').read(), re.M).group(1))")
           if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
             echo "::error::Tag ${GITHUB_REF_NAME} does not match src/evalsuite/version.py ($version). Delete the tag, fix the version and tag again."
+            exit 1
+          fi
+          if [ "$cargo_version" != "$version" ]; then
+            echo "::error::rust/Cargo.toml ($cargo_version) and src/evalsuite/version.py ($version) differ."
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -48,22 +56,60 @@ jobs:
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/evalsuite-python/${{ steps.version.outputs.version }}/json")
           if [ "$code" = "200" ]; then
-            echo "::error::evalsuite-python ${{ steps.version.outputs.version }} is already on PyPI. PyPI never accepts the same version twice: bump src/evalsuite/version.py and tag again. To attach the existing files to the GitHub release, run this workflow by hand with the tag."
+            echo "::error::evalsuite-python ${{ steps.version.outputs.version }} is already on PyPI. PyPI never accepts the same version twice: bump src/evalsuite/version.py and rust/Cargo.toml and tag again. To attach the existing files to the GitHub release, run this workflow by hand with the tag."
             exit 1
           fi
+      - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+      - run: cargo fmt --manifest-path rust/Cargo.toml --all --check && cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings && cargo test --manifest-path rust/Cargo.toml -p evalsuite-core
       - run: python -m pip install --upgrade pip setuptools
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev]" hatchling build twine
       - run: ruff check . && ruff format --check . && mypy
+      - run: python -c "from evalsuite import _native; assert _native.backend() == 'rust'"
       - run: pytest --cov=evalsuite --cov-fail-under=95
-      - run: python -m build
-      - run: twine check --strict dist/*
-      - name: Built files must carry the tag's version
+      - run: EVALSUITE_PURE_PYTHON=1 pytest -q -p no:cacheprovider -o addopts=""
+      - name: Build the sdist and the pure-Python wheel
         run: |
-          v=${{ steps.version.outputs.version }}
-          ls dist
-          test -f "dist/evalsuite_python-$v-py3-none-any.whl" || { echo "::error::wheel for $v missing from dist/"; exit 1; }
-          test -f "dist/evalsuite_python-$v.tar.gz" || { echo "::error::sdist for $v missing from dist/"; exit 1; }
-          [ "$(ls dist | wc -l)" = "2" ] || { echo "::error::dist/ must contain exactly the wheel and the sdist"; exit 1; }
+          python -m build --sdist
+          python scripts/build_pure_wheel.py dist
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-sdist-pure
+          path: dist/
+          if-no-files-found: error
+
+  # Binary wheels with the compiled core (.github/workflows/wheels.yml, also run on changes to the core).
+  wheels:
+    if: github.event_name == 'push'
+    needs: build
+    uses: ./.github/workflows/wheels.yml
+
+  # All files together: the same checks the CI package job runs, then one artifact for publishing.
+  collect:
+    needs: [build, wheels]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist/
+          merge-multiple: true
+      - run: python -m pip install --upgrade pip twine
+      - run: ls -l dist && twine check --strict dist/*
+      - name: Every file carries the tag's version; one sdist, one pure wheel, eight binary wheels
+        run: |
+          v=${{ needs.build.outputs.version }}
+          test -f "dist/evalsuite_python-$v.tar.gz" || { echo "::error::sdist for $v missing"; exit 1; }
+          test -f "dist/evalsuite_python-$v-py3-none-any.whl" || { echo "::error::pure-Python wheel for $v missing"; exit 1; }
+          n=$(ls dist/evalsuite_python-$v-cp39-abi3-*.whl | wc -l)
+          [ "$n" = "8" ] || { echo "::error::expected 8 binary wheels, found $n"; exit 1; }
+          [ "$(ls dist | wc -l)" = "10" ] || { echo "::error::dist/ must contain exactly the sdist and 9 wheels"; exit 1; }
+      - run: python scripts/check_dist.py dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
@@ -71,7 +117,7 @@ jobs:
           if-no-files-found: error
 
   pypi:
-    needs: build
+    needs: [build, collect]
     runs-on: ubuntu-latest
     # Add a required reviewer to the "pypi" environment (Settings -> Environments) to approve each release.
     environment:
@@ -87,7 +133,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
 
   github-release:
-    needs: [build, pypi]
+    needs: [build, collect, pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -133,8 +179,10 @@ jobs:
           import hashlib, json, sys, urllib.request
           version = sys.argv[1]
           files = json.load(open("meta.json"))["urls"]
-          if len(files) != 2:
-              sys.exit(f"::error::expected a wheel and an sdist for {version} on PyPI, found {len(files)}")
+          if not any(f["packagetype"] == "sdist" for f in files) or not any(
+              f["packagetype"] == "bdist_wheel" for f in files
+          ):
+              sys.exit(f"::error::expected wheels and an sdist for {version} on PyPI, found {len(files)} files")
           for f in files:
               data = urllib.request.urlopen(f["url"]).read()
               if hashlib.sha256(data).hexdigest() != f["digests"]["sha256"]:

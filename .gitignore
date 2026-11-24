@@ -17,3 +17,8 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Compiled core
+rust/target/
+src/evalsuite/_core*.so
+src/evalsuite/_core*.pyd

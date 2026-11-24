@@ -1,6 +1,8 @@
 [build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
+# The compiled core (Rust, in rust/) is built by maturin into evalsuite._core. Hatchling builds the same package
+# without it (scripts/build_pure_wheel.py): the pure-Python fallback wheel for platforms without a binary wheel.
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
 [project]
 name = "evalsuite-python"
@@ -82,6 +84,24 @@ path = "src/evalsuite/version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/evalsuite"]
+exclude = ["src/evalsuite/_core*.so", "src/evalsuite/_core*.pyd"]
+
+[tool.maturin]
+manifest-path = "rust/evalsuite-py/Cargo.toml"
+python-source = "src"
+module-name = "evalsuite._core"
+profile = "release"
+include = [
+  { path = "tests/**/*", format = "sdist" },
+  { path = "CHANGELOG.md", format = "sdist" },
+  { path = "CONTRIBUTING.md", format = "sdist" },
+  { path = "LICENSE-APACHE", format = "sdist" },
+]
+exclude = [
+  { path = "**/__pycache__/**", format = "sdist" },
+  { path = "**/*.pyc", format = "sdist" },
+  { path = "rust/target/**", format = "sdist" },
+]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/evalsuite", "tests", "README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "pyproject.toml"]

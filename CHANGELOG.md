@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-24
+
+EvalSuite now has a **compiled core written in Rust**. The public API is unchanged and every result is identical:
+each kernel is a direct port of the Python implementation it replaces, which stays as the reference and as the
+fallback, and the two are tested against each other for every kernel.
+
+### Added
+- `evalsuite._core`, built from `rust/` (crates `evalsuite-core`, pure Rust, and `evalsuite-py`, the PyO3
+  bindings) with maturin. Binary wheels for Linux (x86_64, aarch64; glibc and musl), macOS (arm64, x86_64) and
+  Windows (x64, arm64), each built for the stable ABI so one wheel serves Python 3.9 to 3.14.
+- A pure-Python wheel (`py3-none-any`): pip installs it only where no binary wheel fits, and EvalSuite then runs
+  its Python implementations with the same results. `EVALSUITE_PURE_PYTHON=1` selects them on any install;
+  `evalsuite._native.backend()` reports `"rust"` or `"python"`.
+- Compiled kernels: TER (beam edit distance with block shifts), BLEU / self-BLEU / sentence-BLEU statistics,
+  chrF and chrF++ statistics, ROUGE-N overlaps, ROUGE-L and ROUGE-Lsum longest common subsequences, METEOR
+  alignment, COCO detection matching, and bootstrap resample counting.
+- Bootstrap intervals, paired bootstrap tests and `compare()` evaluate confusion-matrix metrics (accuracy,
+  balanced accuracy, Cohen's kappa, F1, F-beta, Jaccard, MCC, NPV, precision, recall, specificity) from counts
+  of each resample's (true, predicted) pairs instead of the resampled observations, and the BCa jackknife from
+  the full counts minus each block's: identical values, no per-resample copies of the data.
+- `tests/test_native.py`: parity of every kernel with its Python reference; CI runs the whole suite with and
+  without the core and requires the binary wheel, the pure wheel and the sdist to give identical results.
+
+### Changed
+- TER about 12× faster (now about 19× sacreBLEU), self-BLEU 10×, chrF 7×, BLEU and ROUGE 2–5×, METEOR 2×,
+  bootstrap confidence intervals about 5× and paired bootstrap tests and `compare()` about 2× faster than 0.5.5.
+- Build backend: maturin (was hatchling); building from the sdist needs a Rust toolchain.
+
 ## [0.5.5] - 2026-11-09
 
 Every benchmark row is now faster than its reference library: 81 of 81 in the main benchmark (geometric mean
