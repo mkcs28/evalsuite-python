@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   rust:
-    # The compiled core: formatting, lints (warnings are errors) and its own unit tests.
+    # The compiled core and the pure-Rust crate: formatting, lints (warnings are errors), the core's unit tests and
+    # the crate's parity tests against fixtures produced by the Python package.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -23,6 +24,7 @@ jobs:
       - run: cargo fmt --manifest-path rust/Cargo.toml --all --check
       - run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core
+      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite --release
 
   lint:
     runs-on: ubuntu-latest

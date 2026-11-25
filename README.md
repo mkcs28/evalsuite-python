@@ -10,13 +10,15 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.7.1).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **Status: stable (0.8.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
 > **0.6 adds a compiled Rust core**: same API and identical results, with text metrics, COCO evaluation and
 > bootstrap resampling several times faster and multithreaded (prebuilt wheels for Linux, macOS and Windows).
 > **0.7.0** moves ROC AUC / average precision (and so `evaluate()`), the LLM-systems consistency metrics,
 > groundedness, citation coverage, toxicity, exposure and Elo into the core.
 > **0.7.1** adds bootstrapped ROC AUC / AP (4–5× faster intervals), DeLong, QA exact match / F1,
 > Hausdorff / surface distances, calibration and the WEAT permutation test.
+> **0.8.0** adds a **full Rust edition on crates.io** ([`evalsuite`](https://crates.io/crates/evalsuite)): every
+> metric except `code_complexity`, checked case by case against this package.
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
@@ -44,6 +46,22 @@ taken in example order. Bootstrap functions (`bootstrap_ci`, `paired_bootstrap_t
 `weat_effect_size` accept `resampling="native"` to draw resamples (or permutations) in the core (seeded
 xoshiro256++): reproducible with `random_state` and faster on large inputs, but a different random stream from
 the default NumPy one, so interval endpoints and p-values differ slightly (statistically equivalent).
+
+### Rust
+
+The same metrics are available as a pure-Rust crate, verified against this package on 36,054 recorded cases:
+
+```toml
+[dependencies]
+evalsuite = "0.8"
+```
+
+```rust
+let acc = evalsuite::classification::accuracy(&[1, 0, 1, 1], &[1, 0, 0, 1], None).unwrap(); // 0.75
+```
+
+See [rust/evalsuite/README.md](rust/evalsuite/README.md) for the module list and the few documented
+differences.
 
 ## Why EvalSuite
 
@@ -432,6 +450,7 @@ fallback; `tests/test_native.py` checks that the two give identical results. See
 ## Links
 
 - PyPI: https://pypi.org/project/evalsuite-python/
+- crates.io: https://crates.io/crates/evalsuite
 - Website and documentation: https://evalsuite-nine.vercel.app
 - Website source: https://github.com/mkcs28/evalsuite
 

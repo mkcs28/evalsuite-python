@@ -6,6 +6,33 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-25
+
+A full Rust edition of EvalSuite: the new [`evalsuite`](https://crates.io/crates/evalsuite) crate on crates.io.
+The Python package is unchanged apart from its version number.
+
+### Added
+- **`evalsuite` crate** (pure Rust, `#![forbid(unsafe_code)]`): every registered metric and statistics function
+  of the Python package except `code_complexity` — classification, regression, clinical, calibration and
+  uncertainty, hypothesis tests and bootstrap intervals, retrieval, segmentation, detection, text generation,
+  QA and reasoning, embedding metrics, SPICE, LLM-judge statistics, structured outputs and tool use, RAG,
+  factuality, and the LLM-systems groups (agents, efficiency, long context, multilingual, robustness, safety,
+  code). It includes a built-in JSON Schema validator, PII detectors and an exact earth mover's distance.
+- **Verified against the Python package**: `scripts/rust_fixtures.py` records 36,054 randomised cases (ties,
+  degenerate and invalid inputs included) and the crate's tests replay them all, to a relative tolerance of
+  1e-12 for most metrics (1e-9 for iterative ones); every input Python rejects is rejected too. CI runs them.
+- **Publishing workflow** `.github/workflows/crates.yml`: on a version tag it tests, then publishes
+  `evalsuite-core` and `evalsuite` with the `CARGO_REGISTRY_TOKEN` secret, behind the `crates-io` environment.
+  Versions already on crates.io are skipped.
+
+### Differences in the crate (documented in its README)
+- `code_complexity` is not ported (it relies on CPython's `ast` and `tokenize`); `syntax_validity_rate` takes a
+  checker and `codebleu` takes the syntax / data-flow match scores from the caller's parser.
+- METEOR, ROUGE and SPICE take optional stemmer / synonym functions instead of NLTK's Porter stemmer and WordNet.
+- MAUVE's clustering, `add_typos` and WEAT's random re-partitions use the crate's seeded generator (the Python
+  package's `resampling="native"` stream), not NumPy's.
+- `stats::compare` uses paired bootstrap tests throughout; surface distances support 2-D and 3-D masks.
+
 ## [0.7.1] - 2026-11-25
 
 More statistics, vision and QA work in the compiled core. Every default result is unchanged (bit-identical to
