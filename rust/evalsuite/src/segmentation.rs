@@ -7,7 +7,7 @@
 //! average unless `empty` gives it a value.
 
 use crate::error::{invalid, Result};
-use crate::util::{np_sum, percentile, sorted};
+use crate::util::np_sum;
 
 /// One label mask: `shape` (2 or more axes) and its labels in row-major order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -557,7 +557,8 @@ pub fn hausdorff_distance(
         if percentile_q == 100.0 {
             a.iter().chain(b).copied().fold(f64::NEG_INFINITY, f64::max)
         } else {
-            percentile(&sorted(a), percentile_q).max(percentile(&sorted(b), percentile_q))
+            crate::util::percentile_unsorted(a, percentile_q)
+                .max(crate::util::percentile_unsorted(b, percentile_q))
         }
     })
 }

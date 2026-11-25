@@ -75,30 +75,37 @@ pub fn tokenize_13a(line: &str) -> Vec<String> {
             .replace("&lt;", "<")
             .replace("&gt;", ">");
     }
-    let s = format!(" {s} ");
-    // 1. pad punctuation (apostrophe, comma, period and dash excluded)
-    let mut a = String::with_capacity(s.len() * 2);
+    // 1. pad punctuation (apostrophe, comma, period and dash excluded), with the leading/trailing space.
+    let mut a: Vec<char> = Vec::with_capacity(s.len() * 2 + 2);
+    a.push(' ');
     for c in s.chars() {
         if is_13a_punct(c) {
-            a.push(' ');
-            a.push(c);
-            a.push(' ');
+            a.extend([' ', c, ' ']);
         } else {
             a.push(c);
         }
     }
-    // 2–4: two-character rules applied left to right without overlap, as `re.sub`.
-    let rule = |text: &str,
-                first: &dyn Fn(char) -> bool,
-                second: &dyn Fn(char) -> bool,
-                out: &dyn Fn(char, char) -> String|
-     -> String {
-        let cs: Vec<char> = text.chars().collect();
-        let mut o = String::with_capacity(text.len() + 16);
+    a.push(' ');
+    // 2–4: two-character rules applied left to right without overlap, as `re.sub`; `pre` / `mid` / `post`
+    // say where the inserted spaces go.
+    fn rule(
+        cs: &[char],
+        first: impl Fn(char) -> bool,
+        second: impl Fn(char) -> bool,
+        pre: bool,
+        post: bool,
+    ) -> Vec<char> {
+        let mut o = Vec::with_capacity(cs.len() + 16);
         let mut i = 0;
         while i < cs.len() {
             if i + 1 < cs.len() && first(cs[i]) && second(cs[i + 1]) {
-                o.push_str(&out(cs[i], cs[i + 1]));
+                if pre {
+                    o.push(' ');
+                }
+                o.extend([cs[i], ' ', cs[i + 1]]);
+                if post {
+                    o.push(' ');
+                }
                 i += 2;
             } else {
                 o.push(cs[i]);
@@ -106,12 +113,14 @@ pub fn tokenize_13a(line: &str) -> Vec<String> {
             }
         }
         o
-    };
+    }
     let digit = |c: char| c.is_ascii_digit();
     let dotcomma = |c: char| c == '.' || c == ',';
-    let b = rule(&a, &|c| !digit(c), &dotcomma, &|x, y| format!("{x} {y} "));
-    let c = rule(&b, &dotcomma, &|c| !digit(c), &|x, y| format!(" {x} {y}"));
-    let d = rule(&c, &digit, &|c| c == '-', &|x, y| format!("{x} {y} "));
+    let b = rule(&a, |c| !digit(c), dotcomma, false, true);
+    let c = rule(&b, dotcomma, |c| !digit(c), true, false);
+    let d: String = rule(&c, digit, |c| c == '-', false, true)
+        .into_iter()
+        .collect();
     py_split(&d).into_iter().map(str::to_owned).collect()
 }
 
