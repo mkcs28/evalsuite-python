@@ -248,7 +248,7 @@ fn boxed(text: &str) -> Option<&str> {
 }
 
 /// Python's `str.splitlines()`.
-fn py_splitlines(s: &str) -> Vec<&str> {
+pub(crate) fn py_splitlines(s: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut it = s.char_indices().peekable();

@@ -277,7 +277,8 @@ def proportion_ci(
         denom = 1 + z**2 / n
         centre = (p + z**2 / (2 * n)) / denom
         half = z * math.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
-        low, high = centre - half, centre + half
+        # Rounding can leave a bound a hair past the estimate at 0 or n successes; the interval always holds it.
+        low, high = max(0.0, min(p, centre - half)), min(1.0, max(p, centre + half))
     elif method == "clopper-pearson":
         # Beta quantiles via the inverse regularised incomplete beta function (what scipy.stats.beta.ppf uses).
         low = 0.0 if successes == 0 else special.betaincinv(successes, n - successes + 1, alpha / 2)

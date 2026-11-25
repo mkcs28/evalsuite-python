@@ -174,16 +174,51 @@ impl<L: Label> Ctx<L> {
                 ));
             }
         }
-        let n_true_unique = y_true.iter().collect::<BTreeSet<_>>().len();
+        // One hashed pass assigns first-seen ids; only the distinct labels are sorted afterwards.
+        let mut ids: HashMap<&L, usize, crate::util::FastHash> = HashMap::default();
+        let mut distinct: Vec<&L> = Vec::new();
+        fn encode<'a, L: Label>(
+            v: &'a [L],
+            ids: &mut HashMap<&'a L, usize, crate::util::FastHash>,
+            distinct: &mut Vec<&'a L>,
+        ) -> Vec<usize> {
+            let mut last: Option<(&L, usize)> = None;
+            v.iter()
+                .map(|x| {
+                    if let Some((l, i)) = last {
+                        if l == x {
+                            return i;
+                        }
+                    }
+                    // A handful of classes (the common case): a linear scan beats hashing.
+                    if distinct.len() <= 8 {
+                        if let Some(i) = distinct.iter().position(|d| *d == x) {
+                            last = Some((x, i));
+                            return i;
+                        }
+                    }
+                    let n = distinct.len();
+                    let i = *ids.entry(x).or_insert_with(|| {
+                        distinct.push(x);
+                        n
+                    });
+                    last = Some((x, i));
+                    i
+                })
+                .collect()
+        }
+        let raw_true = encode(y_true, &mut ids, &mut distinct);
+        let n_true_unique = distinct.len();
+        let raw_pred = y_pred.map(|p| encode(p, &mut ids, &mut distinct));
         let labels: Vec<L> = match labels {
             Some(l) => {
                 let set: BTreeSet<&L> = l.iter().collect();
                 if set.len() != l.len() {
                     return invalid("labels contains duplicates.");
                 }
-                let missing: Vec<&L> = y_true
+                let missing: Vec<&L> = distinct
                     .iter()
-                    .chain(y_pred.unwrap_or(&[]))
+                    .copied()
                     .filter(|x| !set.contains(x))
                     .collect::<BTreeSet<_>>()
                     .into_iter()
@@ -196,22 +231,22 @@ impl<L: Label> Ctx<L> {
                 }
                 l.to_vec()
             }
-            None => y_true
-                .iter()
-                .chain(y_pred.unwrap_or(&[]))
-                .cloned()
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect(),
+            None => {
+                let mut d: Vec<&L> = distinct.clone();
+                d.sort();
+                d.into_iter().cloned().collect()
+            }
         };
         let kind = if n_true_unique <= 2 && labels.len() <= 2 {
             Kind::Binary
         } else {
             Kind::Multiclass
         };
-        let index: HashMap<&L, usize> = labels.iter().enumerate().map(|(i, l)| (l, i)).collect();
-        let true_idx = y_true.iter().map(|l| index[l]).collect();
-        let pred_idx = y_pred.map(|p| p.iter().map(|l| index[l]).collect());
+        let position: HashMap<&L, usize, crate::util::FastHash> =
+            labels.iter().enumerate().map(|(i, l)| (l, i)).collect();
+        let remap: Vec<usize> = distinct.iter().map(|l| position[l]).collect();
+        let true_idx = raw_true.into_iter().map(|i| remap[i]).collect();
+        let pred_idx = raw_pred.map(|p| p.into_iter().map(|i| remap[i]).collect());
         Ok(Ctx {
             kind,
             labels: labels.clone(),
@@ -408,6 +443,11 @@ pub fn accuracy<L: Label>(
     y_pred: &[L],
     sample_weight: Option<&[f64]>,
 ) -> Result<f64> {
+    if sample_weight.is_none() && !y_true.is_empty() && y_true.len() == y_pred.len() {
+        // Unweighted: the share of equal pairs needs no label encoding (0/1 sums are exact in any order).
+        let k = y_true.iter().zip(y_pred).filter(|(a, b)| a == b).count();
+        return Ok(k as f64 / y_true.len() as f64);
+    }
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     let p = ctx.pred()?;
     let correct: Vec<f64> = ctx

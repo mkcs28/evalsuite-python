@@ -43,6 +43,8 @@ pub mod judge;
 pub mod labels;
 pub mod longcontext;
 pub mod multilingual;
+#[cfg(feature = "python")]
+pub(crate) mod pyast;
 pub mod qa;
 pub mod rag;
 pub mod regression;
