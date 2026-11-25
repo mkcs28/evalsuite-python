@@ -664,19 +664,18 @@ pub fn mauve(
         .map(|r| r.iter().zip(&mu).map(|(x, m)| x - m).collect())
         .collect();
     // Principal components from the smaller Gram matrix: X Xᵀ (n ≤ d) or Xᵀ X.
-    let reduced: Vec<Vec<f64>>;
-    let dims;
-    if n <= d {
+    let (reduced, dims): (Vec<Vec<f64>>, usize) = if n <= d {
         let g: Vec<Vec<f64>> = c
             .iter()
             .map(|a| c.iter().map(|b| dot(a, b)).collect())
             .collect();
         let (vals, vecs) = eigh(g);
-        dims = pca_dims(&vals, o.explained_variance);
+        let dims = pca_dims(&vals, o.explained_variance);
         // Scores of the first `dims` components: U·S, where U are the eigenvectors of X Xᵀ.
-        reduced = (0..n)
+        let r = (0..n)
             .map(|i| (0..dims).map(|k| vecs[i][k] * vals[k].sqrt()).collect())
             .collect();
+        (r, dims)
     } else {
         let g: Vec<Vec<f64>> = (0..d)
             .map(|a| {
@@ -686,8 +685,8 @@ pub fn mauve(
             })
             .collect();
         let (vals, vecs) = eigh(g);
-        dims = pca_dims(&vals, o.explained_variance);
-        reduced = c
+        let dims = pca_dims(&vals, o.explained_variance);
+        let r = c
             .iter()
             .map(|r| {
                 (0..dims)
@@ -695,7 +694,8 @@ pub fn mauve(
                     .collect()
             })
             .collect();
-    }
+        (r, dims)
+    };
     let labels = kmeans(&reduced, k, o.seed, o.kmeans_n_init, o.kmeans_max_iter);
     let mut qc = vec![0.0; k];
     let mut pc = vec![0.0; k];
