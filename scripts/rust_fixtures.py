@@ -958,6 +958,54 @@ def multilingual(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- robustness ----------------------------------------------------------------------------------------
+@group("robustness")
+def robustness(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    A_ = ["Paris", "paris ", " PARIS", "Lyon", "lyon  x"]
+    for _ in range(100):
+        n = int(rng.integers(2, 30))
+        c = [bool(x) for x in rng.random(n) < 0.7]
+        p = [x and rng.random() < 0.8 for x in c]
+        for fn in ("adversarial_robustness", "noise_robustness"):
+            for key in ("value", "relative_drop", "flip_rate"):
+                out.append(case(f"{fn}.{key}", lambda fn=fn, key=key: _p(key)(getattr(es, fn)(c, p)), c=c, p=p))
+        ans = [[A_[int(i)] for i in rng.integers(0, 5, int(rng.integers(2, 5)))] for _ in range(n)]
+        for key in ("value", "pairwise_agreement"):
+            out.append(case("paraphrase_consistency." + key, lambda key=key: _p(key)(es.paraphrase_consistency(ans)), ans=ans))
+        for key in ("value", "unanimous_rate", "modal_share"):
+            out.append(case("response_stability." + key, lambda key=key: _p(key)(es.response_stability(ans)), ans=ans))
+        o = [bool(x) for x in rng.integers(0, 2, n)]
+        for key in ("value", "gap"):
+            out.append(case("ood_accuracy." + key, lambda key=key: _p(key)(es.ood_accuracy(c, o)), c=c, o=o))
+        ss, ts = rng.normal(0.8, 0.1, int(rng.integers(1, 20))).round(3).tolist(), rng.normal(0.7, 0.15, int(rng.integers(1, 20))).round(3).tolist()
+        for key in ("value", "relative_drop", "ci_low", "ci_high"):
+            out.append(case("distribution_shift_drop." + key, lambda key=key: _p(key)(es.distribution_shift_drop(ss, ts)), s=ss, t=ts))
+        a1 = [A_[int(i)] for i in rng.integers(0, 5, n)]
+        a2 = [A_[int(i)] for i in rng.integers(0, 5, n)]
+        grp = [["f", "m", "x"][int(i)] for i in rng.integers(0, 3, n)]
+        out.append(case("invariance_violation_rate", lambda: es.invariance_violation_rate(a1, a2, groups=grp), a=a1, b=a2, g=grp))
+        out.append(case("invariance_violation_rate.by_group", lambda: list(es.invariance_violation_rate(a1, a2, groups=grp).params["by_group"].values()), a=a1, b=a2, g=grp))
+        pl = [[["contradiction", "entailment", "neutral"][int(i)] for i in rng.integers(0, 3, int(rng.integers(0, 4)))] for _ in range(n)]
+        out.append(case("contradiction_rate", lambda: es.contradiction_rate(pl), pl=pl))
+        stt = [["ok", "error", "timeout", "success", "rate_limited"][int(i)] for i in rng.integers(0, 5, n)]
+        for key in ("value", "timeout_rate"):
+            out.append(case("error_rate." + key, lambda key=key: _p(key)(es.error_rate(stt)), st=stt))
+        out.append(case("error_rate.by_status", lambda: list(es.error_rate(stt).params["by_status"].values()), st=stt))
+        f = [bool(x) for x in rng.integers(0, 2, n)]
+        r = [x and bool(rng.integers(0, 2)) for x in f]
+        for key in ("value", "failure_rate"):
+            out.append(case("recovery_success_rate." + key, lambda key=key: _p(key)(es.recovery_success_rate(f, r)), f=f, r=r))
+        tm = rng.integers(0, 2, (int(rng.integers(2, 5)), n)).astype(float).tolist()
+        for key in ("value", "std", "example_disagreement_rate", "mean"):
+            out.append(case("prompt_sensitivity." + key, lambda key=key: _p(key)(es.prompt_sensitivity(tm)), tm=tm))
+        cl = rng.choice([1024.0, 4096.0, 16384.0, 100.0], n).tolist()
+        cf = [float(x) for x in c]
+        for key in ("value", "drop_shortest_to_longest"):
+            out.append(case("truncation_sensitivity." + key, lambda key=key: _p(key)(es.truncation_sensitivity(cf, cl)), c=cf, l=cl))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

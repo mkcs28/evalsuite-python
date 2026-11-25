@@ -34,6 +34,7 @@ pub mod labels;
 pub mod longcontext;
 pub mod multilingual;
 pub mod qa;
+pub mod robustness;
 pub mod rag;
 pub mod regression;
 pub mod retrieval;
