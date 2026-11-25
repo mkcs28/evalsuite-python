@@ -22,10 +22,13 @@ from evalsuite.llmsys import _common as llm_common_mod
 from evalsuite.llmsys import code as code_mod
 from evalsuite.llmsys import safety as safety_mod
 from evalsuite.stats import _resolve as resolve_mod
+from evalsuite.stats import intervals as intervals_mod
 from evalsuite.text import generation as generation_mod
 from evalsuite.text import judge as judge_mod
+from evalsuite.text import qa as qa_mod
 from evalsuite.text import reasoning as reasoning_mod
 from evalsuite.vision import detection as detection_mod
+from evalsuite.vision import segmentation as segmentation_mod
 
 needs_core = pytest.mark.skipif(not _native.HAVE_NATIVE, reason="compiled core not built")
 
@@ -42,6 +45,9 @@ def pure_python():
         safety_mod,
         reasoning_mod,
         judge_mod,
+        intervals_mod,
+        qa_mod,
+        segmentation_mod,
     )
     saved = [m.core for m in mods], resolve_mod.MetricCall._setup_compression
     for m in mods:
@@ -310,7 +316,11 @@ def test_results_do_not_depend_on_thread_count():
         "refs=[[s(),s()] for _ in range(300)];preds=[s() for _ in range(300)];"
         "print(repr([float(es.bleu(refs,preds)),float(es.chrf(refs,preds)),float(es.ter(refs,preds)),"
         "float(es.cider(refs,preds)),float(es.meteor(refs,preds,stemmer=None)),"
-        "float(es.bootstrap_ci('accuracy',np.arange(500)%3,np.arange(500)%2,random_state=0,resampling='native').low)]))"
+        "float(es.bootstrap_ci('accuracy',np.arange(500)%3,np.arange(500)%2,random_state=0,resampling='native').low),"
+        "float(es.bootstrap_ci('roc_auc',np.arange(400)%2,y_prob=(np.arange(400)*7%13)/13,random_state=0).low),"
+        "es.weat_effect_size(*[np.sin(np.arange(m*8).reshape(m,8)+m) for m in (20,21,5,6)],"
+        "random_state=1,resampling='native').params['p_value'],"
+        "float(es.hausdorff_distance([np.arange(900).reshape(30,30)%7>2],[np.arange(900).reshape(30,30)%5>1]))]))"
     )
     out = []
     for threads in ("1", "4"):
@@ -464,3 +474,137 @@ def test_elo_and_bradley_terry_match_python(seed):
     ):
         a, b = both(case)
         assert a == b
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(6))
+def test_bootstrap_roc_auc_and_ap_match_python(seed):
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(20, 1500))
+    y = rng.integers(0, 2, n)
+    if seed % 3 == 0:
+        y = np.where(y == 1, "pos", "neg")
+    p = np.round(rng.random(n), 2)
+    w = rng.random(n) * 2 if seed % 2 else None
+    kw = {"pos_label": "pos"} if seed % 3 == 0 else {}
+    for metric in ("roc_auc", "average_precision"):
+        for method in ("bca", "percentile"):
+
+            def run(metric=metric, method=method):
+                ci = es.bootstrap_ci(
+                    metric, y, y_prob=p, sample_weight=w, random_state=seed, n_resamples=200, method=method, **kw
+                )
+                return (ci.estimate, ci.low, ci.high, ci.params["failed_resamples"])
+
+            a, b = both(run)
+            assert repr(a) == repr(b)
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_delong_matches_python(seed):
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(10, 3000))
+    y = rng.integers(0, 2, n)
+    a = np.round(rng.random(n), 2)
+    b = np.round(np.clip(a + rng.normal(0, 0.1, n), 0, 1), 2)
+    x, z = both(lambda: es.delong_test(y, a, b))
+    assert (x.statistic, x.p_value, x.estimate, x.ci.low, x.params) == (
+        z.statistic,
+        z.p_value,
+        z.estimate,
+        z.ci.low,
+        z.params,
+    )
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_qa_metrics_match_python(seed):
+    rnd = random.Random(seed)  # noqa: S311 - test data
+    pool = [
+        "The",
+        "a",
+        "an",
+        "the",
+        "cat,",
+        "sat!",
+        "on",
+        "mat.",
+        "Paris",
+        "PARIS",
+        "café",
+        "ß",
+        "\t",
+        "\n",
+        "\x1c",
+        "x_y",
+        "1.5",
+        "A-B",
+    ]
+    preds = [" ".join(rnd.choices(pool, k=rnd.randint(0, 8))) for _ in range(rnd.randint(1, 60))]
+    refs = [[" ".join(rnd.choices(pool, k=rnd.randint(0, 8))) for _ in range(rnd.randint(1, 3))] for _ in preds]
+    for case in (
+        lambda: es.exact_match(refs, preds, average=None).value.tolist(),
+        lambda: es.token_f1(refs, preds, average=None).value.tolist(),
+        lambda: es.token_f1(refs, preds, normalize=False).value,
+        lambda: es.exact_match(refs, preds, normalize=str.lower).value,
+    ):
+        a, b = both(case)
+        assert repr(a) == repr(b)
+    assert [qa_mod.normalize_answer(t) for t in preds] == qa_mod.normalize_answers(preds)
+
+
+def _blob(rng, shape):
+    m = np.zeros(shape, bool)
+    grid = np.ogrid[tuple(slice(0, s) for s in shape)]
+    for _ in range(int(rng.integers(1, 4))):
+        c = [int(rng.integers(0, s)) for s in shape]
+        rad = int(rng.integers(1, max(2, min(shape) // 3)))
+        m |= sum((g - ci) ** 2 for g, ci in zip(grid, c)) <= rad * rad
+    return m.astype(int)
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(6))
+def test_surface_distances_match_python(seed):
+    rng = np.random.default_rng(seed)
+    shape = (int(rng.integers(4, 70)), int(rng.integers(4, 70))) if seed % 3 else (int(rng.integers(4, 20)),) * 3
+    a = [_blob(rng, shape), rng.integers(0, 3, shape)]
+    b = [_blob(rng, shape), rng.integers(0, 3, shape)]
+    sp = None if seed % 2 else tuple(np.round(rng.uniform(0.3, 2, len(shape)), 3))
+    for case in (
+        lambda: es.hausdorff_distance(a, b, spacing=sp, average=None).value.tolist(),
+        lambda: es.hausdorff_distance(a, b, spacing=sp, percentile=95).value,
+        lambda: es.average_surface_distance(a, b, spacing=sp, average=None).value.tolist(),
+    ):
+        x, z = both(case)
+        assert repr(x) == repr(z)
+
+
+@needs_core
+@pytest.mark.parametrize("seed", range(4))
+def test_calibration_matches_python(seed):
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(2, 4000))
+    y = rng.integers(0, 2, n)
+    p = np.round(rng.random(n), 2)
+    w = rng.random(n) if seed % 2 else None
+    for kw in ({}, {"strategy": "quantile"}, {"n_bins": 7}):
+        x, z = both(lambda kw=kw: es.expected_calibration_error(y, p, sample_weight=w, **kw).value)
+        assert x == z
+        x, z = both(lambda kw=kw: [c.tolist() for c in es.calibration_curve(y, p, sample_weight=w, **kw)])
+        assert x == z
+
+
+@needs_core
+def test_weat_exact_matches_python_and_native_is_seeded():
+    rng = np.random.default_rng(0)
+    X, Y, A, B = (np.round(rng.normal(size=(m, 12)), 1) for m in (6, 5, 4, 4))
+    x, z = both(lambda: es.weat_effect_size(X, Y, A, B).to_dict())
+    assert x == z
+    X, Y = (rng.normal(size=(20, 12)) for _ in range(2))
+    a = es.weat_effect_size(X, Y, A, B, random_state=3, resampling="native").params["p_value"]
+    b = es.weat_effect_size(X, Y, A, B, random_state=3, resampling="native").params["p_value"]
+    c = es.weat_effect_size(X, Y, A, B, random_state=3).params["p_value"]
+    assert a == b and abs(a - c) < 0.05

@@ -980,10 +980,17 @@ def calibration_curve(
         edges = np.quantile(p, np.linspace(0, 1, n_bins + 1))
     else:
         raise InputValidationError("strategy must be 'uniform' or 'quantile'.")
-    idx = np.searchsorted(edges[1:-1], p, side="right")
-    bin_w = np.bincount(idx, weights=w, minlength=len(edges))
-    bin_true = np.bincount(idx, weights=w * y, minlength=len(edges))
-    bin_pred = np.bincount(idx, weights=w * p, minlength=len(edges))
+    c = core
+    if c is not None and not np.isnan(edges).any():
+        # Bin search and the three weighted bin sums in one compiled pass, in input order as np.bincount.
+        views = [array_view(a, np.float64) for a in (y, p, w)]
+        sums = c.calibration_bins(*(v for _, v in views), [float(e) for e in edges[1:-1]])
+        bin_w, bin_true, bin_pred = (np.array(x) for x in sums)
+    else:
+        idx = np.searchsorted(edges[1:-1], p, side="right")
+        bin_w = np.bincount(idx, weights=w, minlength=len(edges))
+        bin_true = np.bincount(idx, weights=w * y, minlength=len(edges))
+        bin_pred = np.bincount(idx, weights=w * p, minlength=len(edges))
     keep = bin_w > 0
     return bin_true[keep] / bin_w[keep], bin_pred[keep] / bin_w[keep], bin_w[keep]
 

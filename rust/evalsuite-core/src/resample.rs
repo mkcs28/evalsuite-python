@@ -41,10 +41,10 @@ fn splitmix64(state: &mut u64) -> u64 {
 }
 
 /// xoshiro256++ (Blackman & Vigna, 2019).
-struct Xoshiro256pp([u64; 4]);
+pub struct Xoshiro256pp([u64; 4]);
 
 impl Xoshiro256pp {
-    fn new(seed: u64, stream: u64) -> Self {
+    pub fn new(seed: u64, stream: u64) -> Self {
         let mut mix = stream.wrapping_mul(0xD605_BBB5_8C8A_BBDB);
         let mut st = seed ^ splitmix64(&mut mix);
         Xoshiro256pp([
@@ -71,7 +71,7 @@ impl Xoshiro256pp {
 
     /// Uniform integer in `0..bound` (`bound > 0`), unbiased (Lemire's multiply-and-reject).
     #[inline]
-    fn below(&mut self, bound: u64) -> u64 {
+    pub fn below(&mut self, bound: u64) -> u64 {
         let mut m = u128::from(self.next_u64()) * u128::from(bound);
         if (m as u64) < bound {
             let threshold = bound.wrapping_neg() % bound;

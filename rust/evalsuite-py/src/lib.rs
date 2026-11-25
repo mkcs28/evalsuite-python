@@ -9,7 +9,9 @@
 //! loops only compute per-example results; every sum is then taken sequentially in example order, so results
 //! are bit-identical for any number of threads.
 
-use evalsuite_core::{agreement, coco, curve, groups, meteor, resample, ter, text};
+use evalsuite_core::{
+    agreement, coco, curve, groups, meteor, permutation, qa, ranks, resample, surface, ter, text,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -486,6 +488,237 @@ fn curve_scores(
     }))
 }
 
+/// Binary-curve scores `(auc, ap, positive weight, negative weight)` of every bootstrap resample: `y`, `score`
+/// and optional `w` are float64 views of the full data, `indices` an int64 view of `rows × n` resample indices.
+#[pyfunction]
+#[pyo3(signature = (y, score, w, indices, rows))]
+fn bootstrap_curves(
+    py: Python<'_>,
+    y: View,
+    score: View,
+    w: Option<View>,
+    indices: View,
+    rows: usize,
+) -> PyResult<Vec<(f64, f64, f64, f64)>> {
+    let (y, s): (&[f64], &[f64]) = (view(y.0, y.1)?, view(score.0, score.1)?);
+    same_len(y.len(), s.len(), "y and score")?;
+    let w: Option<&[f64]> = match w {
+        Some(v) => {
+            let w: &[f64] = view(v.0, v.1)?;
+            same_len(w.len(), s.len(), "weights and score")?;
+            Some(w)
+        }
+        None => None,
+    };
+    let idx: &[i64] = view(indices.0, indices.1)?;
+    if rows == 0 || idx.len() % rows != 0 {
+        return Err(PyValueError::new_err("indices must hold rows × n entries"));
+    }
+    let len = s.len() as i64;
+    if idx.iter().any(|&i| i < 0 || i >= len) {
+        return Err(PyValueError::new_err("resample index out of range"));
+    }
+    Ok(py.detach(|| curve::bootstrap_curves(y, s, w, idx, rows)))
+}
+
+/// Leave-one-block-out binary-curve scores (jackknife): `group_of` is a uint32 view giving each observation's
+/// block in `0..groups`.
+#[pyfunction]
+#[pyo3(signature = (y, score, w, group_of, groups))]
+fn leave_group_out_curves(
+    py: Python<'_>,
+    y: View,
+    score: View,
+    w: Option<View>,
+    group_of: View,
+    groups: usize,
+) -> PyResult<Vec<(f64, f64, f64, f64)>> {
+    let (y, s): (&[f64], &[f64]) = (view(y.0, y.1)?, view(score.0, score.1)?);
+    same_len(y.len(), s.len(), "y and score")?;
+    let w: Option<&[f64]> = match w {
+        Some(v) => {
+            let w: &[f64] = view(v.0, v.1)?;
+            same_len(w.len(), s.len(), "weights and score")?;
+            Some(w)
+        }
+        None => None,
+    };
+    let g: &[u32] = view(group_of.0, group_of.1)?;
+    same_len(g.len(), s.len(), "group_of and score")?;
+    if g.iter().any(|&x| x as usize >= groups) {
+        return Err(PyValueError::new_err("group index out of range"));
+    }
+    Ok(py.detach(|| curve::leave_group_out_curves(y, s, w, g, groups)))
+}
+
+/// Four float64 byte buffers: tz of positives, tz of negatives, tx, ty.
+type RankBytes<'py> = (
+    Bound<'py, PyBytes>,
+    Bound<'py, PyBytes>,
+    Bound<'py, PyBytes>,
+    Bound<'py, PyBytes>,
+);
+
+/// DeLong rankings of each score column (float64 views) against binary labels (a bool view): per column
+/// `(tz positives, tz negatives, tx, ty)` as float64 bytes, columns in parallel.
+#[pyfunction]
+fn delong_ranks<'py>(
+    py: Python<'py>,
+    positive: View,
+    columns: Vec<View>,
+) -> PyResult<Vec<RankBytes<'py>>> {
+    let p: Vec<bool> = bools(positive)?;
+    let mut cols: Vec<&[f64]> = Vec::with_capacity(columns.len());
+    for c in &columns {
+        let s: &[f64] = view(c.0, c.1)?;
+        same_len(s.len(), p.len(), "scores and labels")?;
+        cols.push(s);
+    }
+    let out: Vec<_> = py.detach(|| {
+        cols.par_iter()
+            .map(|s| ranks::delong_ranks(&p, s))
+            .collect()
+    });
+    Ok(out
+        .into_iter()
+        .map(|(a, b, c, d)| {
+            (
+                f64_bytes(py, &a),
+                f64_bytes(py, &b),
+                f64_bytes(py, &c),
+                f64_bytes(py, &d),
+            )
+        })
+        .collect())
+}
+
+/// Exact-match (`f1 = false`) or token-F1 score per prediction against its references (best reference),
+/// with SQuAD normalisation when `normalize`. `None` when any text is non-ASCII (the caller uses Python).
+#[pyfunction]
+fn qa_scores(
+    py: Python<'_>,
+    preds: Vec<String>,
+    refs: Vec<Vec<String>>,
+    normalize: bool,
+    f1: bool,
+) -> PyResult<Option<Vec<f64>>> {
+    same_len(preds.len(), refs.len(), "predictions and references")?;
+    Ok(py.detach(|| {
+        let prep = |t: &str| -> Option<String> {
+            if normalize {
+                qa::normalize(t)
+            } else if t.is_ascii() {
+                Some(t.to_owned())
+            } else {
+                None
+            }
+        };
+        let p: Option<Vec<String>> = preds.iter().map(|t| prep(t)).collect();
+        let r: Option<Vec<Vec<String>>> = refs
+            .iter()
+            .map(|rs| rs.iter().map(|t| prep(t)).collect())
+            .collect();
+        let (p, r) = (p?, r?);
+        Some(
+            p.par_iter()
+                .zip(r.par_iter())
+                .with_min_len(256)
+                .map(|(h, rs)| {
+                    if f1 {
+                        rs.iter()
+                            .map(|x| qa::f1(h, x))
+                            .fold(f64::NEG_INFINITY, f64::max)
+                    } else {
+                        f64::from(u8::from(rs.iter().any(|x| x == h)))
+                    }
+                })
+                .collect(),
+        )
+    }))
+}
+
+/// SQuAD normalisation of each text; `None` for non-ASCII texts (normalise those in Python).
+#[pyfunction]
+fn squad_normalize(py: Python<'_>, texts: Vec<String>) -> Vec<Option<String>> {
+    py.detach(|| texts.iter().map(|t| qa::normalize(t)).collect())
+}
+
+/// Nearest-surface distances both ways (A→B, B→A, float64 bytes, in `np.argwhere` order of each surface)
+/// between two non-empty binary masks (bool views) of shape `dims` (2 or 3 axes), with `spacing` per axis.
+#[pyfunction]
+fn surface_distances<'py>(
+    py: Python<'py>,
+    a: View,
+    b: View,
+    dims: Vec<usize>,
+    spacing: Vec<f64>,
+) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+    if !(2..=3).contains(&dims.len()) || spacing.len() != dims.len() {
+        return Err(PyValueError::new_err(
+            "masks must have 2 or 3 axes, with one spacing per axis",
+        ));
+    }
+    if spacing.iter().any(|&s| !(s > 0.0 && s.is_finite())) {
+        return Err(PyValueError::new_err("spacing must be positive and finite"));
+    }
+    let size = dims.iter().try_fold(1usize, |acc, &d| acc.checked_mul(d));
+    let (ma, mb) = (bools(a)?, bools(b)?);
+    if size != Some(ma.len()) || ma.len() != mb.len() {
+        return Err(PyValueError::new_err("mask size does not match dims"));
+    }
+    let (da, db) = py.detach(|| {
+        let sa = surface::surface_points(&ma, &dims);
+        let sb = surface::surface_points(&mb, &dims);
+        if sa.is_empty() || sb.is_empty() {
+            return (Vec::new(), Vec::new());
+        }
+        (
+            surface::nearest(&sa, &sb, &dims, &spacing),
+            surface::nearest(&sb, &sa, &dims, &spacing),
+        )
+    });
+    Ok((f64_bytes(py, &da), f64_bytes(py, &db)))
+}
+
+/// Calibration bin sums `(Σw, Σw·y, Σw·p)` per bin (`len(inner_edges) + 2` bins, as `np.bincount` with
+/// `minlength = len(edges)`), from float64 views of `y`, `p` and `w` and the inner bin edges.
+#[pyfunction]
+fn calibration_bins(
+    py: Python<'_>,
+    y: View,
+    p: View,
+    w: View,
+    inner_edges: Vec<f64>,
+) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    let (y, p, w): (&[f64], &[f64], &[f64]) = (view(y.0, y.1)?, view(p.0, p.1)?, view(w.0, w.1)?);
+    same_len(y.len(), p.len(), "y and p")?;
+    same_len(w.len(), p.len(), "weights and p")?;
+    let [a, b, c] = py.detach(|| groups::calibration_bins(y, p, w, &inner_edges));
+    Ok((a, b, c))
+}
+
+/// Permutation-test count for the split statistic `2·Σ_group s − total >= threshold` over groups of size `k`:
+/// every combination when `trials` is `None` (exact), else `trials` seeded random groups.
+#[pyfunction]
+#[pyo3(signature = (s, k, total, threshold, trials=None, seed=0))]
+fn split_permutation_count(
+    py: Python<'_>,
+    s: Vec<f64>,
+    k: usize,
+    total: f64,
+    threshold: f64,
+    trials: Option<usize>,
+    seed: u64,
+) -> PyResult<u64> {
+    if k > s.len() {
+        return Err(PyValueError::new_err("group larger than the items"));
+    }
+    Ok(py.detach(|| match trials {
+        None => permutation::exact_count(&s, k, total, threshold),
+        Some(t) => permutation::random_count(&s, k, total, threshold, t, seed),
+    }))
+}
+
 /// Agreement within each group of answer ids: `(unanimous, equal pairs, pairs, modal count, mode)` per group.
 #[pyfunction]
 fn group_stats(py: Python<'_>, groups: Vec<Vec<u32>>) -> Vec<(bool, u64, u64, u64, u32)> {
@@ -671,6 +904,14 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(code_counts, m)?)?;
     m.add_function(wrap_pyfunction!(bootstrap_indices, m)?)?;
     m.add_function(wrap_pyfunction!(curve_scores, m)?)?;
+    m.add_function(wrap_pyfunction!(bootstrap_curves, m)?)?;
+    m.add_function(wrap_pyfunction!(leave_group_out_curves, m)?)?;
+    m.add_function(wrap_pyfunction!(delong_ranks, m)?)?;
+    m.add_function(wrap_pyfunction!(qa_scores, m)?)?;
+    m.add_function(wrap_pyfunction!(surface_distances, m)?)?;
+    m.add_function(wrap_pyfunction!(calibration_bins, m)?)?;
+    m.add_function(wrap_pyfunction!(split_permutation_count, m)?)?;
+    m.add_function(wrap_pyfunction!(squad_normalize, m)?)?;
     m.add_function(wrap_pyfunction!(group_stats, m)?)?;
     m.add_function(wrap_pyfunction!(count_below, m)?)?;
     m.add_function(wrap_pyfunction!(elo_ratings, m)?)?;

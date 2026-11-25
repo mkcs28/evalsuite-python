@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-25
+
+More statistics, vision and QA work in the compiled core. Every default result is unchanged (bit-identical to
+the Python fallback, checked by `tests/test_native.py`); the new `resampling="native"` option of
+`weat_effect_size` is opt-in.
+
+### Added
+- **Bootstrap of ROC AUC and average precision** (`bootstrap_ci`, `paired_bootstrap_test`, `compare`): every
+  resample's curve in one parallel compiled call. With unit weights a resample is one linear pass over the data's
+  presorted order with multiplicities (counts are exact integers, so no re-sort); with weights each resample is
+  gathered and stably sorted. The BCa jackknife reuses one presort for every left-out block. A 2,000-resample BCa
+  interval on 100,000 observations: 28.9 s → 5.9 s (4.0 s with `resampling="native"`, 2 cores).
+- **DeLong test and DeLong AUC intervals**: one sort per model yields all three mid-rankings (exact
+  half-integers) instead of three SciPy `rankdata` calls: 3×.
+- **QA metrics**: SQuAD answer normalisation, exact match and token F1 in the core for ASCII text (Unicode text
+  keeps Python's case mapping): `token_f1` 6.3×, `exact_match` 2.4×, and `majority_vote_accuracy` normalises in
+  one batch.
+- **Hausdorff distance / HD95 / average symmetric surface distance**: surfaces extracted in parallel and exact
+  nearest-surface distances from a dense-bitmap shell search with an exact k-d tree fallback, using the same
+  arithmetic as the direct comparison: 1.2–6× faster on 2-D and 3-D masks, identical results.
+- **Calibration** (`calibration_curve`, `expected_calibration_error`, and the metrics built on them): bin search
+  and the three weighted bin sums in one pass: 4.4× at 1,000,000 samples.
+- **WEAT permutation test**: exact enumeration of the splits in the core (53×, identical p-values), and
+  opt-in `resampling="native"` for the random splits (26×; seeded and thread-count independent, a different
+  random stream from NumPy's).
+- Tool-call metrics reuse one JSON encoder for their call keys (byte-identical keys, 1.3×).
+- Parity tests for every new kernel, and the thread-count invariance test now covers the new parallel paths.
+
+### Not ported
+- No concordance / C-index metric exists in EvalSuite, so there was nothing to port (adding one is a feature,
+  not a port).
+- Turning words into ids for the text metrics: a compiled interner gave no gain, because the Python 3.9 stable
+  ABI the wheels target has to copy every string, which costs as much as Python's dict lookup.
+- EvalSuite has no fairness module; the multilingual per-language split is a dictionary lookup.
+- Multiple-testing corrections (`adjust_pvalues`): a compiled sort was slower than NumPy 2's SIMD sort at
+  10,000–100,000 p-values and only marginally faster at 1,000,000, so the NumPy code stays.
+
 ## [0.7.0] - 2026-11-24
 
 More of EvalSuite runs in the compiled Rust core. Every result is unchanged: each new kernel is bit-identical to

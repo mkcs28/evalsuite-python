@@ -101,6 +101,10 @@ def resample_indices(
 
 def bootstrap_distribution(call: MetricCall, indices: NDArray[np.int64]) -> tuple[NDArray[np.float64], int]:
     """Metric value on each resample; resamples where the metric is undefined become NaN."""
+    # Binary ROC AUC / average precision: every resample's curve in one parallel compiled call.
+    curves = call.batch_curves(indices)
+    if curves is not None:
+        return curves, int(np.isnan(curves).sum())
     values = np.empty(indices.shape[0])
     failed = 0
     # Confusion-matrix metrics: count every resample's (true, predicted) pairs in one compiled pass.
@@ -119,6 +123,9 @@ def bootstrap_distribution(call: MetricCall, indices: NDArray[np.int64]) -> tupl
 def _jackknife(call: MetricCall, n: int, rng: np.random.Generator, groups: int) -> NDArray[np.float64]:
     """Leave-one-out (or leave-one-group-out for large n) estimates for the BCa acceleration."""
     blocks = [np.array([i]) for i in range(n)] if n <= groups else np.array_split(rng.permutation(n), groups)
+    fast = call.leave_out_curves(blocks)
+    if fast is not None:
+        return fast
     everything = np.arange(n)
     out = np.empty(len(blocks))
     # Confusion-matrix metrics: the counts without a block are the full counts minus the block's.
@@ -317,9 +324,19 @@ def delong_placements(
         from ..core.exceptions import MetricInputError
 
         raise MetricInputError("DeLong's method needs at least one positive and one negative observation.")
-    tx = np.apply_along_axis(stats.rankdata, 1, pos)
-    ty = np.apply_along_axis(stats.rankdata, 1, neg)
-    tz = np.apply_along_axis(stats.rankdata, 1, np.concatenate([pos, neg], axis=1))
+    c = core
+    if c is not None:
+        # One compiled sort per column gives all three rankings (exact half-integer mid-ranks).
+        keep = np.ascontiguousarray(y == 1)
+        cols = [np.ascontiguousarray(row, dtype=np.float64) for row in scores]
+        out = c.delong_ranks(array_view(keep, np.bool_)[1], [array_view(col, np.float64)[1] for col in cols])
+        as_rows = [np.vstack([np.frombuffer(r[j], dtype=np.float64) for r in out]) for j in range(4)]
+        tz = np.concatenate([as_rows[0], as_rows[1]], axis=1)
+        tx, ty = as_rows[2], as_rows[3]
+    else:
+        tx = np.apply_along_axis(stats.rankdata, 1, pos)
+        ty = np.apply_along_axis(stats.rankdata, 1, neg)
+        tz = np.apply_along_axis(stats.rankdata, 1, np.concatenate([pos, neg], axis=1))
     auc = (tz[:, :m].sum(axis=1) - m * (m + 1) / 2) / (m * n)
     v10 = (tz[:, :m] - tx) / n
     v01 = 1.0 - (tz[:, m:] - ty) / m

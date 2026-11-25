@@ -323,10 +323,20 @@ def _unit(x: Any, name: str) -> np.ndarray:
     higher_is_better=None,
 )
 def weat_effect_size(
-    X: Any, Y: Any, A: Any, B: Any, *, n_permutations: int = 10_000, random_state: Optional[int] = None
+    X: Any,
+    Y: Any,
+    A: Any,
+    B: Any,
+    *,
+    n_permutations: int = 10_000,
+    random_state: Optional[int] = None,
+    resampling: str = "numpy",
 ) -> MetricResult:
     """Embeddings (rows) of the two target sets and two attribute sets. The one-sided p-value uses random
-    equal-size re-partitions of X ∪ Y (exact enumeration is used when it is smaller)."""
+    equal-size re-partitions of X ∪ Y (exact enumeration is used when it is smaller, in the compiled core when
+    available, with identical results). ``resampling="native"`` (opt-in) draws the random re-partitions in the
+    compiled core, in parallel: reproducible with ``random_state`` but a different random stream from the
+    default NumPy one, so the p-value differs slightly."""
     x, y, a, b = (_unit(v, n) for v, n in ((X, "X"), (Y, "Y"), (A, "A"), (B, "B")))
     dims = {m.shape[1] for m in (x, y, a, b)}
     if len(dims) != 1:
@@ -342,13 +352,27 @@ def weat_effect_size(
     rng = np.random.default_rng(random_state)
     n, nx = s.size, len(x)
     total = s.sum()
-    if math.comb(n, nx) <= n_permutations:
+    if resampling not in ("numpy", "native"):
+        raise InputValidationError("resampling must be 'numpy' or 'native'.")
+    c = core
+    if resampling == "native" and c is None:
+        raise InputValidationError("resampling='native' needs the compiled core, which is not available.")
+    threshold = float(stat - 1e-12)
+    exact = math.comb(n, nx) <= n_permutations
+    if c is not None and (exact or resampling == "native"):
+        # Exact enumeration is bit-identical to the loop below; random splits only on opt-in.
+        trials = None if exact else int(n_permutations)
+        seed = 0 if exact else int(rng.integers(0, 2**63))
+        hits = c.split_permutation_count(s.tolist(), nx, float(total), threshold, trials, seed)
+        p = hits / (math.comb(n, nx) if exact else int(n_permutations))
+    elif exact:
         from itertools import combinations
 
-        stats_ = np.array([2 * s[list(c)].sum() - total for c in combinations(range(n), nx)])
+        stats_ = np.array([2 * s[list(c_)].sum() - total for c_ in combinations(range(n), nx)])
+        p = float((stats_ >= threshold).mean())
     else:
         stats_ = np.array([2 * s[rng.permutation(n)[:nx]].sum() - total for _ in range(n_permutations)])
-    p = float((stats_ >= stat - 1e-12).mean())
+        p = float((stats_ >= threshold).mean())
     return MetricResult(
         "weat_effect_size", "WEAT effect size", float(d), {"p_value": p, "test_statistic": float(stat)}
     )

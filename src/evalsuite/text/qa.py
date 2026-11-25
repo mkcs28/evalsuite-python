@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .._native import core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -23,6 +24,14 @@ _REF_SQUAD = (
 )
 _ARTICLES = re.compile(r"\b(a|an|the)\b", re.UNICODE)
 _PUNCT = set(string.punctuation)
+
+
+def normalize_answers(texts: list[str]) -> list[str]:
+    """``normalize_answer`` of each text: ASCII texts in the compiled core (one call), others in Python."""
+    c = core
+    if c is None:
+        return [normalize_answer(t) for t in texts]
+    return [n if n is not None else normalize_answer(t) for n, t in zip(c.squad_normalize(texts), texts)]
 
 
 def normalize_answer(text: str) -> str:
@@ -55,6 +64,16 @@ def _f1(pred: str, ref: str) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
+def _native_scores(preds: list[str], refs: list[list[str]], normalize: Any, f1: bool) -> Optional[list[float]]:
+    """Exact match / token F1 per example from the compiled core, for SQuAD (``True``) or no normalisation on
+    ASCII text; None (use Python) without the core, for a custom normaliser or for non-ASCII text."""
+    c = core
+    if c is None or not (normalize is True or normalize is False or normalize is None):
+        return None
+    out: Optional[list[float]] = c.qa_scores(preds, refs, normalize is True, f1)
+    return out
+
+
 def _finish(metric: str, name: str, scores: list[float], average: Optional[str], normalize: Any) -> MetricResult:
     arr = np.array(scores, dtype=float)
     value: Any = arr if average is None else float(arr.mean())
@@ -81,7 +100,9 @@ def exact_match(
     preds = as_texts(predictions, "predictions")
     refs = as_references(references, len(preds))
     f = _norm(normalize)
-    scores = [float(any(f(p) == f(r) for r in rs)) for p, rs in zip(preds, refs)]
+    scores = _native_scores(preds, refs, normalize, f1=False)
+    if scores is None:
+        scores = [float(any(f(p) == f(r) for r in rs)) for p, rs in zip(preds, refs)]
     return _finish("exact_match", "Exact match", scores, average, normalize)
 
 
@@ -104,5 +125,7 @@ def token_f1(
     preds = as_texts(predictions, "predictions")
     refs = as_references(references, len(preds))
     f = _norm(normalize)
-    scores = [max(_f1(f(p), f(r)) for r in rs) for p, rs in zip(preds, refs)]
+    scores = _native_scores(preds, refs, normalize, f1=True)
+    if scores is None:
+        scores = [max(_f1(f(p), f(r)) for r in rs) for p, rs in zip(preds, refs)]
     return _finish("token_f1", "Token F1", scores, average, normalize)

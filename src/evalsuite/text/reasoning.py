@@ -13,7 +13,7 @@ from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
 from ._common import _seq, as_references, check_positive_int, per_item
-from .qa import _norm
+from .qa import _norm, normalize_answers
 
 __all__ = ["benchmark_accuracy", "extract_answer", "majority_vote_accuracy", "pass_at_k"]
 
@@ -88,17 +88,30 @@ def majority_vote_accuracy(
     scores = []
     c = core
     if c is not None:
-        normed = []
         for i, answers in enumerate(groups):
             if isinstance(answers, str) or not answers:
                 raise InputValidationError(f"samples[{i}] must be a non-empty list of answer strings.")
-            normed.append([f(str(a)) for a in answers])
+        if normalize is True:
+            # SQuAD normalisation of every answer and reference in one compiled call.
+            flat = normalize_answers([str(a) for answers in groups for a in answers])
+            normed, pos = [], 0
+            for answers in groups:
+                normed.append(flat[pos : pos + len(answers)])
+                pos += len(answers)
+            ref_norm = normalize_answers([r for rs in refs for r in rs])
+            nrefs, pos = [], 0
+            for rs in refs:
+                nrefs.append(ref_norm[pos : pos + len(rs)])
+                pos += len(rs)
+        else:
+            normed = [[f(str(a)) for a in answers] for answers in groups]
+            nrefs = [[f(r) for r in rs] for rs in refs]
         v = Vocab()
         stats = c.group_stats([v.encode(g) for g in normed])
         table = list(v.ids)
-        for st, rs in zip(stats, refs):
+        for st, rs in zip(stats, nrefs):
             top = table[st[4]]  # the modal answer, first seen among ties, as Counter.most_common
-            scores.append(float(any(top == f(r) for r in rs)))
+            scores.append(float(any(top == r for r in rs)))
     else:
         for i, (answers, rs) in enumerate(zip(groups, refs)):
             if isinstance(answers, str) or not answers:

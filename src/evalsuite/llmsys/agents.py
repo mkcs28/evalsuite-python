@@ -74,8 +74,13 @@ def _trajectories(x: Any, name: str = "trajectories") -> list[list[dict[str, Any
     return out
 
 
+# One reusable encoder: json.dumps(..., sort_keys=True, default=str) builds a new encoder on every call, which
+# dominated the tool-call metrics; the output is byte-identical.
+_KEY_ENCODER = json.JSONEncoder(sort_keys=True, default=str)
+
+
 def _key(call: Mapping[str, Any]) -> str:
-    return json.dumps([call["name"], call["arguments"]], sort_keys=True, default=str)
+    return _KEY_ENCODER.encode([call["name"], call["arguments"]])
 
 
 @register(

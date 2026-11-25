@@ -80,6 +80,20 @@ pub fn row_stats(row: &[f64]) -> (f64, f64, f64, u64) {
     (crate::curve::np_sum(row), lo, hi, pos)
 }
 
+/// Calibration bins in one pass: each probability's bin is `searchsorted(inner_edges, p, side="right")`, and
+/// per bin the sums of `w`, `w·y` and `w·p` are accumulated in input order (as `np.bincount` with weights).
+pub fn calibration_bins(y: &[f64], p: &[f64], w: &[f64], inner_edges: &[f64]) -> [Vec<f64>; 3] {
+    let k = inner_edges.len() + 2;
+    let (mut bw, mut bt, mut bp) = (vec![0.0f64; k], vec![0.0f64; k], vec![0.0f64; k]);
+    for i in 0..p.len() {
+        let b = inner_edges.partition_point(|&e| e <= p[i]);
+        bw[b] += w[i];
+        bt[b] += w[i] * y[i];
+        bp[b] += w[i] * p[i];
+    }
+    [bw, bt, bp]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

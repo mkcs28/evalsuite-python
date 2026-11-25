@@ -11,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .._native import array_view, core
-from ..core.exceptions import InputValidationError, StatisticalTestError
+from ..core.exceptions import EvalSuiteError, InputValidationError, StatisticalTestError
 from ..core.validation import target_type, to_numpy
 
 MetricFn = Callable[..., Any]
@@ -202,6 +202,78 @@ class MetricCall:
         del codes, idx
         counts: NDArray[np.uint64] = np.frombuffer(raw, dtype=np.uint64).reshape(indices.shape[0], kk)
         return counts
+
+    def _curve_inputs(self) -> Optional[tuple[Any, ...]]:
+        """(core, target, score, weights or None) when this call is binary ROC AUC / average precision with class
+        labels fixed across subsets (so a subset's 0/1 target is the full target at its indices), else None."""
+        from ..classification.metrics import _binary_target, _ctx, average_precision, roc_auc
+
+        c = core
+        if c is None or self.items or self.fn not in (roc_auc, average_precision):
+            return None
+        kw = self.kwargs
+        if "labels" not in kw or set(kw) - {"labels", "pos_label", "average", "multi_class"}:
+            return None
+        if kw.get("multi_class", "ovr") != "ovr" or kw.get("average", "auto") not in ("auto", "macro", "binary"):
+            return None
+        try:
+            ctx = _ctx(self.y_true, None, y_prob=self.second, labels=kw["labels"], sample_weight=self.weight)
+            if ctx.target_type != "binary":
+                return None
+            target = _binary_target(ctx, kw.get("pos_label"))
+        except EvalSuiteError:
+            return None
+        score = np.ascontiguousarray(ctx.y_prob, dtype=np.float64)
+        w = None if self.weight is None else np.ascontiguousarray(ctx.weights, dtype=np.float64)
+        return c, np.ascontiguousarray(target, dtype=np.float64), score, w
+
+    def _curve_values(self, stats: list[tuple[float, float, float, float]]) -> NDArray[np.float64]:
+        from ..classification.metrics import roc_auc
+
+        out = np.empty(len(stats))
+        for b, (auc, ap, tp, fp) in enumerate(stats):
+            if self.fn is roc_auc:
+                out[b] = auc if tp != 0 and fp != 0 else np.nan
+            else:
+                out[b] = ap if tp != 0 else np.nan
+        return out
+
+    def batch_curves(self, indices: NDArray[np.int64]) -> Optional[NDArray[np.float64]]:
+        """Binary ROC AUC or average precision on every resample at once (compiled core, resamples in parallel),
+        NaN where undefined; None when not applicable (the caller evaluates resamples one by one). Bit-identical
+        to calling the metric on each resample."""
+        inputs = self._curve_inputs() if indices.ndim == 2 and indices.shape[0] else None
+        if inputs is None:
+            return None
+        c, target, score, w = inputs
+        idx, idx_v = array_view(indices, np.int64)
+        stats = c.bootstrap_curves(
+            array_view(target, np.float64)[1],
+            array_view(score, np.float64)[1],
+            None if w is None else array_view(w, np.float64)[1],
+            idx_v,
+            idx.shape[0],
+        )
+        return self._curve_values(stats)
+
+    def leave_out_curves(self, blocks: list[NDArray[Any]]) -> Optional[NDArray[np.float64]]:
+        """The metric without each block (jackknife), all blocks at once in the compiled core; None if not
+        applicable. Bit-identical to calling the metric on the kept observations."""
+        inputs = self._curve_inputs() if blocks else None
+        if inputs is None:
+            return None
+        c, target, score, w = inputs
+        group_of = np.empty(self.n, dtype=np.uint32)
+        for g, block in enumerate(blocks):
+            group_of[block] = g
+        stats = c.leave_group_out_curves(
+            array_view(target, np.float64)[1],
+            array_view(score, np.float64)[1],
+            None if w is None else array_view(w, np.float64)[1],
+            array_view(group_of, np.uint32)[1],
+            len(blocks),
+        )
+        return self._curve_values(stats)
 
     def from_counts(self, counts: NDArray[Any], idx: Optional[NDArray[np.int64]] = None) -> float:
         """The metric on observations summarised by ``counts`` (equal to calling it on them directly)."""

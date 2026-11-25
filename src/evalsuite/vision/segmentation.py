@@ -36,6 +36,7 @@ else:
 
     ndimage = lazy_module("scipy.ndimage")
 
+from .._native import array_view, core
 from ..core.exceptions import InputValidationError, UndefinedMetricWarning
 from ..core.export import PathLike, csv_text, html_document, html_table, save_as
 from ..core.registry import register
@@ -559,6 +560,21 @@ def _surface_distances(
     return np.asarray(d_ab, dtype=np.float64), np.asarray(d_ba, dtype=np.float64)
 
 
+def _native_surface_distances(
+    a: NDArray[np.bool_], b: NDArray[np.bool_], spacing: Optional[Sequence[float]]
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Surface distances of two non-empty masks: the compiled core for 2-D and 3-D masks (surfaces and an
+    exact grid nearest-point search, same arithmetic as the direct comparison), Python otherwise."""
+    c = core
+    if c is None or a.ndim not in (2, 3):
+        return _surface_distances(_surface(a), _surface(b), spacing)
+    sp = [1.0] * a.ndim if spacing is None else [float(x) for x in spacing]
+    _a, va = array_view(a, np.bool_)
+    _b, vb = array_view(b, np.bool_)
+    da, db = c.surface_distances(va, vb, list(a.shape), sp)
+    return np.frombuffer(da, dtype=np.float64), np.frombuffer(db, dtype=np.float64)
+
+
 def _check_spacing(spacing: Optional[Sequence[float]], ndim: int) -> Optional[tuple[float, ...]]:
     if spacing is None:
         return None
@@ -604,7 +620,7 @@ def _surface_metric(
                 values[i, j] = math.inf
                 one_empty += 1
                 continue
-            d_ab, d_ba = _surface_distances(_surface(ta), _surface(pb), sp)
+            d_ab, d_ba = _native_surface_distances(ta, pb, sp)
             if which == "hd":
                 if percentile == 100:
                     values[i, j] = max(float(np.max(d_ab)), float(np.max(d_ba)))

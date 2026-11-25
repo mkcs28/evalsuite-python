@@ -7,8 +7,8 @@ authors:
     given-names: "Manoj Kumar"
   - family-names: "Bharadwaj"
     given-names: "Nikhil D"
-version: "0.7.0"
-date-released: "2026-11-24"
+version: "0.7.1"
+date-released: 2026-11-25
 license:
   - MIT
   - Apache-2.0
