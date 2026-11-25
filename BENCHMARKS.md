@@ -374,3 +374,32 @@ Each metric is compared with a reference library where one exists, otherwise wit
 | `uncertainty.coverage_at_risk` | NumPy formula | 0.057 | 0.035 | 0.61× | 0.831 | 0.753 | 0.91× | 0.0e+00 |
 | `uncertainty.risk_at_coverage` | NumPy formula | 0.049 | 0.025 | 0.51× | 0.842 | 0.678 | 0.81× | 0.0e+00 |
 | `uncertainty.selective_risk` | NumPy formula | 0.035 | 0.023 | 0.67× | 0.727 | 0.690 | 0.95× | 0.0e+00 |
+
+## Rust crate (0.8.5)
+
+`cargo bench -p evalsuite` (Criterion, medians) against the Python package with its compiled core on the
+same workloads and machine (2 vCPUs, Linux x86_64, Python 3.13, NumPy 2.5). The values agree within the parity
+tolerance; only the time differs.
+
+| Workload | Rust | Python | Speed-up |
+| --- | ---: | ---: | ---: |
+| Accuracy, 100,000 / 1,000,000 labels | 0.033 / 0.73 ms | 0.69 / 7.9 ms | 21× / 10.8× |
+| Macro F1, 5 classes, 100,000 / 1,000,000 | 1.1 / 13.5 ms | 1.5 / 9.9 ms | 1.3× / 0.7× |
+| ROC AUC, 100,000 / 1,000,000 | 6.9 / 121 ms | 9.4 / 125 ms | 1.4× / 1.0× |
+| RMSE, 1,000,000 | 4.3 ms | 6.0 ms | 1.4× |
+| R², 1,000,000 | 8.3 ms | 9.5 ms | 1.2× |
+| Median absolute error, 1,000,000 | 8.5 ms | 17.5 ms | 2.1× |
+| BCa bootstrap of MAE, 10,000 obs × 2,000 resamples | 100 ms | 362 ms | 3.6× |
+| Mann–Whitney U, 10,000 | 0.68 ms | 0.83 ms | 1.2× |
+| Welch t-test, 10,000 | 0.064 ms | 0.105 ms | 1.6× |
+| BLEU, 1,000 sentences | 11.6 ms | 7.7 ms | 0.7× |
+| chrF, 1,000 sentences | 16.0 ms | 11.4 ms | 0.7× |
+| TER, 1,000 sentences | 205 ms | 128 ms | 0.6× |
+| ROUGE-L, 1,000 sentences | 5.2 ms | 5.0 ms | 1.0× |
+| NDCG@10, 10,000 queries | 4.7 ms | 71 ms | 15.3× |
+| MRR, 10,000 queries | 4.1 ms | 42 ms | 10.4× |
+| Dice, 512 × 512 | 2.2 ms | 4.5 ms | 2.0× |
+| HD95, 512 × 512 | 3.5 ms | 2.1 ms | 0.6× |
+
+The Python retrieval metrics now run through the same Rust code with bit-identical results: NDCG@10 on 10,000
+queries 112 ms → 32 ms, MRR 84 ms → 25 ms, Precision@k 74 ms → 23 ms.

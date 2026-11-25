@@ -190,13 +190,6 @@ impl<L: Label> Ctx<L> {
                             return i;
                         }
                     }
-                    // A handful of classes (the common case): a linear scan beats hashing.
-                    if distinct.len() <= 8 {
-                        if let Some(i) = distinct.iter().position(|d| *d == x) {
-                            last = Some((x, i));
-                            return i;
-                        }
-                    }
                     let n = distinct.len();
                     let i = *ids.entry(x).or_insert_with(|| {
                         distinct.push(x);

@@ -876,6 +876,182 @@ fn num_threads() -> usize {
     rayon::current_num_threads()
 }
 
+/// Ranked-retrieval scores per query (precision / recall / hit rate @k, MRR, AP, NDCG) straight from the
+/// Python objects: the judgements and rankings are validated and looked up with Python's own `dict` / `set`
+/// semantics (hash and `==`), without the interpreter loop. Returns `(validation error, per-query scores,
+/// queries without relevant documents)`; arithmetic follows the Python code operation by operation (Python's
+/// `sum()` included), so the scores are bit-identical.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn retrieval_scores(
+    py: Python<'_>,
+    kind: &str,
+    relevant: Vec<Bound<'_, PyAny>>,
+    retrieved: Vec<Bound<'_, PyAny>>,
+    k: Option<usize>,
+    exponential: bool,
+    compensated: bool,
+) -> PyResult<(Option<String>, Vec<f64>, Vec<usize>)> {
+    use pyo3::types::{PyBytes as Bytes, PyDict, PyFloat, PySet, PyString};
+    if relevant.len() != retrieved.len() {
+        return Ok((
+            Some(format!(
+                "relevant and retrieved must have one entry per query. Received {} and {}.",
+                relevant.len(),
+                retrieved.len()
+            )),
+            vec![],
+            vec![],
+        ));
+    }
+    let mapping = py.import("collections.abc")?.getattr("Mapping")?;
+    let generic = py.import("numpy")?.getattr("generic")?;
+    let float = py.import("builtins")?.getattr("float")?;
+    let mut queries: Vec<(Bound<'_, PyDict>, Vec<Bound<'_, PyAny>>)> =
+        Vec::with_capacity(relevant.len());
+    for (i, (r, d)) in relevant.iter().zip(&retrieved).enumerate() {
+        let judged = PyDict::new(py);
+        if r.is_instance(&mapping)? {
+            for item in r.call_method0("items")?.try_iter()? {
+                let (key, v): (Bound<'_, PyAny>, Bound<'_, PyAny>) = item?.extract()?;
+                let g: f64 = float.call1((&v,))?.cast_into::<PyFloat>()?.value();
+                if !g.is_finite() || g < 0.0 {
+                    return Ok((
+                        Some(format!(
+                            "relevant[{i}]: relevance grades must be finite and >= 0; got {} for {}.",
+                            v.repr()?,
+                            key.repr()?
+                        )),
+                        vec![],
+                        vec![],
+                    ));
+                }
+                if g > 0.0 {
+                    judged.set_item(key, g)?;
+                }
+            }
+        } else if r.is_instance_of::<PyString>() || r.is_instance_of::<Bytes>() {
+            return Ok((
+                Some(format!(
+                    "relevant[{i}] must be a set, list or mapping of relevant ids, not a string."
+                )),
+                vec![],
+                vec![],
+            ));
+        } else {
+            for key in r.try_iter()? {
+                judged.set_item(key?, 1.0)?;
+            }
+        }
+        if d.is_instance_of::<PyString>()
+            || d.is_instance_of::<Bytes>()
+            || !d.hasattr("__iter__")?
+        {
+            return Ok((
+                Some(format!("retrieved[{i}] must be a ranked list of ids.")),
+                vec![],
+                vec![],
+            ));
+        }
+        let ranking: Vec<Bound<'_, PyAny>> = d.try_iter()?.collect::<PyResult<_>>()?;
+        let seen = PySet::empty(py)?;
+        for x in &ranking {
+            if x.is_instance(&generic)? {
+                seen.add(x.call_method0("item")?)?;
+            } else {
+                seen.add(x)?;
+            }
+        }
+        if seen.len() != ranking.len() {
+            return Ok((
+                Some(format!("retrieved[{i}] lists the same id more than once.")),
+                vec![],
+                vec![],
+            ));
+        }
+        queries.push((judged, ranking));
+    }
+    let empty: Vec<usize> = queries
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.0.is_empty())
+        .map(|(i, _)| i)
+        .collect();
+    let needs_relevant = matches!(kind, "recall" | "map" | "ndcg");
+    if needs_relevant && !empty.is_empty() {
+        return Ok((None, vec![], empty));
+    }
+    let mut scores = Vec::with_capacity(queries.len());
+    for (rel, run) in &queries {
+        let top = match k {
+            Some(k) => &run[..k.min(run.len())],
+            None => &run[..],
+        };
+        let score = match kind {
+            "precision" | "recall" | "hit" => {
+                let mut hits = 0usize;
+                for x in top {
+                    hits += usize::from(rel.contains(x)?);
+                }
+                match kind {
+                    "precision" => hits as f64 / k.unwrap_or(1) as f64,
+                    "recall" => hits as f64 / rel.len() as f64,
+                    _ => f64::from(u8::from(hits > 0)),
+                }
+            }
+            "mrr" => {
+                let mut rr = 0.0;
+                for (i, x) in top.iter().enumerate() {
+                    if rel.contains(x)? {
+                        rr = 1.0 / (i + 1) as f64;
+                        break;
+                    }
+                }
+                rr
+            }
+            "map" => {
+                let (mut hits, mut total) = (0usize, 0.0f64);
+                for (i, x) in top.iter().enumerate() {
+                    if rel.contains(x)? {
+                        hits += 1;
+                        total += hits as f64 / (i + 1) as f64;
+                    }
+                }
+                total / rel.len() as f64
+            }
+            "ndcg" => {
+                let g = |x: f64| if exponential { 2.0f64.powf(x) - 1.0 } else { x };
+                let mut dcg = text::PySum::new(compensated);
+                for (i, x) in top.iter().enumerate() {
+                    let grade = match rel.get_item(x)? {
+                        Some(v) => v.extract::<f64>()?,
+                        None => 0.0,
+                    };
+                    dcg.add(g(grade) / ((i + 2) as f64).log2());
+                }
+                let mut ideal: Vec<f64> = rel
+                    .values()
+                    .iter()
+                    .map(|v| v.extract::<f64>())
+                    .collect::<PyResult<_>>()?;
+                // `sorted(..., reverse=True)` is stable; equal grades are interchangeable here.
+                ideal.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+                if let Some(k) = k {
+                    ideal.truncate(k);
+                }
+                let mut idcg = text::PySum::new(compensated);
+                for (i, x) in ideal.iter().enumerate() {
+                    idcg.add(g(*x) / ((i + 2) as f64).log2());
+                }
+                dcg.value() / idcg.value()
+            }
+            _ => return Err(PyValueError::new_err("unknown retrieval metric")),
+        };
+        scores.push(score);
+    }
+    Ok((None, scores, empty))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // EVALSUITE_NUM_THREADS caps the worker threads (default: one per CPU core). Read once, at import.
@@ -921,5 +1097,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(codebleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(distinct_ngrams, m)?)?;
     m.add_function(wrap_pyfunction!(num_threads, m)?)?;
+    m.add_function(wrap_pyfunction!(retrieval_scores, m)?)?;
     Ok(())
 }

@@ -27,6 +27,7 @@ from evalsuite.text import generation as generation_mod
 from evalsuite.text import judge as judge_mod
 from evalsuite.text import qa as qa_mod
 from evalsuite.text import reasoning as reasoning_mod
+from evalsuite.text import retrieval as retrieval_mod
 from evalsuite.vision import detection as detection_mod
 from evalsuite.vision import segmentation as segmentation_mod
 
@@ -48,6 +49,7 @@ def pure_python():
         intervals_mod,
         qa_mod,
         segmentation_mod,
+        retrieval_mod,
     )
     saved = [m.core for m in mods], resolve_mod.MetricCall._setup_compression
     for m in mods:
@@ -608,3 +610,57 @@ def test_weat_exact_matches_python_and_native_is_seeded():
     b = es.weat_effect_size(X, Y, A, B, random_state=3, resampling="native").params["p_value"]
     c = es.weat_effect_size(X, Y, A, B, random_state=3).params["p_value"]
     assert a == b and abs(a - c) < 0.05
+
+
+@needs_core
+def test_retrieval_matches_python_exactly():
+    rng = random.Random(7)  # noqa: S311  (test data)
+    ids = [0, 1, 2, 3, "a", "b", 2.0, np.int64(1), np.str_("a"), (1, 2), None, True]
+    funcs = [
+        lambda r, d, k: es.precision_at_k(r, d, k=k or 3, average=None),
+        lambda r, d, k: es.recall_at_k(r, d, k=k or 3, average=None),
+        lambda r, d, k: es.hit_rate_at_k(r, d, k=k or 3, average=None),
+        lambda r, d, k: es.mrr(r, d, k=k, average=None),
+        lambda r, d, k: es.mean_average_precision_at_k(r, d, k=k, average=None),
+        lambda r, d, k: es.ndcg_at_k(r, d, k=k, average=None),
+        lambda r, d, k: es.ndcg_at_k(r, d, k=k, gains="exponential"),
+        lambda r, d, k: es.mrr(r, d, k=k),
+    ]
+    for _ in range(400):
+        n = rng.randint(1, 6)
+        relevant, retrieved = [], []
+        for _ in range(n):
+            form = rng.random()
+            pool = rng.sample(ids, rng.randint(0, 5))
+            if form < 0.4:
+                relevant.append(set(map(lambda x: x if not isinstance(x, np.generic) else x.item(), pool)))
+            elif form < 0.7:
+                relevant.append(
+                    {x: rng.choice([0, 1, 2, 0.5, 3.25, True, "2"]) for x in pool if not isinstance(x, np.generic)}
+                )
+            else:
+                relevant.append(list(pool))
+            run = rng.sample(ids, rng.randint(0, 8))
+            if rng.random() < 0.05 and run:
+                run.append(run[0])  # duplicate id
+            retrieved.append(run if rng.random() > 0.03 else "abc")
+        if rng.random() < 0.03:
+            relevant[0] = {"x": -1.0}
+        k = rng.choice([None, 1, 2, 5, 10])
+        for f in funcs:
+            a, b = both(lambda f=f, r=relevant, d=retrieved, k=k: f(r, d, k).value)
+            assert_same(a, b)
+
+
+@needs_core
+def test_retrieval_large_and_errors():
+    rng = np.random.default_rng(3)
+    rel = [{int(i): float(g) for i, g in zip(rng.integers(0, 50, 6), rng.integers(0, 4, 6))} for _ in range(500)]
+    run = [rng.permutation(50)[: rng.integers(1, 30)].tolist() for _ in range(500)]
+    for k in (None, 3, 10):
+        for g in ("linear", "exponential"):
+            assert_same(*both(lambda k=k, g=g: es.ndcg_at_k(rel, run, k=k, gains=g, average=None).value))
+        assert_same(*both(lambda k=k: es.mean_average_precision_at_k(rel, run, k=k, average=None).value))
+    for r, d in ((["abc"], [[1]]), ([{1: 1}], [[1, 1]]), ([{1: "x"}], [[1]]), ([[[1]]], [[1]]), ([[1]], ["ab"])):
+        a, b = both(lambda r=r, d=d: es.mrr(r, d).value)
+        assert a == b and a[0] == "error"
