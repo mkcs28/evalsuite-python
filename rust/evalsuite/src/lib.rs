@@ -24,6 +24,7 @@ pub mod classification;
 pub mod clinical;
 pub mod detection;
 pub mod error;
+pub mod generation;
 pub mod labels;
 pub mod regression;
 pub mod retrieval;

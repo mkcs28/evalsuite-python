@@ -455,6 +455,60 @@ def detection(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+_WORDS = ("the a cat dog sat on mat quickly , . ! ? it's 3.5 e-mail don't New York run running runs "
+          "jumped &amp; <skipped> x-1 1,000 (test) [ok] \"quote\" éclair ﬁne ßtraße").split(" ")
+
+
+def _sentence(rng: np.random.Generator, lo: int = 0, hi: int = 18) -> str:
+    return " ".join(rng.choice(_WORDS) for _ in range(int(rng.integers(lo, hi))))
+
+
+@group("generation")
+def generation(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(30):
+        n = int(rng.integers(1, 25))
+        preds = [_sentence(rng) for _ in range(n)]
+        refs = [[_sentence(rng) for _ in range(int(rng.integers(1, 4)))] for _ in range(n)]
+        if t % 3 == 0:
+            refs = [[p] + rs[1:] for p, rs in zip(preds, refs)]
+        if t % 5 == 0:
+            refs = [[r.replace(" ", "\n", 2) for r in rs] for rs in refs]
+        a = {"references": refs, "predictions": preds}
+        for smooth in ("exp", "floor", "add-k", "none"):
+            for lc in (False, True):
+                out.append(case("bleu", lambda smooth=smooth, lc=lc: es.bleu(refs, preds, smooth=smooth, lowercase=lc), **a, smooth=smooth, lowercase=lc, tokenize="13a"))
+        out.append(case("bleu", lambda: es.bleu(refs, preds, tokenize="none"), **a, smooth="exp", lowercase=False, tokenize="none"))
+        out.append(case("sentence_bleu", lambda: es.sentence_bleu(refs, preds, average=None), **a))
+        if n >= 2:
+            out.append(case("self_bleu", lambda: es.self_bleu(preds), predictions=preds))
+        for wo in (0, 2):
+            for lc in (False, True):
+                out.append(case("chrf", lambda wo=wo, lc=lc: es.chrf(refs, preds, word_order=wo, lowercase=lc), **a, word_order=wo, lowercase=lc, whitespace=False))
+        out.append(case("chrf", lambda: es.chrf(refs, preds, whitespace=True, eps_smoothing=True), **a, word_order=0, lowercase=False, whitespace=True, eps_smoothing=True))
+        for cs in (False, True):
+            out.append(case("ter", lambda cs=cs: es.ter(refs, preds, case_sensitive=cs), **a, case_sensitive=cs))
+        for name in ("rouge_1", "rouge_2", "rouge_l", "rouge_lsum"):
+            fn = getattr(es, name)
+            for measure in ("fmeasure", "precision", "recall"):
+                out.append(case(name, lambda fn=fn, measure=measure: fn(refs, preds, measure=measure, average=None), **a, measure=measure))
+        out.append(case("meteor", lambda: es.meteor(refs, preds, stemmer=None, average=None), **a))
+        out.append(case("meteor", lambda: es.meteor(refs, preds, stemmer=None, alpha=0.7, beta=2.0, gamma=0.3, tokenize="13a", average=None),
+                        **a, alpha=0.7, beta=2.0, gamma=0.3, tokenize="13a"))
+        for lc in (False, True):
+            out.append(case("cider", lambda lc=lc: es.cider(refs, preds, lowercase=lc, average=None), **a, lowercase=lc))
+        for k in (1, 2, 3):
+            out.append(case("distinct_n", lambda k=k: es.distinct_n(preds, n=k, lowercase=bool(t % 2)), predictions=preds, n=k, lowercase=bool(t % 2)))
+        lp = [(-rng.exponential(1.0, int(rng.integers(1, 30)))).round(4) for _ in range(int(rng.integers(1, 6)))]
+        out.append(case("cross_entropy", lambda: es.cross_entropy(lp, base=2), token_logprobs=lp, base=2))
+        for avg in ("tokens", "sequences"):
+            out.append(case("perplexity", lambda avg=avg: es.perplexity(lp, average=avg), token_logprobs=lp, average=avg))
+    for line in ["Hello, world!", "3.5 e-mail x-1 1,000.", "&quot;a&quot; &amp; b<skipped>", "end-\nline", "a.b,c", "(ok) [no] {x}"]:
+        from evalsuite.text.generation import _tok_13a
+        out.append(case("tokenize_13a", lambda line=line: [len(_tok_13a(line))] + [ord(c) for c in "\x00".join(_tok_13a(line))], line=line))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
