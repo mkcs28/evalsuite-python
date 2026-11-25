@@ -27,6 +27,7 @@ pub mod detection;
 pub mod error;
 pub mod generation;
 pub mod json_schema;
+pub mod judge;
 pub mod labels;
 pub mod qa;
 pub mod regression;

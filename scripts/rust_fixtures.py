@@ -661,6 +661,53 @@ def qa(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- judge ---------------------------------------------------------------------------------------------
+@group("judge")
+def judge(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(60):
+        n = int(rng.integers(2, 30))
+        oc = [[0.0, 0.5, 1.0][int(i)] for i in rng.integers(0, 3, n)]
+        for ties in ("half", "exclude"):
+            for key in ("value", "ci_low", "ci_high"):
+                out.append(case("win_rate." + key, lambda o=oc, t=ties, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.win_rate(o, ties=t)), outcomes=oc, ties=ties))
+        m = int(rng.integers(2, 6))
+        comps = [[f"m{int(a)}", f"m{int(b)}", [0.0, 0.5, 1.0][int(rng.integers(0, 3))]] for a, b in rng.integers(0, m, (int(rng.integers(1, 60)), 2))]
+        for sc in ("log", "elo"):
+            out.append(case("bradley_terry", lambda c=comps, sc=sc: es.bradley_terry(c, scale=sc), comparisons=comps, scale=sc))
+        kk = float(rng.choice([4.0, 16.0, 32.0]))
+        out.append(case("elo_ratings", lambda c=comps, kk=kk: es.elo_ratings(c, k=kk), comparisons=comps, k=kk))
+        raters, items = int(rng.integers(2, 5)), int(rng.integers(1, 15))
+        rat = rng.integers(1, int(rng.integers(2, 6)), (raters, items)).astype(float)
+        rat[rng.random(rat.shape) < 0.2] = np.nan
+        for lv in ("nominal", "ordinal", "interval", "ratio"):
+            out.append(case("krippendorff_alpha", lambda r=rat, lv=lv: es.krippendorff_alpha(r, level=lv), ratings=rat, level=lv))
+        fl = rng.integers(0, int(rng.integers(1, 4)), (items, raters)).tolist()
+        out.append(case("fleiss_kappa", lambda f=fl: es.fleiss_kappa(f), ratings=fl))
+        j = rng.integers(1, 6, n).tolist()
+        h = [x if rng.random() < 0.6 else int(rng.integers(1, 6)) for x in j]
+        out.append(case("judge_agreement.categorical", lambda j=j, h=h: es.judge_agreement(j, h), judge=j, human=h))
+        for key in ("value", "spearman"):
+            out.append(case("judge_agreement.ordinal." + key, lambda j=j, h=h, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.judge_agreement(j, h, kind="ordinal")), judge=j, human=h))
+        jc, hc = rng.normal(size=n).round(3).tolist(), rng.normal(size=n).round(3).tolist()
+        for key in ("value", "spearman"):
+            out.append(case("judge_agreement.continuous." + key, lambda j=jc, h=hc, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.judge_agreement(j, h, kind="continuous")), judge=jc, human=hc))
+        vo = [["A", "B", "tie"][int(i)] for i in rng.integers(0, 3, n)]
+        vs = [x if rng.random() < 0.5 else ["A", "B", "tie"][int(rng.integers(0, 3))] for x in vo]
+        for key in ("value", "first_position_rate", "second_position_rate"):
+            out.append(case("position_consistency." + key, lambda o=vo, s=vs, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.position_consistency(o, s)), original=vo, swapped=vs))
+        la, lb = rng.integers(1, 6, n).tolist(), rng.integers(1, 6, n).tolist()
+        for key in ("value", "p_value"):
+            out.append(case("verbosity_bias." + key, lambda w=vo, a=la, b=lb, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.verbosity_bias(w, a, b)), winners=vo, length_a=la, length_b=lb))
+        jp, hp = [bool(x) for x in rng.integers(0, 2, n)], [bool(x) for x in rng.integers(0, 2, n)]
+        for key in ("value", "p_value"):
+            out.append(case("self_preference_bias." + key, lambda j=jp, h=hp, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.self_preference_bias(j, h)), judge=jp, human=hp))
+        sc_ = rng.integers(1, 6, (n, int(rng.integers(1, 4)))).astype(float).tolist()
+        out.append(case("rubric_score", lambda s=sc_: es.rubric_score(s), scores=sc_))
+        out.append(case("rubric_score.per_criterion", lambda s=sc_: list(es.rubric_score(s).params["per_criterion"].values()), scores=sc_))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
