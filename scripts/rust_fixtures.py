@@ -371,6 +371,90 @@ def stats_group(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+def _blob(rng: np.random.Generator, shape: tuple[int, ...], k: int) -> np.ndarray:
+    m = np.zeros(shape, dtype=np.int64)
+    grid = np.ogrid[tuple(slice(0, s) for s in shape)]
+    for c in range(1, k):
+        for _ in range(int(rng.integers(0, 3))):
+            ctr = [int(rng.integers(0, s)) for s in shape]
+            rad = int(rng.integers(1, max(2, min(shape) // 3)))
+            m[sum((g - ci) ** 2 for g, ci in zip(grid, ctr)) <= rad * rad] = c
+    return m
+
+
+@group("segmentation")
+def segmentation(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(24):
+        shape = (int(rng.integers(5, 40)), int(rng.integers(5, 40))) if t % 3 else (int(rng.integers(4, 14)),) * 3
+        k = int(rng.integers(2, 5))
+        n_img = int(rng.integers(1, 4))
+        yt = [_blob(rng, shape, k) for _ in range(n_img)]
+        yp = [np.where(rng.random(shape) < 0.85, m, rng.integers(0, k, shape)) for m in yt]
+        ign = 9 if t % 4 == 0 else None
+        if ign is not None:
+            for m in yt:
+                m[rng.random(shape) < 0.05] = ign
+        imgs = {"y_true": [m.tolist() for m in yt], "y_pred": [m.tolist() for m in yp], "shape": list(shape), "ignore_index": ign}
+        for name in ("dice", "iou"):
+            fn = getattr(es, name)
+            for avg in ("macro", "micro", "weighted", None):
+                for agg in ("dataset", "image"):
+                    for empty in ("ignore", 1.0):
+                        out.append(case(name, lambda fn=fn, avg=avg, agg=agg, empty=empty: fn(yt, yp, num_classes=k, ignore_index=ign, average=avg, aggregate=agg, empty=empty),
+                                        **imgs, num_classes=k, average=avg or "none", aggregate=agg, empty=empty))
+        out.append(case("pixel_accuracy", lambda: es.pixel_accuracy(yt, yp, ignore_index=ign), **imgs))
+        out.append(case("mean_pixel_accuracy", lambda: es.mean_pixel_accuracy(yt, yp, num_classes=k, ignore_index=ign), **imgs, num_classes=k))
+        for avg in ("macro", None):
+            out.append(case("boundary_iou", lambda avg=avg: es.boundary_iou(yt, yp, num_classes=k, ignore_index=ign, average=avg, dilation_ratio=0.05),
+                            **imgs, num_classes=k, average=avg or "none"))
+            sp = None if t % 2 else [0.7, 1.3, 1.1][: len(shape)]
+            out.append(case("hausdorff_distance", lambda avg=avg, sp=sp: es.hausdorff_distance(yt, yp, num_classes=k, ignore_index=ign, average=avg, spacing=sp),
+                            **imgs, num_classes=k, average=avg or "none", spacing=sp, percentile=100))
+            out.append(case("hausdorff_distance", lambda avg=avg, sp=sp: es.hausdorff_distance(yt, yp, num_classes=k, ignore_index=ign, average=avg, spacing=sp, percentile=95),
+                            **imgs, num_classes=k, average=avg or "none", spacing=sp, percentile=95))
+            out.append(case("average_surface_distance", lambda avg=avg, sp=sp: es.average_surface_distance(yt, yp, num_classes=k, ignore_index=ign, average=avg, spacing=sp),
+                            **imgs, num_classes=k, average=avg or "none", spacing=sp))
+    return out
+
+
+@group("detection")
+def detection(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(25):
+        imgs_t, imgs_p = [], []
+        for _ in range(int(rng.integers(1, 8))):
+            g = int(rng.integers(0, 8))
+            xy = rng.uniform(0, 300, (g, 2))
+            wh = rng.uniform(5, 150, (g, 2))
+            gb = np.round(np.hstack([xy, xy + wh]), 1)
+            gl = rng.integers(0, 3, g)
+            crowd = rng.random(g) < 0.1
+            keep = rng.random(g) < 0.8
+            db = np.round(gb[keep] + rng.normal(0, 6, (int(keep.sum()), 4)), 1)
+            db[:, 2:] = np.maximum(db[:, 2:], db[:, :2] + 1)
+            extra = int(rng.integers(0, 4))
+            exy = rng.uniform(0, 300, (extra, 2))
+            db = np.vstack([db, np.round(np.hstack([exy, exy + rng.uniform(5, 80, (extra, 2))]), 1)])
+            dl = np.concatenate([gl[keep], rng.integers(0, 3, extra)])
+            ds = np.round(rng.random(db.shape[0]), 2)
+            imgs_t.append({"boxes": gb.tolist(), "labels": gl.tolist(), "iscrowd": crowd.tolist()})
+            imgs_p.append({"boxes": db.tolist(), "labels": dl.tolist(), "scores": ds.tolist()})
+        args = {"y_true": imgs_t, "y_pred": imgs_p}
+        out.append(case("mean_average_precision", lambda: es.mean_average_precision(imgs_t, imgs_p), **args, iou_threshold=None))
+        out.append(case("mean_average_precision", lambda: es.mean_average_precision(imgs_t, imgs_p, iou_threshold=0.5), **args, iou_threshold=0.5))
+        for interp in ("coco", "voc"):
+            out.append(case("average_precision_detection",
+                            lambda interp=interp: es.average_precision_detection(imgs_t, imgs_p, iou_threshold=0.5, interpolation=interp),
+                            **args, interpolation=interp))
+        from evalsuite.vision.detection import detection_report
+        out.append(case("detection_report", lambda: [v for _, v in detection_report(imgs_t, imgs_p).values.items()], **args))
+        b1 = np.round(rng.uniform(0, 50, (4, 4)), 1); b1[:, 2:] += b1[:, :2]
+        b2 = np.round(rng.uniform(0, 50, (3, 4)), 1); b2[:, 2:] += b2[:, :2]
+        out.append(case("box_iou", lambda: es.box_iou(b1, b2), a=b1, b=b2))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

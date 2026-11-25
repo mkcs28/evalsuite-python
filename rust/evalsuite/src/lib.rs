@@ -22,10 +22,12 @@
 pub mod calibration;
 pub mod classification;
 pub mod clinical;
+pub mod detection;
 pub mod error;
 pub mod labels;
 pub mod regression;
 pub mod retrieval;
+pub mod segmentation;
 pub mod special;
 pub mod stats;
 pub mod uncertainty;
