@@ -16,14 +16,15 @@ using Libdl
 
 export metric, version
 
-const LIB = Ref{String}("")
+const HANDLE = Ref{Ptr{Cvoid}}(C_NULL)
 
-function lib()
-    if isempty(LIB[])
-        LIB[] = get(ENV, "EVALSUITE_LIB",
-                    joinpath(@__DIR__, "..", "..", "..", "rust", "target", "release", "libevalsuite_c." * Libdl.dlext))
+function sym(name::Symbol)
+    if HANDLE[] == C_NULL
+        path = get(ENV, "EVALSUITE_LIB",
+                   joinpath(@__DIR__, "..", "..", "..", "rust", "target", "release", "libevalsuite_c." * Libdl.dlext))
+        HANDLE[] = Libdl.dlopen(path)
     end
-    LIB[]
+    Libdl.dlsym(HANDLE[], name)
 end
 
 """
@@ -34,18 +35,18 @@ Compute an EvalSuite metric. Keywords: `y_true`, `y_pred`, `y_prob`, `average`, 
 """
 function metric(name::AbstractString; kwargs...)
     args = JSON3.write(Dict(String(k) => v for (k, v) in kwargs))
-    ptr = ccall((:evalsuite_call, lib()), Ptr{UInt8}, (Cstring, Cstring), name, args)
+    ptr = ccall(sym(:evalsuite_call), Ptr{UInt8}, (Cstring, Cstring), name, args)
     if ptr == C_NULL
-        err = ccall((:evalsuite_last_error, lib()), Ptr{UInt8}, ())
+        err = ccall(sym(:evalsuite_last_error), Ptr{UInt8}, ())
         error(err == C_NULL ? "evalsuite error" : unsafe_string(err))
     end
     out = unsafe_string(ptr)
-    ccall((:evalsuite_free, lib()), Cvoid, (Ptr{UInt8},), ptr)
+    ccall(sym(:evalsuite_free), Cvoid, (Ptr{UInt8},), ptr)
     res = JSON3.read(out)
     haskey(res, :values) ? collect(res.values) : res.value
 end
 
 "Engine version."
-version() = unsafe_string(ccall((:evalsuite_version, lib()), Ptr{UInt8}, ()))
+version() = unsafe_string(ccall(sym(:evalsuite_version), Ptr{UInt8}, ()))
 
 end

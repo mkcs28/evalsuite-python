@@ -365,7 +365,7 @@ def report_card(
             raise InputValidationError("groups must have one label per observation.")
         for lab in sorted(set(g.tolist()), key=str):
             m = g == lab
-            row = {
+            row: dict[str, Any] = {
                 "group": str(lab),
                 "n": int(m.sum()),
                 "events": int(y[m].sum()),
