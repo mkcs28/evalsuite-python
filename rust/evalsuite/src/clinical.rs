@@ -278,3 +278,133 @@ pub fn decision_curve<L: Label>(
     }
     Ok((model, all))
 }
+
+/// A diagnostic-accuracy report: the 2×2 table and every measure with its confidence interval.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DiagnosticReport {
+    /// (TP, FP, FN, TN).
+    pub table: (u64, u64, u64, u64),
+    pub sensitivity: crate::stats::Interval,
+    pub specificity: crate::stats::Interval,
+    pub ppv: crate::stats::Interval,
+    pub npv: crate::stats::Interval,
+    /// Log method of Simel et al. (1991).
+    pub lr_positive: crate::stats::Interval,
+    pub lr_negative: crate::stats::Interval,
+    /// Woolf's log method, with 0.5 added to every cell when one is zero.
+    pub diagnostic_odds_ratio: crate::stats::Interval,
+    /// Wald interval from independent sensitivity and specificity variances, clipped to [−1, 1].
+    pub youden_j: crate::stats::Interval,
+    pub accuracy: crate::stats::Interval,
+    pub prevalence: crate::stats::Interval,
+}
+
+/// Diagnostic accuracy of a binary test with intervals (as the Python package's `diagnostic_report`);
+/// proportions use `method` (Wilson by default).
+pub fn diagnostic_report<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    level: f64,
+    method: crate::stats::ProportionMethod,
+) -> Result<DiagnosticReport> {
+    use crate::stats::{proportion_ci, Interval};
+    if !(level > 0.0 && level < 1.0) {
+        return invalid("level must be between 0 and 1, for example 0.95.");
+    }
+    let (tp, fp, fn_, tn) = binary_counts(y_true, y_pred, pos_label, None)?;
+    need_both(tp, fp, fn_, tn, "A diagnostic report")?;
+    let (a, b, c, d) = (
+        tp.round() as u64,
+        fp.round() as u64,
+        fn_.round() as u64,
+        tn.round() as u64,
+    );
+    let z = crate::special::norm_ppf(1.0 - (1.0 - level) / 2.0);
+    let nan = Interval {
+        estimate: f64::NAN,
+        low: f64::NAN,
+        high: f64::NAN,
+    };
+    let prop = |k: u64, n: u64| {
+        if n == 0 {
+            Ok(nan)
+        } else {
+            proportion_ci(k, n, level, method)
+        }
+    };
+    let log_ci = |est: f64, se: f64| {
+        if est.is_finite() && est > 0.0 && se.is_finite() {
+            Interval {
+                estimate: est,
+                low: (est.ln() - z * se).exp(),
+                high: (est.ln() + z * se).exp(),
+            }
+        } else {
+            Interval {
+                estimate: est,
+                low: f64::NAN,
+                high: f64::NAN,
+            }
+        }
+    };
+    let (n1, n0, n) = (a + c, b + d, a + b + c + d);
+    let (sens, spec) = (a as f64 / n1 as f64, d as f64 / n0 as f64);
+    let lr_pos = if spec < 1.0 {
+        sens / (1.0 - spec)
+    } else if sens > 0.0 {
+        f64::INFINITY
+    } else {
+        f64::NAN
+    };
+    let lr_neg = if spec > 0.0 {
+        (1.0 - sens) / spec
+    } else if sens < 1.0 {
+        f64::INFINITY
+    } else {
+        f64::NAN
+    };
+    let inv = |x: u64| 1.0 / x as f64;
+    let se_pos = if a > 0 && b > 0 {
+        (inv(a) - inv(n1) + inv(b) - inv(n0)).sqrt()
+    } else {
+        f64::NAN
+    };
+    let se_neg = if c > 0 && d > 0 {
+        (inv(c) - inv(n1) + inv(d) - inv(n0)).sqrt()
+    } else {
+        f64::NAN
+    };
+    let corr = if a.min(b).min(c).min(d) == 0 {
+        0.5
+    } else {
+        0.0
+    };
+    let (ca, cb, cc, cd) = (
+        a as f64 + corr,
+        b as f64 + corr,
+        c as f64 + corr,
+        d as f64 + corr,
+    );
+    let dor = ca * cd / (cb * cc);
+    let se_dor = (1.0 / ca + 1.0 / cb + 1.0 / cc + 1.0 / cd).sqrt();
+    let j = sens + spec - 1.0;
+    let se_j = (sens * (1.0 - sens) / n1 as f64 + spec * (1.0 - spec) / n0 as f64).sqrt();
+    Ok(DiagnosticReport {
+        table: (a, b, c, d),
+        sensitivity: prop(a, n1)?,
+        specificity: prop(d, n0)?,
+        ppv: prop(a, a + b)?,
+        npv: prop(d, c + d)?,
+        lr_positive: log_ci(lr_pos, se_pos),
+        lr_negative: log_ci(lr_neg, se_neg),
+        diagnostic_odds_ratio: log_ci(dor, se_dor),
+        youden_j: Interval {
+            estimate: j,
+            low: (j - z * se_j).max(-1.0),
+            high: (j + z * se_j).min(1.0),
+        },
+        accuracy: prop(a + d, n)?,
+        prevalence: prop(n1, n)?,
+    })
+}
