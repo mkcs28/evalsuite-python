@@ -301,6 +301,76 @@ def retrieval(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+@group("stats")
+def stats_group(rng: np.random.Generator) -> list[dict[str, Any]]:
+    st = es
+    out = []
+    alts = ("two-sided", "greater", "less")
+
+    def tr(r: Any) -> list[float]:
+        v = [r.statistic, r.p_value, r.estimate]
+        if r.ci is not None:
+            v += [r.ci.low, r.ci.high]
+        return v
+
+    for t in range(30):
+        n1, n2 = int(rng.integers(2, 60)), int(rng.integers(2, 60))
+        a = rng.normal(0, 1, n1).round(int(rng.integers(0, 3)) + 1)
+        b = rng.normal(0.3, 1.5, n2).round(int(rng.integers(0, 3)) + 1)
+        alt = alts[t % 3]
+        for ev in (False, True):
+            out.append(case("t_test", lambda ev=ev: tr(st.t_test(a, b, equal_var=ev, alternative=alt)), a=a, b=b, equal_var=ev, alternative=alt))
+        out.append(case("mann_whitney_test", lambda: tr(st.mann_whitney_test(a, b, alternative=alt)), a=a, b=b, alternative=alt))
+        m = min(n1, n2)
+        out.append(case("paired_t_test", lambda: tr(st.paired_t_test(a[:m], b[:m], alternative=alt)), a=a[:m], b=b[:m], alternative=alt))
+        out.append(case("wilcoxon_test", lambda: tr(st.wilcoxon_test(a[:m], b[:m], alternative=alt)), a=a[:m], b=b[:m], alternative=alt))
+        c = rng.normal(0, 1, n1).round(1)
+        out.append(case("kruskal_wallis_test", lambda: tr(st.kruskal_wallis_test(a, b, c)), groups=[a, b, c]))
+        g = [rng.normal(i * 0.2, 1, m).round(1) for i in range(int(rng.integers(3, 6)))]
+        out.append(case("friedman_test", lambda: tr(st.friedman_test(*g)), groups=g))
+        out.append(case("shapiro_wilk_test", lambda: (lambda r: [r.statistic, r.p_value])(st.shapiro_wilk_test(a)), x=a))
+        for paired in (False, True):
+            aa, bb = (a[:m], b[:m]) if paired else (a, b)
+            out.append(case("cohens_d", lambda aa=aa, bb=bb, paired=paired: st.cohens_d(aa, bb, paired=paired), a=aa, b=bb, paired=paired))
+            out.append(case("hedges_g", lambda aa=aa, bb=bb, paired=paired: st.hedges_g(aa, bb, paired=paired), a=aa, b=bb, paired=paired))
+        out.append(case("cliffs_delta", lambda: st.cliffs_delta(a, b), a=a, b=b))
+        tab = rng.integers(0, 30, (int(rng.integers(2, 4)), int(rng.integers(2, 4)))) + (t % 2)
+        for corr in (True, False):
+            out.append(case("chi_square_test", lambda corr=corr: tr(st.chi_square_test(tab, correction=corr)), table=tab, correction=corr))
+            out.append(case("cramers_v", lambda corr=corr: st.cramers_v(tab, bias_correction=corr), table=tab, bias_correction=corr))
+        t2 = rng.integers(0, 15 if t % 2 else 200, (2, 2))
+        out.append(case("fisher_exact_test", lambda: tr(st.fisher_exact_test(t2, alternative=alt)), table=t2, alternative=alt))
+        pv = rng.random(int(rng.integers(1, 40))).round(3)
+        for meth in ("bonferroni", "holm", "hochberg", "bh", "by"):
+            out.append(case("adjust_pvalues", lambda meth=meth: st.adjust_pvalues(pv, method=meth), p=pv, method=meth))
+        k, nn = int(rng.integers(0, 50)), 50
+        for meth in ("wilson", "clopper-pearson", "normal"):
+            out.append(case("proportion_ci", lambda meth=meth: (lambda r: [r.estimate, r.low, r.high])(st.proportion_ci(k, nn, level=0.9, method=meth)),
+                            successes=k, n=nn, level=0.9, method=meth))
+        yt = rng.integers(0, 2, 80)
+        pa = np.where(rng.random(80) < 0.7, yt, 1 - yt)
+        pb = np.where(rng.random(80) < 0.6, yt, 1 - yt)
+        for ex in (None, True, False):
+            out.append(case("mcnemar_test", lambda ex=ex: tr(st.mcnemar_test(yt, pa, pb, exact=ex)), y_true=yt, a=pa, b=pb, exact=ex))
+        sa = np.round(np.clip(yt * 0.3 + rng.random(80) * 0.7, 0, 1), 2)
+        sb = np.round(np.clip(yt * 0.2 + rng.random(80) * 0.8, 0, 1), 2)
+        out.append(case("roc_auc_ci", lambda: (lambda r: [r.estimate, r.low, r.high])(st.roc_auc_ci(yt, sa)), y_true=yt, y_prob=sa))
+        out.append(case("delong_test", lambda: tr(st.delong_test(yt, sa, sb)), y_true=yt, a=sa, b=sb))
+        # bootstrap with the compiled core's stream: record the seed Python derives from random_state.
+        seed = int(np.random.default_rng(t).integers(0, 2**63))
+        for method in ("percentile", "basic", "bca"):
+            for metric in ("accuracy", "roc_auc"):
+                kw = {"y_pred": pa} if metric == "accuracy" else {"y_prob": sa}
+                out.append(case("bootstrap_ci",
+                                lambda method=method, metric=metric, kw=kw: (lambda r: [r.estimate, r.low, r.high])(
+                                    st.bootstrap_ci(metric, yt, **kw, n_resamples=300, method=method, random_state=t, resampling="native", stratify=bool(t % 2))),
+                                metric=metric, y_true=yt, pred=pa if metric == "accuracy" else sa, method=method, seed=seed, stratify=bool(t % 2)))
+        out.append(case("paired_bootstrap_test",
+                        lambda: tr(st.paired_bootstrap_test("accuracy", yt, pa, pb, n_resamples=300, random_state=t, resampling="native", stratify=False, alternative=alt)),
+                        y_true=yt, a=pa, b=pb, seed=seed, alternative=alt))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

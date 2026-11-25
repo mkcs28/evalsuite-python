@@ -27,6 +27,7 @@ pub mod labels;
 pub mod regression;
 pub mod retrieval;
 pub mod special;
+pub mod stats;
 pub mod uncertainty;
 pub(crate) mod util;
 
