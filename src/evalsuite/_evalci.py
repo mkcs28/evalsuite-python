@@ -131,7 +131,9 @@ def _metric_kwargs(names: list[str], result: EvaluationResult) -> dict[str, dict
         fn, _ = resolve_metric(name)
         accepted = set(inspect.signature(fn).parameters)
         params = dict(result.metrics[name].params)
-        kw = {k: params[k] for k in ("average", "pos_label", "zero_division") if k in accepted and k in params}
+        kw: dict[str, Any] = {
+            k: params[k] for k in ("average", "pos_label", "zero_division") if k in accepted and k in params
+        }
         if "average" in kw and kw["average"] in ("auto",):
             kw.pop("average")
         out[name] = kw
@@ -204,13 +206,15 @@ def attach(
             metric_kwargs=_metric_kwargs(usable, result),
             _allow_single=True,
         )
-        if mode == "bootstrap":
+        if mode == "bootstrap" and comparison is not None:
             for e in comparison.estimates:
                 if e["model"] == "model":
                     intervals[e["metric"]] = (e["low"], e["high"], "percentile bootstrap")
     tests = {t["metric"]: t for t in comparison.tests} if comparison is not None and has_baseline else {}
     base_values = (
-        {e["metric"]: e["estimate"] for e in comparison.estimates if e["model"] == "baseline"} if tests else {}
+        {e["metric"]: e["estimate"] for e in comparison.estimates if e["model"] == "baseline"}
+        if tests and comparison is not None
+        else {}
     )
     metrics: dict[str, MetricResult] = {}
     for key, m in result.metrics.items():

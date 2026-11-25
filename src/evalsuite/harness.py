@@ -204,7 +204,7 @@ class Leaderboard:
     def to_dict(self) -> dict[str, Any]:
         from .core.result import _json_safe
 
-        return _json_safe(
+        out: dict[str, Any] = _json_safe(
             {
                 "rows": list(self.rows),
                 "tests": list(self.tests),
@@ -213,6 +213,7 @@ class Leaderboard:
                 "settings": dict(self.settings),
             }
         )
+        return out
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, allow_nan=False)
@@ -359,13 +360,13 @@ def leaderboard(
         lo, hi = np.quantile(means, [a, 1 - a])
         return float(lo), float(hi)
 
-    rows = []
+    rows: list[dict[str, Any]] = []
     for model, s in scores.items():
-        v = np.array(list(s.values()), dtype=float)
-        lo, hi = interval(v)
-        rows.append({"model": model, "score": float(v.mean()), "ci_low": lo, "ci_high": hi, "n": int(v.size)})
+        arr = np.array(list(s.values()), dtype=float)
+        lo, hi = interval(arr)
+        rows.append({"model": model, "score": float(arr.mean()), "ci_low": lo, "ci_high": hi, "n": int(arr.size)})
     models = list(scores)
-    tests = []
+    tests: list[dict[str, Any]] = []
     order = sorted(shared, key=str)
     for i in range(len(models)):
         for j in range(i + 1, len(models)):
@@ -375,8 +376,8 @@ def leaderboard(
             if not order:
                 continue
             if binary:
-                t = mcnemar_test(np.ones(len(order)), xa, xb)
-                test, p = t.test, t.p_value
+                mc = mcnemar_test(np.ones(len(order)), xa, xb)
+                test, p = mc.test, mc.p_value
             else:
                 d = xa - xb
                 obs = float(d.mean())
@@ -395,7 +396,7 @@ def leaderboard(
                 }
             )
     if tests:
-        adj = adjust_pvalues([t["p_value"] for t in tests], method=correction)
+        adj = adjust_pvalues([float(t["p_value"]) for t in tests], method=correction)  # type: ignore[arg-type]
         for t, p in zip(tests, adj):
             t["p_adjusted"] = float(p)
             t["significant"] = bool(p < alpha)
@@ -412,11 +413,11 @@ def leaderboard(
     for c in cats:
         block = []
         for model, s in scores.items():
-            v = np.array([x for k, x in s.items() if meta.get(k, {}).get("category") == c], dtype=float)
-            if v.size:
-                lo, hi = interval(v)
+            cv = np.array([x for k, x in s.items() if meta.get(k, {}).get("category") == c], dtype=float)
+            if cv.size:
+                lo, hi = interval(cv)
                 block.append(
-                    {"model": model, "score": float(v.mean()), "ci_low": lo, "ci_high": hi, "n": int(v.size)}
+                    {"model": model, "score": float(cv.mean()), "ci_low": lo, "ci_high": hi, "n": int(cv.size)}
                 )
         categories[c] = block
     checks: dict[str, Any] = {
