@@ -1,0 +1,21 @@
+[package]
+name = "evalsuite"
+description = "Evaluation metrics and statistics for machine learning, NLP, computer vision, clinical models and LLM systems: classification, regression, text generation, retrieval, segmentation, detection, calibration, hypothesis tests and bootstrap intervals."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://evalsuite-nine.vercel.app"
+documentation = "https://docs.rs/evalsuite"
+readme = "README.md"
+keywords = ["evaluation", "metrics", "machine-learning", "statistics", "nlp"]
+categories = ["science", "algorithms", "mathematics"]
+
+[dependencies]
+evalsuite-core = { path = "../evalsuite-core", version = "0.7.1" }
+rayon = "1.12"
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
