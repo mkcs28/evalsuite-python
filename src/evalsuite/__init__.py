@@ -15,6 +15,7 @@ from .calibration import (
     hosmer_lemeshow,
     maximum_calibration_error,
 )
+from .cards import ReportCard, report_card
 from .classification import (
     accuracy,
     average_precision,
@@ -198,6 +199,8 @@ __all__ = [
     "ClassificationReport",
     "stats",
     "roc_auc_ci",
+    "report_card",
+    "ReportCard",
     "proportion_ci",
     "paired_bootstrap_test",
     "mcnemar_test",

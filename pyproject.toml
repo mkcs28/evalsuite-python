@@ -46,6 +46,7 @@ sklearn = ["scikit-learn>=1.2"]
 keras = ["keras>=3"]
 lightning = ["lightning>=2"]
 mlflow = ["mlflow>=2"]
+docx = ["python-docx>=1.0"]
 wandb = ["wandb>=0.16"]
 all = ["matplotlib>=3.5", "pillow>=9", "nltk>=3.8"]
 dev = [
