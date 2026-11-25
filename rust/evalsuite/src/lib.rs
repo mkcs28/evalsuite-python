@@ -19,10 +19,14 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod calibration;
 pub mod classification;
+pub mod clinical;
 pub mod error;
 pub mod labels;
 pub mod regression;
+pub mod special;
+pub mod uncertainty;
 pub(crate) mod util;
 
 pub use error::{Error, Result};

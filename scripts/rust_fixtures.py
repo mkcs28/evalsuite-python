@@ -203,6 +203,79 @@ def regression(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- clinical, calibration, uncertainty ----------------------------------------------------------------
+@group("clinical")
+def clinical(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(40):
+        n = int(rng.integers(4, 300))
+        y = rng.integers(0, 2, n)
+        p = np.where(rng.random(n) < 0.75, y, 1 - y)
+        if t % 7 == 0:
+            p = y.copy()  # perfect test: infinite / zero ratios
+        w = (rng.random(n) * 2).round(3) if t % 2 else None
+        for name in ("sensitivity", "ppv", "lr_positive", "lr_negative", "youden_j"):
+            fn = getattr(es, name)
+            out.append(case(name, lambda fn=fn: fn(y, p, sample_weight=w), y_true=y, y_pred=p, sample_weight=w))
+        for corr in (0.0, 0.5):
+            out.append(case("diagnostic_odds_ratio", lambda corr=corr: es.diagnostic_odds_ratio(y, p, sample_weight=w, correction=corr),
+                            y_true=y, y_pred=p, sample_weight=w, correction=corr))
+        r = np.round(np.clip(y * 0.3 + rng.random(n) * 0.7, 0.001, 0.999), 3)
+        for thr in (0.1, 0.3, 0.6):
+            out.append(case("net_benefit", lambda thr=thr: es.net_benefit(y, r, threshold=thr, sample_weight=w),
+                            y_true=y, y_prob=r, threshold=thr, sample_weight=w))
+        from evalsuite.clinical.metrics import _binary_risk, net_benefit_curve
+        thr = np.array([0.05, 0.2, 0.5, 0.8])
+        yy, pp, ww = _binary_risk(y, r, None, w)
+        out.append(case("decision_curve", lambda: np.concatenate(net_benefit_curve(yy, pp, ww, thr)),
+                        y_true=y, y_prob=r, thresholds=thr, sample_weight=w))
+    return out
+
+
+@group("calibration")
+def calibration(rng: np.random.Generator) -> list[dict[str, Any]]:
+    from evalsuite import calibration as cal
+
+    out = []
+    for t in range(30):
+        n = int(rng.integers(12, 400))
+        r = np.round(np.clip(rng.beta(2, 3, n), 0.001, 0.999), 3)
+        y = (rng.random(n) < r ** (0.7 + t % 3 * 0.3)).astype(int)
+        w = (rng.random(n) * 2 + 0.1).round(3) if t % 2 else None
+        for strategy in ("uniform", "quantile"):
+            out.append(case("maximum_calibration_error",
+                            lambda strategy=strategy: cal.maximum_calibration_error(y, r, n_bins=8, strategy=strategy, sample_weight=w),
+                            y_true=y, y_prob=r, n_bins=8, strategy=strategy, sample_weight=w))
+        out.append(case("calibration_slope", lambda: (lambda m: [m.value, m.params["intercept"]])(cal.calibration_slope(y, r, sample_weight=w)),
+                        y_true=y, y_prob=r, sample_weight=w))
+        out.append(case("calibration_intercept", lambda: cal.calibration_intercept(y, r, sample_weight=w), y_true=y, y_prob=r, sample_weight=w))
+        out.append(case("hosmer_lemeshow", lambda: (lambda h: [h.statistic, h.p_value])(cal.hosmer_lemeshow(y, r, n_groups=8)),
+                        y_true=y, y_prob=r, n_groups=8))
+    return out
+
+
+@group("uncertainty")
+def uncertainty(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(40):
+        n = int(rng.integers(3, 300))
+        conf = np.round(rng.random(n), int(rng.integers(1, 4)))
+        c = rng.random(n) < conf
+        if t % 9 == 0:
+            c[:] = True
+        out.append(case("adaptive_calibration_error", lambda: es.adaptive_calibration_error(c, conf, n_bins=10), correct=c, confidence=conf, n_bins=10))
+        for cov in (0.3, 0.8, 1.0):
+            out.append(case("selective_risk", lambda cov=cov: es.selective_risk(c, conf, coverage=cov), correct=c, confidence=conf, coverage=cov))
+            out.append(case("risk_at_coverage", lambda cov=cov: es.risk_at_coverage(c, conf, coverage=cov), correct=c, confidence=conf, coverage=cov))
+        for risk in (0.0, 0.1, 0.4):
+            out.append(case("coverage_at_risk", lambda risk=risk: es.coverage_at_risk(c, conf, risk=risk), correct=c, confidence=conf, risk=risk))
+        out.append(case("aurc", lambda: (lambda m: [m.value, m.params["e_aurc"]])(es.aurc(c, conf)), correct=c, confidence=conf))
+        out.append(case("confidence_accuracy_correlation", lambda: es.confidence_accuracy_correlation(c, conf), correct=c, confidence=conf))
+        from evalsuite.llmsys.uncertainty import risk_coverage_curve
+        out.append(case("risk_coverage_curve", lambda: np.concatenate(risk_coverage_curve(c, conf)), correct=c, confidence=conf))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
