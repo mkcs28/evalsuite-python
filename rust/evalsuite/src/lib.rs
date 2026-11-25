@@ -31,6 +31,7 @@ pub mod generation;
 pub mod json_schema;
 pub mod judge;
 pub mod labels;
+pub mod longcontext;
 pub mod qa;
 pub mod rag;
 pub mod regression;

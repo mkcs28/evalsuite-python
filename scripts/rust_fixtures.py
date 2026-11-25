@@ -872,6 +872,48 @@ def efficiency(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- long context --------------------------------------------------------------------------------------
+@group("longcontext")
+def longcontext(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(100):
+        n = int(rng.integers(1, 40))
+        c = [bool(x) for x in rng.random(n) < 0.7]
+        L = rng.choice([1000.0, 4000.0, 16000.0, 64000.0], n).tolist()
+        for key in ("value", "effective_length", "n_passing_lengths"):
+            out.append(case("retrieval_accuracy_by_length." + key, lambda key=key: (lambda v: -1.0 if v is None else v)(_p(key)(es.retrieval_accuracy_by_length(c, L, threshold=0.6))), c=c, L=L))
+        d = rng.choice([0.0, 0.25, 0.5, 0.75, 1.0], n).tolist()
+        cf = [float(x) for x in c]
+        out.append(case("needle_in_haystack", lambda: es.needle_in_haystack(cf, L, d), c=cf, L=L, d=d))
+        out.append(case("needle_in_haystack.worst_cell", lambda: es.needle_in_haystack(cf, L, d).params["worst_cell"], c=cf, L=L, d=d))
+        pos = rng.random(n).round(2).tolist()
+        for nb in (2, 5):
+            out.append(case("position_accuracy", lambda nb=nb: es.position_accuracy(cf, pos, n_bins=nb), c=cf, pos=pos, nb=nb))
+        for key in ("value", "start_accuracy", "middle_accuracy"):
+            out.append(case("lost_in_the_middle." + key, lambda key=key: _p(key)(es.lost_in_the_middle(cf, pos, edge=0.2)), c=cf, pos=pos))
+        used = [[f"f{int(i)}" for i in rng.integers(0, 6, int(rng.integers(0, 4)))] for _ in range(n)]
+        prov = [[f"f{int(i)}" for i in rng.integers(0, 6, int(rng.integers(0, 4)))] for _ in range(n)]
+        for key in ("value", "mean_per_example"):
+            out.append(case("context_utilization." + key, lambda key=key: _p(key)(es.context_utilization(used, prov)), used=used, prov=prov))
+        kp = [[bool(x) for x in rng.integers(0, 2, int(rng.integers(1, 5)))] for _ in range(n)]
+        w = [rng.integers(0, 4, len(r)).astype(float).tolist() for r in kp]
+        cl = [[bool(x) for x in rng.integers(0, 2, int(rng.integers(0, 4)))] for _ in range(n)]
+        for key in ("value", "factual_consistency", "fully_consistent_rate"):
+            out.append(case("summary_coverage." + key, lambda key=key: _p(key)(es.summary_coverage(kp, weights=w, claims_supported=cl)), kp=kp, w=w, cl=cl))
+        words = ["a", "b", "c", " ", "\n"]
+        src = ["".join(rng.choice(words, int(rng.integers(0, 40)))) for _ in range(n)]
+        summ = ["".join(rng.choice(words, int(rng.integers(0, 10)))) for _ in range(n)]
+        for key in ("value", "median"):
+            out.append(case("compression_ratio." + key, lambda key=key: _p(key)(es.compression_ratio(src, summ)), src=src, summ=summ))
+        cps = [rng.integers(0, 3, int(rng.integers(0, 5))).astype(float).tolist() for _ in range(n)]
+        for key in ("value", "mean_per_output", "ci_high"):
+            out.append(case("citation_coverage." + key, lambda key=key: _p(key)(es.citation_coverage(cps)), cps=cps))
+        ans = [[["Paris", "paris ", " PARIS", "Lyon", "lyon  x"][int(i)] for i in rng.integers(0, 5, int(rng.integers(1, 5)))] for _ in range(n)]
+        for key in ("value", "pairwise_agreement"):
+            out.append(case("cross_document_consistency." + key, lambda key=key: _p(key)(es.cross_document_consistency(ans)), ans=ans))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
