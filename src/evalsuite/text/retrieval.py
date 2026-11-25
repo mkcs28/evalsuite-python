@@ -80,17 +80,6 @@ def _raise_empty(empty: list[int], what: str) -> None:
         )
 
 
-@register(
-    category=_C,
-    task="retrieval",
-    name="Precision@k",
-    definition="Share of the top k retrieved documents that are relevant (k in the denominator even when fewer "
-    "are returned), averaged over queries.",
-    formula="|relevant ∩ top_k| / k",
-    range="[0, 1]",
-    input_requirements=("relevant", "retrieved"),
-    references=(_REF_MANNING,),
-)
 def _native_scores(
     kind: str, relevant: Any, retrieved: Any, k: Optional[int], what: str = "", gains: str = "linear"
 ) -> Optional[list[float]]:
@@ -109,6 +98,17 @@ def _native_scores(
     return scores_list
 
 
+@register(
+    category=_C,
+    task="retrieval",
+    name="Precision@k",
+    definition="Share of the top k retrieved documents that are relevant (k in the denominator even when fewer "
+    "are returned), averaged over queries.",
+    formula="|relevant ∩ top_k| / k",
+    range="[0, 1]",
+    input_requirements=("relevant", "retrieved"),
+    references=(_REF_MANNING,),
+)
 @per_item
 def precision_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optional[str] = "mean") -> MetricResult:
     """Mean Precision@k over queries."""
