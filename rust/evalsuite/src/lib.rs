@@ -37,6 +37,7 @@ pub mod retrieval;
 pub mod segmentation;
 pub mod semantic;
 pub mod special;
+pub mod spice;
 pub mod structured;
 pub mod summary;
 pub mod stats;

@@ -787,6 +787,38 @@ def semantic(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- SPICE ---------------------------------------------------------------------------------------------
+_SYN = {"dog": ["canine"], "puppy": ["canine"], "grass": ["lawn"], "lawn": ["lawn"], "red": ["crimson"], "crimson": ["crimson"]}
+
+
+@group("spice")
+def spice_group(rng: np.random.Generator) -> list[dict[str, Any]]:
+    objs = ["dog", "puppy", "grass", "lawn", "ball", "Dog "]
+    attrs = ["red", "crimson", "small", "brown"]
+    rels = ["on", "near", "with"]
+
+    def tup() -> list[str]:
+        k = int(rng.integers(1, 4))
+        o = objs[int(rng.integers(0, len(objs)))]
+        if k == 1:
+            return [o]
+        if k == 2:
+            return [o, attrs[int(rng.integers(0, len(attrs)))]]
+        return [o, rels[int(rng.integers(0, len(rels)))], objs[int(rng.integers(0, len(objs)))]]
+
+    out = []
+    for _ in range(150):
+        n = int(rng.integers(1, 5))
+        R = [[tup() for _ in range(int(rng.integers(0, 7)))] for _ in range(n)]
+        C = [[tup() for _ in range(int(rng.integers(0, 6)))] for _ in range(n)]
+        for syn in (False, True):
+            kw = {"synonyms": (lambda w: _SYN.get(w, []))} if syn else {}
+            out.append(case("spice", lambda R=R, C=C, kw=kw: es.spice(R, C, average=None, **kw), refs=R, cands=C, syn=syn))
+            for key in ("object", "attribute", "relation"):
+                out.append(case("spice." + key, lambda R=R, C=C, kw=kw, key=key: es.spice(R, C, **kw).params["by_type"][key], refs=R, cands=C, syn=syn))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
