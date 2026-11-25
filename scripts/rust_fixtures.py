@@ -509,6 +509,66 @@ def generation(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- agents --------------------------------------------------------------------------------------------
+_TOOLS = {
+    "search": {"type": "object", "required": ["q"], "properties": {"q": {"type": "string", "minLength": 1}, "k": {"type": "integer", "minimum": 1}}, "additionalProperties": False},
+    "calc": {"type": "object", "properties": {"expr": {"type": "string", "pattern": "^[0-9+*/ -]+$"}}},
+    "open": None,
+}
+
+
+def _call(rng: np.random.Generator) -> dict[str, Any]:
+    name = ["search", "calc", "open", "delete"][int(rng.integers(0, 4))]
+    r = int(rng.integers(0, 6))
+    args: Any = [{"q": "x"}, {"q": ""}, {"q": "a", "k": 0}, {"expr": "1+2"}, '{"q": "y", "k": 2}', "{bad json"][r]
+    c: dict[str, Any] = {"name": name, "arguments": args}
+    o = int(rng.integers(0, 3))
+    if o < 2:
+        c["ok"] = bool(o)
+    return c
+
+
+@group("agents")
+def agents(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(60):
+        n = int(rng.integers(1, 6))
+        trajs = [[_call(rng) for _ in range(int(rng.integers(0, 6)))] for _ in range(n)]
+        out.append(case("invalid_tool_call_rate", lambda t=trajs: es.invalid_tool_call_rate(t, _TOOLS), trajectories=trajs))
+        for key in ("schema", "unknown_tool", "execution_failure_rate", "ci_low"):
+            out.append(case("invalid_tool_call_rate." + key, lambda t=trajs, key=key: es.invalid_tool_call_rate(t, _TOOLS).params[key] if key in ("execution_failure_rate", "ci_low") else es.invalid_tool_call_rate(t, _TOOLS).params["by_reason"][key], trajectories=trajs))
+        out.append(case("tool_failure_recovery_rate", lambda t=trajs: es.tool_failure_recovery_rate(t), trajectories=trajs))
+        ll = int(rng.integers(2, 4))
+        out.append(case("unnecessary_tool_call_rate", lambda t=trajs, ll=ll: es.unnecessary_tool_call_rate(t, loop_length=ll), trajectories=trajs, loop_length=ll))
+        out.append(case("unnecessary_tool_call_rate.loop_rate", lambda t=trajs, ll=ll: es.unnecessary_tool_call_rate(t, loop_length=ll).params["loop_rate"], trajectories=trajs, loop_length=ll))
+        m = int(rng.integers(1, 12))
+        comp = [bool(x) for x in rng.integers(0, 2, m)]
+        prog = rng.random(m).round(3).tolist()
+        out.append(case("task_completion_rate", lambda c=comp: es.task_completion_rate(c), completed=comp))
+        out.append(case("task_completion_rate.progress_rate", lambda c=comp, p=prog: es.task_completion_rate(c, progress=p).params["progress_rate"], completed=comp, progress=prog))
+        a = rng.integers(0, 5, m).astype(float).tolist()
+        o = rng.integers(0, 5, m).astype(float).tolist()
+        out.append(case("tool_use_efficiency", lambda a=a, o=o: es.tool_use_efficiency(a, o), n_calls=a, optimal_calls=o))
+        out.append(case("tool_use_efficiency.mean_excess_calls", lambda a=a, o=o: es.tool_use_efficiency(a, o).params["mean_excess_calls"], n_calls=a, optimal_calls=o))
+        for key in ("value", "std", "p90", "p99", "mean_steps_completed"):
+            out.append(case("steps_per_task." + key, lambda a=a, c=comp, key=key: (lambda r: r.value if key == "value" else r.params[key] if key == "mean_steps_completed" else r.params["steps"][key])(es.steps_per_task(a, completed=c)), steps=a, completed=comp))
+        out.append(case("human_intervention_rate", lambda a=a: es.human_intervention_rate(a), interventions=a))
+        cost = (rng.random(m) * 3).round(4).tolist()
+        for key in ("value", "cost_per_success", "p50"):
+            out.append(case("agent_cost_per_task." + key, lambda cst=cost, d=a, c=comp, key=key: (lambda r: r.value if key == "value" else r.params["time"]["p50"] if key == "p50" else r.params[key])(es.agent_cost_per_task(cst, durations=d, completed=c)), costs=cost, durations=a, completed=comp))
+        steps = list("abcde")
+        plans = [[steps[int(i)] for i in rng.integers(0, 5, int(rng.integers(0, 5)))] for _ in range(m)]
+        exe = [[steps[int(i)] for i in rng.integers(0, 5, int(rng.integers(0, 5)))] for _ in range(m)]
+        for key in ("value", "precision", "recall", "exact_match"):
+            out.append(case("plan_adherence." + key, lambda p=plans, e=exe, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.plan_adherence(p, e)), plans=plans, executed=exe))
+        sl = ["city", "date", "n"]
+        st = lambda: {s: [1, 1.0, True, "x", "y"][int(rng.integers(0, 5))] for s in sl if rng.random() < 0.7}
+        ex_, pr_ = [st() for _ in range(m)], [st() for _ in range(m)]
+        for key in ("value", "slot_accuracy"):
+            out.append(case("state_tracking_accuracy." + key, lambda e=ex_, p=pr_, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.state_tracking_accuracy(e, p)), expected=ex_, predicted=pr_))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

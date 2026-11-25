@@ -19,20 +19,24 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod agents;
 pub mod calibration;
 pub mod classification;
 pub mod clinical;
 pub mod detection;
 pub mod error;
 pub mod generation;
+pub mod json_schema;
 pub mod labels;
 pub mod regression;
 pub mod retrieval;
 pub mod segmentation;
 pub mod special;
+pub mod summary;
 pub mod stats;
 pub mod uncertainty;
 pub(crate) mod util;
 
 pub use error::{Error, Result};
+pub use serde_json::{json, Value};
 pub use labels::Label;
