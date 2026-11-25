@@ -569,6 +569,61 @@ def agents(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- structured outputs --------------------------------------------------------------------------------
+_OUTS = ['{"a": 1, "b": [1, 2]}', ' [1, 2.5] ', 'Sure! ```json\n{"a": 2}\n``` done', 'text {"a": {"b": 3}} tail', "nope",
+         '{"a": "x", "b": [1, 2, 2]}', '{"a": 1.0}', "```\n[true, null]\n```", "{'a': 1}", '{"a": -3, "c": "zz"}', "",
+         '<root><x a="1"/></root>', "<root><x></root>", '<n:r xmlns:n="urn:a"/>', "<!DOCTYPE r><r/>", "  <a>t</a>\n"]
+_SCHEMAS = [
+    {"type": "object", "required": ["a"], "properties": {"a": {"type": "integer", "minimum": 0}, "b": {"type": "array", "items": {"type": "integer"}, "uniqueItems": True}}},
+    {"type": "array", "prefixItems": [{"type": "number"}], "items": {"type": ["number", "boolean", "null"]}, "minItems": 2},
+    {"anyOf": [{"type": "object", "properties": {"a": {"const": 2}}}, {"type": "array", "contains": {"type": "boolean"}}]},
+    {"type": "object", "properties": {"a": {"oneOf": [{"type": "integer"}, {"type": "number", "multipleOf": 0.5}]}}, "additionalProperties": {"type": "string", "pattern": "^z+$"}},
+    {"$defs": {"pos": {"type": "integer", "exclusiveMinimum": 0}}, "type": "object", "properties": {"a": {"$ref": "#/$defs/pos"}}, "not": {"required": ["c"]}},
+    {"type": "object", "patternProperties": {"^[ab]$": {"type": ["integer", "string", "array", "object"]}}, "propertyNames": {"maxLength": 1}, "maxProperties": 2},
+    {"type": "object", "bogus": 1},
+]
+
+
+@group("structured")
+def structured(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(50):
+        outs = [_OUTS[int(i)] for i in rng.integers(0, len(_OUTS), int(rng.integers(1, 7)))]
+        for mode in ("strict", "fenced", "lenient"):
+            out.append(case("json_validity", lambda o=outs, m=mode: es.json_validity(o, mode=m), outputs=outs, mode=mode))
+            for si, sch in enumerate(_SCHEMAS):
+                out.append(case("json_schema_compliance", lambda o=outs, m=mode, sch=sch: es.json_schema_compliance(o, sch, mode=m), outputs=outs, mode=mode, schema=sch))
+        for rt in (None, "root", "{urn:a}r"):
+            out.append(case("xml_validity", lambda o=outs, rt=rt: es.xml_validity(o, root_tag=rt), outputs=outs, root_tag=rt))
+        out.append(case("extra_content_rate", lambda o=outs: es.extra_content_rate(o), outputs=outs))
+        for pat in (r"\{.*\}", r"<[a-z]+>.*</[a-z]+>", r"\[?\d+.*"):
+            out.append(case("format_compliance", lambda o=outs, p=pat: es.format_compliance(o, p), outputs=outs, pattern=pat))
+            out.append(case("extra_content_rate.regex", lambda o=outs, p=pat: es.extra_content_rate(o, payload="regex", pattern=p), outputs=outs, pattern=pat))
+        exp = [{"a": 1}, {"a": 2, "b.1": 2}, {"a.b": 3}, {"b.0": 1, "c": "zz"}]
+        e2 = [exp[int(i)] for i in rng.integers(0, 4, len(outs))]
+        for avg in ("micro", "macro"):
+            for mode in ("strict", "lenient"):
+                out.append(case("required_field_accuracy", lambda e=e2, o=outs, a=avg, m=mode: es.required_field_accuracy(e, o, mode=m, average=a), expected=e2, outputs=outs, average=avg, mode=mode))
+        names = ["search", "calc", "open"]
+        argsl = [{"q": "x"}, {"q": "x", "k": 1}, {"k": 1.0, "q": "x"}, '{"q": "x"}', "{oops", {}]
+        mk = lambda: [[{"name": names[int(rng.integers(0, 3))], "arguments": argsl[int(rng.integers(0, len(argsl)))]} for _ in range(int(rng.integers(0, 4)))] for _ in range(len(outs))]
+        ec, pc = mk(), mk()
+        for ordered in (False, True):
+            out.append(case("tool_selection_accuracy", lambda e=ec, p=pc, o=ordered: es.tool_selection_accuracy(e, p, ordered=o), expected=ec, predicted=pc, ordered=ordered))
+        out.append(case("tool_argument_accuracy", lambda e=ec, p=pc: es.tool_argument_accuracy(e, p), expected=ec, predicted=pc))
+        for m in ("arguments", "name"):
+            for key in ("value", "precision", "recall", "invalid_call_rate"):
+                out.append(case("tool_call_f1." + key, lambda e=ec, p=pc, m=m, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.tool_call_f1(e, p, match=m)), expected=ec, predicted=pc, match=m))
+        res = [[True, False, 200, 404, 302, 99, None][int(i)] for i in rng.integers(0, 7, len(outs))]
+        out.append(case("api_call_success_rate", lambda r=res: es.api_call_success_rate(r), results=res))
+        chk = [[bool(x) for x in rng.integers(0, 2, int(rng.integers(0 if rng.random() < 0.05 else 1, 4)))] for _ in range(len(outs))]
+        out.append(case("instruction_compliance_rate", lambda c=chk: es.instruction_compliance_rate(c), checks=chk))
+        out.append(case("constraint_satisfaction_rate", lambda c=chk: es.constraint_satisfaction_rate(c), checks=chk))
+        tc = [[[bool(x) for x in rng.integers(0, 2, int(rng.integers(0, 3)))] for _ in range(int(rng.integers(0, 3)))] for _ in range(len(outs))]
+        out.append(case("instruction_retention", lambda t=tc: es.instruction_retention(t), turn_checks=tc))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

@@ -32,6 +32,7 @@ pub mod regression;
 pub mod retrieval;
 pub mod segmentation;
 pub mod special;
+pub mod structured;
 pub mod summary;
 pub mod stats;
 pub mod uncertainty;
