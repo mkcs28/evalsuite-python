@@ -66,6 +66,7 @@ from .core.result import EvaluationResult, MetricResult
 from .harness import Leaderboard, leaderboard
 from .llmsys import *  # noqa: F403  (v0.5.0 LLM-systems functions, listed in llmsys.__all__)
 from .llmsys import __all__ as _llmsys_all
+from .monitor import Alert, Monitor, ks_drift, population_stability_index
 from .regression import (
     adjusted_r2,
     explained_variance,
@@ -232,6 +233,10 @@ __all__ = [
     "confusion_matrix",
     "evaluate",
     "leaderboard",
+    "Monitor",
+    "Alert",
+    "population_stability_index",
+    "ks_drift",
     "Leaderboard",
     "explained_variance",
     "f1",
