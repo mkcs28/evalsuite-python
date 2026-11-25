@@ -708,6 +708,56 @@ def judge(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- RAG and factuality --------------------------------------------------------------------------------
+@group("grounding")
+def grounding(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    V = ["supported", "contradicted", "unsupported"]
+    for _ in range(80):
+        n = int(rng.integers(1, 8))
+        fl = lambda lo=0: [[bool(x) for x in rng.integers(0, 2, int(rng.integers(lo, 6)))] for _ in range(n)]
+        cr = fl()
+        out.append(case("context_precision", lambda c=cr: es.context_precision(c, average=None), flags=cr))
+        out.append(case("context_recall", lambda c=cr: es.context_recall(c, average=None), flags=cr))
+        out.append(case("context_recall.mean", lambda c=cr: es.context_recall(c), flags=cr))
+        out.append(case("context_relevance.mean", lambda c=cr: es.context_relevance(c), flags=cr))
+        lat = (rng.exponential(100, int(rng.integers(1, 50)))).round(2).tolist()
+        for st in ("mean", "p50", "p90", "p95", "p99"):
+            out.append(case("latency_summary." + st, lambda l=lat, st=st: es.latency_summary(l, statistic=st), latencies=lat))
+        succ = [bool(x) for x in rng.integers(0, 2, n)]
+        out.append(case("task_success_rate.ci_low", lambda s=succ: es.task_success_rate(s).params["ci_low"], success=succ))
+        stages = [[None, "success", "Retrieval", " generation ", "evidence", "other", "none"][int(i)] for i in rng.integers(0, 7, n)]
+        out.append(case("failure_attribution", lambda s=stages: es.failure_attribution(s), stages=stages))
+        cv = [[V[int(i)] for i in rng.integers(0, 3, int(rng.integers(0, 5)))] for _ in range(n)]
+        for avg in ("micro", "macro"):
+            out.append(case("faithfulness", lambda c=cv, a=avg: es.faithfulness(c, average=a), claims=cv, average=avg))
+            for cnt in ("unsupported", "contradicted"):
+                out.append(case("hallucination_rate." + cnt, lambda c=cv, a=avg, cnt=cnt: es.hallucination_rate(c, count=cnt, average=a), claims=cv, average=avg))
+            sup = [rng.random(int(rng.integers(0, 4))).round(3).tolist() for _ in range(n)]
+            out.append(case("groundedness", lambda s=sup, a=avg: es.groundedness(s, average=a), scores=sup, average=avg))
+            cit = [[{"supported": bool(rng.integers(0, 2)), "citations": [bool(x) for x in rng.integers(0, 2, int(rng.integers(0, 3)))]} for _ in range(int(rng.integers(0, 3)))] for _ in range(n)]
+            out.append(case("citation_recall", lambda c=cit, a=avg: es.citation_recall(c, average=a), citations=cit, average=avg))
+            out.append(case("citation_precision", lambda c=cit, a=avg: es.citation_precision(c, average=a), citations=cit, average=avg))
+            facts = [[f"f{int(i)}" for i in rng.integers(0, 6, int(rng.integers(0, 4)))] for _ in range(n)]
+            out.append(case("knowledge_consistency", lambda f=facts, a=avg: es.knowledge_consistency(f, {"f0", "f2", "f3"}, average=a), facts=facts, average=avg))
+        gv = [V[int(i)] for i in rng.integers(0, 3, n)]
+        pv = [x if rng.random() < 0.6 else V[int(rng.integers(0, 3))] for x in gv]
+        for key in ("value", "macro_f1"):
+            out.append(case("claim_verification_accuracy." + key, lambda g=gv, p=pv, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.claim_verification_accuracy(g, p)), gold=gv, predicted=pv))
+        tp, fp, fn = (rng.integers(0, 4, n).astype(float).tolist() for _ in range(3))
+        sim = rng.random(n).round(3).tolist()
+        out.append(case("answer_correctness", lambda t=tp, f=fp, g=fn: es.answer_correctness(t, f, g, average=None), tp=tp, fp=fp, fneg=fn))
+        out.append(case("answer_correctness.sim", lambda t=tp, f=fp, g=fn, s=sim: es.answer_correctness(t, f, g, similarity=s, average=None), tp=tp, fp=fp, fneg=fn, sim=sim))
+        d = int(rng.integers(2, 6))
+        q = rng.normal(size=(n, d)).round(3).tolist()
+        gq = [rng.normal(size=(int(rng.integers(1, 4)), d)).round(3).tolist() for _ in range(n)]
+        out.append(case("answer_relevance", lambda q=q, g=gq: es.answer_relevance(q, g, average=None), q=q, g=gq))
+        sa, ab, co = ([bool(x) for x in rng.integers(0, 2, n)] for _ in range(3))
+        for key in ("value", "abstention_precision", "abstention_recall", "coverage", "answered_accuracy"):
+            out.append(case("abstention_accuracy." + key, lambda s=sa, a=ab, c=co, key=key: (lambda r: r.value if key == "value" else r.params[key])(es.abstention_accuracy(s, a, correct=c)), should=sa, abstained=ab, correct=co))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
