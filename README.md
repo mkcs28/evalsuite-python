@@ -10,7 +10,11 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.8.5).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **Status: stable (1.0.0).** **1.0** makes `evaluate()` report confidence intervals by default and test
+> against a baseline, and adds an LLM leaderboard harness, framework integrations (scikit-learn, Hugging Face,
+> Keras, Lightning, MLflow, W&B), monitoring with drift alerts, TRIPOD+AI / model-card report cards, and the same
+> engine for JavaScript (npm, WebAssembly), C, R and Julia.
+> Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
 > **0.6 adds a compiled Rust core**: same API and identical results, with text metrics, COCO evaluation and
 > bootstrap resampling several times faster and multithreaded (prebuilt wheels for Linux, macOS and Windows).
 > **0.7.0** moves ROC AUC / average precision (and so `evaluate()`), the LLM-systems consistency metrics,

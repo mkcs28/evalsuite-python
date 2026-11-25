@@ -103,9 +103,9 @@ on the same workloads and machine (2 vCPUs, Linux x86_64, Python 3.13, NumPy 2.5
 | BCa bootstrap of MAE, 10,000 obs × 2,000 resamples | 100 ms | 362 ms | 3.6× |
 | Mann–Whitney U, 10,000 | 0.68 ms | 0.83 ms | 1.2× |
 | Welch t-test, 10,000 | 0.064 ms | 0.105 ms | 1.6× |
-| BLEU, 1,000 sentences | 11.6 ms | 7.7 ms | 0.7× |
-| chrF, 1,000 sentences | 16.0 ms | 11.4 ms | 0.7× |
-| TER, 1,000 sentences | 205 ms | 128 ms | 0.6× |
+| BLEU, 1,000 sentences (1.0) | 9.9 ms | 7.7 ms | 0.8× |
+| chrF, 1,000 sentences (1.0) | 9.4 ms | 11.4 ms | 1.2× |
+| TER, 1,000 sentences (1.0) | 95 ms | 128 ms | 1.3× |
 | ROUGE-L, 1,000 sentences | 5.2 ms | 5.0 ms | 1.0× |
 | NDCG@10, 10,000 queries | 4.7 ms | 71 ms | 15.3× |
 | MRR, 10,000 queries | 4.1 ms | 42 ms | 10.4× |

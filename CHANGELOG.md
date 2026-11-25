@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-25
+
+EvalSuite 1.0: answers with uncertainty by default, and one engine in every language.
+
+### Added
+- **Confidence intervals by default in `evaluate()`** (`ci="analytic"`: Wilson for proportions, DeLong for
+  ROC AUC, t-intervals for error metrics; `ci="bootstrap"` or `ci=False`) and **baseline tests**
+  (`baseline_pred=` / `baseline_prob=`: paired difference with interval and p-value, Holm-adjusted). Summaries,
+  Markdown, LaTeX and DataFrame exports show the interval and the comparison.
+- **LLM leaderboard harness** (`es.leaderboard`, `evalsuite leaderboard`): scorers (exact match, GSM8K, boxed,
+  choice, numeric, ...), Wilson / bootstrap intervals, McNemar or paired-bootstrap tests with Holm adjustment,
+  significance-aware ranks, per-category tables, extraction-failure, contamination (n-gram overlap) and
+  judge position-consistency checks; Markdown, LaTeX, HTML, CSV and JSON output.
+- **Integrations** (`evalsuite.integrations`): scikit-learn scorers, Hugging Face `compute_metrics`, Keras and
+  PyTorch Lightning callbacks, MLflow and Weights & Biases logging (optional extras).
+- **Monitoring** (`es.Monitor`, `evalsuite::monitor`): sliding-window metrics, PSI and Kolmogorov–Smirnov drift
+  against reference scores, threshold alerts with callbacks, `snapshot()` with intervals.
+- **Report cards** (`es.report_card`): the TRIPOD+AI performance section (sample, discrimination, calibration,
+  Brier, threshold measures, net benefit, subgroups) with intervals, a results paragraph and the checklist; model
+  cards from `context`; Markdown, LaTeX, HTML, JSON, CSV and Word (`[docx]` extra).
+- **One engine, every language**: `evalsuite::bridge` (JSON in, JSON out); the `evalsuite` npm package
+  (WebAssembly, Node and browser); a C API (`evalsuite-capi`, `evalsuite.h`); R (`bindings/r`) and Julia
+  (`bindings/julia`) packages. CI checks that every language gives the engine's value.
+
+### Changed
+- Faster Rust text metrics: an allocation-free 13a tokenizer and parallel sentence statistics (TER 1.9×,
+  chrF 1.6×, BLEU 1.2× versus 0.8.5); HD95 percentiles by selection instead of sorting.
+
 ## [0.8.5] - 2026-11-25
 
 The Rust edition is complete, gains a command-line tool, and the Python retrieval metrics run on it.
