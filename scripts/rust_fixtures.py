@@ -2789,6 +2789,97 @@ def code_group(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- Python source analysis (code_complexity, CodeBLEU, syntax) -----------------------------------------
+_PROGRAMS = [
+    "def f(x):\n    return x + 1\n",
+    "def f(x):\n    if x > 0 and x < 10 or x == 20:\n        return 1\n    elif x:\n        return 2\n    else:\n        return 3\n",
+    "for i in range(10):\n    if i % 2:\n        print(i)\nelse:\n    pass\n",
+    "class A:\n    '''Doc.'''\n    def m(self, a, b=2):\n        # comment\n        return [x for x in a if x if b]\n\n"
+    "    async def n(self):\n        await g()\n",
+    "try:\n    x = 1 / 0\nexcept ZeroDivisionError as e:\n    x = 0\nexcept Exception:\n    raise\nelse:\n    x += 1\n"
+    "finally:\n    print(x)\n",
+    'import os, sys\nfrom a.b import c as d\n\n\ndef g(*args, **kw):\n    """Multi\n    line doc.\n    """\n'
+    "    total = 0\n    for a in args:\n        total += a\n    while total > 100:\n        total -= 1\n"
+    "    return total if total else None\n",
+    "x = {'a': 1, **y}\ny = lambda q: q * 2\nz = x['a'] if y(1) else -x['a']\nassert z is not None, 'msg'\n",
+    "match cmd:\n    case [a, b]:\n        r = a\n    case {'k': v}:\n        r = v\n    case Point(x=0) | None:\n"
+    "        r = 0\n    case _:\n        r = -1\n",
+    "def outer():\n    def inner(n):\n        return n ** 2\n    return [inner(i) for i in range(3)]\n",
+    "s = f'{a:>10} and {b!r} {c[1:2]}'\nt = 'x'; u = 2\nwith open(p) as fh, ctx() as (q, w):\n    data = fh.read()\n",
+    "@dec\nclass B(Base, metaclass=M):\n    attr: int = 3\n    def __init__(self):\n        self.v = [] if False else [1]\n",
+    "x = 1 + \\\n    2\n# trailing comment\ny = (1,\n     2,\n     3)\n",
+    "def gen():\n    yield from range(3)\n    yield 4\n",
+    "while True:\n    n = input()\n    if not n:\n        break\n    continue\n",
+    "a = b = c = 0\na, (b, c) = 1, (2, 3)\ndel a\nglobal_var = [1, 2][0]\nprint(not a, ~b, +c)\n",
+    "def f(a, /, b, *, c=1):\n    v = a < b <= c != 0\n    return v\n",
+    "if x:\n    pass\nelif y:\n    pass\nelif z:\n    pass\n",
+    "def k(x):\n    return 'x' + x\n",
+    "return 1\n",
+    "break\n",
+    "def f(:\n    pass\n",
+    "x = (1,\n",
+    "nonlocal q\n",
+    "def h():\n    await z\n",
+    "async def h():\n    await z\n    async with a as b:\n        pass\n    async for i in c:\n        yield i\n",
+    "",
+]
+
+
+@group("pycode")
+def pycode(rng: np.random.Generator) -> list[dict[str, Any]]:
+    from evalsuite.llmsys.code import _parse, _strip
+
+    out = []
+    ok = []
+    for p in _PROGRAMS:
+        try:
+            compile(p, "<generated>", "exec", dont_inherit=True)
+            ok.append(p)
+            valid = True
+        except (SyntaxError, ValueError):
+            valid = False
+        out.append(case("syntax_ok", lambda v=valid: float(v), src=p))
+        out.append(case("strip", lambda p=p: [ord(c) for c in _strip(p)] or [-1], src=p))
+        out.append(case("parses", lambda p=p: float(_parse(p) is not None), src=p))
+    for p in ok:
+        for key in ("value", "max_complexity", "maintainability_index"):
+            out.append(
+                case("code_complexity." + key, lambda p=p, key=key: _p(key)(es.code_complexity([p])), code=[p])
+            )
+        out.append(
+            case(
+                "code_complexity.total",
+                lambda p=p: es.code_complexity([p]).params["per_program"][0]["total_complexity"],
+                code=[p],
+            )
+        )
+    out.append(case("code_complexity.value", lambda: es.code_complexity(ok), code=ok))
+    out.append(
+        case(
+            "code_complexity.maintainability_index",
+            lambda: _p("maintainability_index")(es.code_complexity(ok)),
+            code=ok,
+        )
+    )
+    for _ in range(60):
+        n = int(rng.integers(1, 5))
+        refs = [[ok[int(i)] for i in rng.integers(0, len(ok), int(rng.integers(1, 3)))] for _ in range(n)]
+        preds = [
+            ok[int(i)] if rng.random() < 0.9 else _PROGRAMS[int(rng.integers(0, len(_PROGRAMS)))]
+            for i in rng.integers(0, len(ok), n)
+        ]
+        for key in ("value", "ngram_match", "weighted_ngram_match", "syntax_match", "dataflow_match"):
+            out.append(
+                case(
+                    "codebleu_python." + key,
+                    lambda refs=refs, preds=preds, key=key: _p(key)(es.codebleu(refs, preds)),
+                    refs=refs,
+                    preds=preds,
+                )
+            )
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

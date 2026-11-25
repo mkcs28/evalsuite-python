@@ -23,4 +23,10 @@ regex = "1"
 fancy-regex = "0.14"
 roxmltree = "0.20"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+rustpython-parser = { version = "0.4", optional = true }
+
+[features]
+default = ["python"]
+# Python source analysis for `code_complexity`, CodeBLEU's syntax / data-flow match and the built-in syntax check.
+python = ["dep:rustpython-parser"]
 
