@@ -35,6 +35,7 @@ pub mod rag;
 pub mod regression;
 pub mod retrieval;
 pub mod segmentation;
+pub mod semantic;
 pub mod special;
 pub mod structured;
 pub mod summary;

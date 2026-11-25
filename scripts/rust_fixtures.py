@@ -758,6 +758,35 @@ def grounding(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- semantic ------------------------------------------------------------------------------------------
+@group("semantic")
+def semantic(rng: np.random.Generator) -> list[dict[str, Any]]:
+    from evalsuite.text.semantic import mauve_from_histograms
+    out = []
+    for _ in range(60):
+        n, d = int(rng.integers(1, 5)), int(rng.integers(2, 6))
+        R = [rng.normal(size=(int(rng.integers(1, 7)), d)).round(3).tolist() for _ in range(n)]
+        P = [rng.normal(size=(int(rng.integers(1, 7)), d)).round(3).tolist() for _ in range(n)]
+        RW = [rng.integers(1, 4, len(r)).astype(float).tolist() for r in R]
+        PW = [rng.integers(1, 4, len(p)).astype(float).tolist() for p in P]
+        for m in ("f1", "precision", "recall"):
+            out.append(case("bertscore." + m, lambda R=R, P=P, m=m: es.bertscore(R, P, measure=m, average=None), refs=R, preds=P))
+        out.append(case("bertscore.weighted", lambda R=R, P=P, a=RW, b=PW: es.bertscore(R, P, reference_weights=a, prediction_weights=b, baseline=0.3, average=None), refs=R, preds=P, rw=RW, pw=PW))
+        out.append(case("moverscore", lambda R=R, P=P: es.moverscore(R, P, average=None), refs=R, preds=P))
+        out.append(case("moverscore.weighted", lambda R=R, P=P, a=RW, b=PW: es.moverscore(R, P, reference_weights=a, prediction_weights=b, average=None), refs=R, preds=P, rw=RW, pw=PW))
+        A, B = rng.normal(size=(n, d)).round(3).tolist(), rng.normal(size=(n, d)).round(3).tolist()
+        for m in ("cosine", "euclidean", "manhattan"):
+            for nm in (False, True):
+                out.append(case("embedding_similarity", lambda A=A, B=B, m=m, nm=nm: es.embedding_similarity(A, B, metric=m, normalize=nm, average=None), a=A, b=B, metric=m, normalize=nm))
+        k = int(rng.integers(2, 8))
+        ph, qh = rng.random(k), rng.random(k)
+        ph[rng.random(k) < 0.2] = 0
+        ph, qh = (ph / ph.sum()).tolist() if ph.sum() else [1 / k] * k, (qh / qh.sum()).tolist()
+        for disc, sf in ((25, 5.0), (10, 2.0)):
+            out.append(case("mauve_from_histograms", lambda p=ph, q=qh, disc=disc, sf=sf: mauve_from_histograms(np.array(p), np.array(q), discretization=disc, scaling_factor=sf), p=ph, q=qh, disc=disc, sf=sf))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
