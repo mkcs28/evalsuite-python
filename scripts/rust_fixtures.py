@@ -1060,6 +1060,47 @@ def safety(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- code ----------------------------------------------------------------------------------------------
+_SNIPS = ["def f(x):\n    return x + 1", "def f(y):\n    return y+1", "for i in range(10):\n    if i % 2:\n        print(i)",
+          "x = [a for a in b if a]", "while True:\n    break", "import os\nos.path.join(a, b)", "return None", "class A:\n    pass"]
+
+
+@group("code")
+def code_group(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(100):
+        n = int(rng.integers(1, 20))
+        tr = [[bool(x) for x in rng.random(int(rng.integers(1, 6))) < 0.7] for _ in range(n)]
+        for key in ("value", "strict_pass_rate"):
+            out.append(case("unit_test_pass_rate." + key, lambda key=key: _p(key)(es.unit_test_pass_rate(tr)), tr=tr))
+        v, ln = rng.integers(0, 5, n).astype(float).tolist(), rng.integers(0, 200, n).astype(float).tolist()
+        out.append(case("static_analysis_violation_rate", lambda: es.static_analysis_violation_rate(v, ln), v=v, l=ln))
+        oc = [["passed", "ok", "error", "timeout", "crash"][int(i)] for i in rng.integers(0, 5, n)]
+        out.append(case("execution_success_rate", lambda: es.execution_success_rate(oc), o=oc))
+        out.append(case("execution_success_rate.by", lambda: list(es.execution_success_rate(oc).params["by_failure"].values()), o=oc))
+        tot = rng.integers(0, 50, n).astype(float)
+        cov = np.floor(tot * rng.random(n))
+        for key in ("value", "mean_per_program"):
+            out.append(case("coverage_rate." + key, lambda key=key: _p(key)(es.coverage_rate(cov.tolist(), tot.tolist())), c=cov.tolist(), t=tot.tolist()))
+        fb, pa = [bool(x) for x in rng.integers(0, 2, n)], [bool(x) for x in rng.integers(0, 2, n)]
+        out.append(case("patch_acceptance_rate", lambda: es.patch_acceptance_rate(fails_before=fb, passes_after=pa), fb=fb, pa=pa))
+        f2p = [[bool(x) for x in rng.random(int(rng.integers(1, 4))) < 0.8] for _ in range(n)]
+        p2p = [[bool(x) for x in rng.random(int(rng.integers(0, 4))) < 0.9] for _ in range(n)]
+        for key in ("value", "f2p_only_rate", "apply_rate"):
+            out.append(case("resolved_rate." + key, lambda key=key: _p(key)(es.resolved_rate(f2p, p2p, applied=fb)), f=f2p, p=p2p, a=fb))
+        fi = [[["low", "Medium", "HIGH", "critical"][int(i)] for i in rng.integers(0, 4, int(rng.integers(0, 3)))] for _ in range(n)]
+        for ms in ("low", "high"):
+            out.append(case("security_vulnerability_rate", lambda ms=ms: es.security_vulnerability_rate(fi, min_severity=ms), f=fi, m=ms))
+        t, rt = (rng.random(n) * 3).round(3).tolist(), (rng.random(n) + 0.1).round(3).tolist()
+        for key in ("value", "median_time_ratio", "share_slower_than_2x", "nmu"):
+            out.append(case("runtime_efficiency." + key, lambda key=key: _p(key)(es.runtime_efficiency(t, rt, memory=rt, reference_memory=t if min(t) > 0 else rt)), t=t, r=rt, m=rt, rm=t if min(t) > 0 else rt))
+        refs = [[_SNIPS[int(i)] for i in rng.integers(0, 8, int(rng.integers(1, 3)))] for _ in range(min(n, 5))]
+        preds = [_SNIPS[int(i)] for i in rng.integers(0, 8, len(refs))]
+        for key in ("ngram_match", "weighted_ngram_match"):
+            out.append(case("codebleu." + key, lambda key=key: _p(key)(es.codebleu(refs, preds)), refs=refs, preds=preds))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

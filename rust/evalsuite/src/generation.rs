@@ -50,6 +50,12 @@ impl<'a> Vocab<'a> {
     pub fn encode(&mut self, toks: &[&'a str]) -> Vec<u32> {
         toks.iter().map(|t| self.id(t)).collect()
     }
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&&'a str, &u32)> {
+        self.ids.iter()
+    }
 }
 
 fn is_13a_punct(c: char) -> bool {

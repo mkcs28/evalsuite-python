@@ -23,6 +23,7 @@ pub mod agents;
 pub mod calibration;
 pub mod classification;
 pub mod clinical;
+pub mod code;
 pub mod detection;
 pub mod efficiency;
 pub mod error;
