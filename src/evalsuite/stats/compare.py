@@ -272,6 +272,7 @@ def compare(
     sample_weight: Optional[ArrayLike] = None,
     metric_kwargs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     resampling: str = "numpy",
+    _allow_single: bool = False,
 ) -> ComparisonResult:
     """Compare models evaluated on the same test set.
 
@@ -294,7 +295,7 @@ def compare(
     predictions = dict(predictions or {})
     probabilities = dict(probabilities or {})
     names = list(dict.fromkeys([*predictions, *probabilities]))
-    if len(names) < 2:
+    if len(names) < (1 if _allow_single else 2):
         raise InputValidationError("compare() needs at least two models (a dict of name -> predictions).")
     if baseline is not None and baseline not in names:
         raise InputValidationError(f"baseline={baseline!r} is not one of the models: {', '.join(names)}.")

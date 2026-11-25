@@ -105,7 +105,7 @@ class TestResults:
             r.value[0] = 5  # type: ignore[index]
 
     def test_exports(self) -> None:
-        res = es.evaluate([0, 1, 1, 0, 1], [0, 1, 0, 0, 1], y_prob=[0.1, 0.9, 0.4, 0.2, 0.7])
+        res = es.evaluate([0, 1, 1, 0, 1], [0, 1, 0, 0, 1], y_prob=[0.1, 0.9, 0.4, 0.2, 0.7], ci=False)
         payload = json.loads(res.to_json())
         assert payload["task"] == "classification"
         assert payload["metrics"]["accuracy"]["value"] == pytest.approx(0.8)
@@ -116,6 +116,28 @@ class TestResults:
         assert res.to_markdown().startswith("| Metric | Value |")
         tex = res.to_latex(caption="Results", label="tab:res")
         assert r"\begin{tabular}{lr}" in tex and r"\toprule" in tex and r"\label{tab:res}" in tex
+
+    def test_exports_with_intervals_and_baseline(self) -> None:
+        y = [0, 1, 1, 0, 1, 0, 1, 1, 0, 0] * 5
+        p = [0, 1, 0, 0, 1, 0, 1, 1, 1, 0] * 5
+        b = [0, 0, 0, 0, 1, 1, 1, 0, 1, 0] * 5
+        res = es.evaluate(y, p, baseline_pred=b)
+        acc = res["accuracy"]
+        assert acc.params["ci_method"] == "wilson" and acc.params["ci_low"] < 0.8 < acc.params["ci_high"]
+        assert acc.params["baseline_test"].startswith("mcnemar") and acc.params[
+            "baseline_difference"
+        ] == pytest.approx(0.3)
+        assert res.comparison is not None
+        assert "vs baseline" in res.summary() and "(0." in res.summary()
+        md = res.to_markdown()
+        assert md.startswith("| Metric | Value | 95% CI | Δ vs baseline | p |")
+        assert {"ci_low", "ci_high", "baseline_difference"} <= set(res.to_dataframe().columns)
+        assert r"95\% CI" in res.to_latex()
+        boot = es.evaluate(y, p, ci="bootstrap", n_resamples=200)
+        assert all("ci_low" in m.params for m in boot.metrics.values())
+        assert boot.to_dict()["metadata"]["ci"] == "bootstrap"
+        with pytest.raises(es.InputValidationError):
+            es.evaluate(y, p, ci="sometimes")
 
     def test_nan_becomes_null_in_json(self) -> None:
         r = es.precision([0, 0, 1], [0, 0, 0], zero_division=np.nan)

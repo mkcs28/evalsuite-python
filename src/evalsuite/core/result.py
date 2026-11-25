@@ -219,6 +219,9 @@ class EvaluationResult(Mapping[str, MetricResult]):
     labels: Optional[tuple[Any, ...]] = None
     confusion_matrix: Optional[np.ndarray] = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    #: Paired comparison with the baseline (``evaluate(..., baseline_pred=...)``), or the bootstrap used for the
+    #: intervals (``ci="bootstrap"``); a :class:`~evalsuite.ComparisonResult`.
+    comparison: Optional[Any] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metrics", MappingProxyType(dict(self.metrics)))
@@ -255,7 +258,7 @@ class EvaluationResult(Mapping[str, MetricResult]):
                     + ", ".join(f"{lab}={_fmt(v, digits)}" for lab, v in zip(m.labels or (), m.value))
                 )
             else:
-                lines.append(f"  {m.name:<{width}}  {_fmt(m.value, digits)}")
+                lines.append(f"  {m.name:<{width}}  {_fmt(m.value, digits)}{_ci_text(m, digits)}")
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -286,22 +289,55 @@ class EvaluationResult(Mapping[str, MetricResult]):
         import pandas as pd
 
         rows = self._scalar_rows()
-        frame: pd.DataFrame = pd.DataFrame(
-            {
-                "metric": [m.metric for m in rows],
-                "name": [m.name for m in rows],
-                "value": [m.value for m in rows],
-            }
-        )
+        data: dict[str, list[Any]] = {
+            "metric": [m.metric for m in rows],
+            "name": [m.name for m in rows],
+            "value": [m.value for m in rows],
+        }
+        extra = ["ci_low", "ci_high", "baseline_difference", "baseline_p_adjusted"]
+        for key in extra:
+            if any(key in m.params for m in rows):
+                data[key] = [m.params.get(key, np.nan) for m in rows]
+        frame: pd.DataFrame = pd.DataFrame(data)
         return frame
 
     def to_markdown(self, *, digits: int = 4) -> str:
-        rows = [f"| {m.name} | {_fmt(m.value, digits)} |" for m in self._scalar_rows()]
-        return "\n".join(["| Metric | Value |", "| --- | ---: |", *rows])
+        rows = self._scalar_rows()
+        has_ci = any("ci_low" in m.params for m in rows)
+        has_base = any("baseline_difference" in m.params for m in rows)
+        head = (
+            ["Metric", "Value"]
+            + ([f"{_level_pct(rows)} CI"] if has_ci else [])
+            + (["Δ vs baseline", "p"] if has_base else [])
+        )
+        out = [
+            "| " + " | ".join(head) + " |",
+            "| --- | ---: |" + (" --- |" if has_ci else "") + (" ---: | ---: |" if has_base else ""),
+        ]
+        for m in rows:
+            cells = [m.name, _fmt(m.value, digits)]
+            if has_ci:
+                cells.append(_ci_cell(m, digits))
+            if has_base:
+                cells += _base_cells(m, digits)
+            out.append("| " + " | ".join(cells) + " |")
+        return "\n".join(out)
 
     def to_latex(self, *, digits: int = 4, caption: Optional[str] = None, label: Optional[str] = None) -> str:
-        rows = [[_latex_escape(m.name), _fmt(m.value, digits)] for m in self._scalar_rows()]
-        return _latex_table(["Metric", "Value"], rows, caption=caption, label=label)
+        scalar = self._scalar_rows()
+        has_ci = any("ci_low" in m.params for m in scalar)
+        has_base = any("baseline_difference" in m.params for m in scalar)
+        head = ["Metric", "Value"] + ([f"{_level_pct(scalar)} CI".replace("%", r"\%")] if has_ci else [])
+        head += [r"$\Delta$ vs baseline", "$p$"] if has_base else []
+        rows = []
+        for m in scalar:
+            r = [_latex_escape(m.name), _fmt(m.value, digits)]
+            if has_ci:
+                r.append(_ci_cell(m, digits).replace("–", "--"))
+            if has_base:
+                r += _base_cells(m, digits)
+            rows.append(r)
+        return _latex_table(head, rows, caption=caption, label=label)
 
     def _csv_rows(self) -> list[list[Any]]:
         rows: list[list[Any]] = []
@@ -377,3 +413,39 @@ class EvaluationResult(Mapping[str, MetricResult]):
                 "text": lambda: self.summary(digits=digits) + "\n",
             },
         )
+
+
+def _level_pct(rows: list[MetricResult]) -> str:
+    for m in rows:
+        if "ci_level" in m.params:
+            return f"{float(m.params['ci_level']) * 100:g}%"
+    return "95%"
+
+
+def _ci_cell(m: MetricResult, digits: int) -> str:
+    if "ci_low" not in m.params:
+        return ""
+    return f"{_fmt(m.params['ci_low'], digits)}–{_fmt(m.params['ci_high'], digits)}"
+
+
+def _base_cells(m: MetricResult, digits: int) -> list[str]:
+    if "baseline_difference" not in m.params:
+        return ["", ""]
+    d = float(m.params["baseline_difference"])
+    return [("+" if d >= 0 else "") + _fmt(d, digits), _p_text(float(m.params["baseline_p_adjusted"]))]
+
+
+def _p_text(p: float) -> str:
+    return "<0.001" if p < 0.001 else f"{p:.3f}"
+
+
+def _ci_text(m: MetricResult, digits: int) -> str:
+    """'  (low–high)' and '  Δ +d vs baseline, p=…' for evaluate() results that carry them."""
+    out = ""
+    if "ci_low" in m.params:
+        out += f"  ({_ci_cell(m, digits)})"
+    if "baseline_difference" in m.params:
+        d, p = _base_cells(m, digits)
+        p_text = p if p.startswith("<") else f"={p}"
+        out += f"  {d} vs baseline (p{p_text}, {m.params['baseline_test']})"
+    return out
