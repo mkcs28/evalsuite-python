@@ -913,7 +913,11 @@ pub fn proportion_ci(
             let denom = 1.0 + z * z / nf;
             let centre = (p + z * z / (2.0 * nf)) / denom;
             let half = z * (p * (1.0 - p) / nf + z * z / (4.0 * nf * nf)).sqrt() / denom;
-            (centre - half, centre + half)
+            // Rounding can leave a bound a hair past the estimate at 0 or n successes.
+            (
+                (centre - half).min(p).max(0.0),
+                (centre + half).max(p).min(1.0),
+            )
         }
         ProportionMethod::ClopperPearson => (
             if successes == 0 {

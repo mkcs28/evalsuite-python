@@ -30,3 +30,10 @@ default = ["python"]
 # Python source analysis for `code_complexity`, CodeBLEU's syntax / data-flow match and the built-in syntax check.
 python = ["dep:rustpython-parser"]
 
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false }
+
+[[bench]]
+name = "metrics"
+harness = false

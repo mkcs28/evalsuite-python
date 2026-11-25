@@ -195,6 +195,33 @@ impl Default for BleuOpts<'_> {
     }
 }
 
+/// Tokenizes predictions and references in parallel (tokenization dominates corpus BLEU).
+#[allow(clippy::type_complexity)]
+fn prep_all<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    lower: bool,
+    tok: &Tokenize<'_>,
+) -> (Vec<Vec<String>>, Vec<Vec<Vec<String>>>) {
+    use rayon::prelude::*;
+    let h: Vec<&str> = predictions.iter().map(AsRef::as_ref).collect();
+    let r: Vec<Vec<&str>> = references
+        .iter()
+        .map(|rs| rs.iter().map(AsRef::as_ref).collect())
+        .collect();
+    let h = h
+        .par_iter()
+        .with_min_len(64)
+        .map(|p| prep(p, lower, tok))
+        .collect();
+    let r = r
+        .par_iter()
+        .with_min_len(64)
+        .map(|rs| rs.iter().map(|x| prep(x, lower, tok)).collect())
+        .collect();
+    (h, r)
+}
+
 fn prep(t: &str, lower: bool, tok: &Tokenize<'_>) -> Vec<String> {
     let s = if lower { py_lower(t) } else { t.to_owned() };
     tok.run(py_rstrip(&s))
@@ -287,18 +314,7 @@ pub fn bleu<R: AsRef<str>, P: AsRef<str>>(
     if o.max_order == 0 {
         return invalid("max_order must be a positive integer.");
     }
-    let h: Vec<Vec<String>> = predictions
-        .iter()
-        .map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize))
-        .collect();
-    let r: Vec<Vec<Vec<String>>> = references
-        .iter()
-        .map(|rs| {
-            rs.iter()
-                .map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize))
-                .collect()
-        })
-        .collect();
+    let (h, r) = prep_all(references, predictions, o.lowercase, &o.tokenize);
     let mut acc = vec![0.0f64; 2 + 2 * o.max_order];
     for seg in segment_stats(&h, &r, o.max_order) {
         for (a, v) in acc.iter_mut().zip(seg) {
@@ -315,18 +331,7 @@ pub fn sentence_bleu<R: AsRef<str>, P: AsRef<str>>(
     o: &BleuOpts<'_>,
 ) -> Result<Vec<f64>> {
     check(references, predictions)?;
-    let h: Vec<Vec<String>> = predictions
-        .iter()
-        .map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize))
-        .collect();
-    let r: Vec<Vec<Vec<String>>> = references
-        .iter()
-        .map(|rs| {
-            rs.iter()
-                .map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize))
-                .collect()
-        })
-        .collect();
+    let (h, r) = prep_all(references, predictions, o.lowercase, &o.tokenize);
     Ok(segment_stats(&h, &r, o.max_order)
         .iter()
         .map(|s| bleu_score(s, o.max_order, o.smooth, true))

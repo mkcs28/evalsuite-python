@@ -193,12 +193,16 @@ pub fn rmsle(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> Result<f64> {
 }
 
 fn median(v: &[f64]) -> f64 {
-    let s = crate::util::sorted(v);
+    // Selection instead of a full sort (inputs are finite).
+    let mut s = v.to_vec();
     let n = s.len();
+    let cmp = |a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
+    let (lower, &mut hi, _) = s.select_nth_unstable_by(n / 2, cmp);
     if n % 2 == 1 {
-        s[n / 2]
+        hi
     } else {
-        (s[n / 2 - 1] + s[n / 2]) / 2.0
+        let lo = lower.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        (lo + hi) / 2.0
     }
 }
 
