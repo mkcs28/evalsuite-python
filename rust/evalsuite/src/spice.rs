@@ -32,8 +32,15 @@ fn tuples<S: AsRef<str>>(x: &[Vec<S>], name: &str) -> Result<BTreeSet<Tuple>> {
     Ok(out)
 }
 
-fn match_count(cand: &BTreeSet<Tuple>, reference: &BTreeSet<Tuple>, syn: Option<Synonyms>, cache: &mut HashMap<String, HashSet<String>>) -> usize {
-    let Some(syn) = syn else { return cand.intersection(reference).count() };
+fn match_count(
+    cand: &BTreeSet<Tuple>,
+    reference: &BTreeSet<Tuple>,
+    syn: Option<Synonyms>,
+    cache: &mut HashMap<String, HashSet<String>>,
+) -> usize {
+    let Some(syn) = syn else {
+        return cand.intersection(reference).count();
+    };
     let mut keys = |w: &str| -> HashSet<String> {
         cache
             .entry(w.to_owned())
@@ -44,7 +51,12 @@ fn match_count(cand: &BTreeSet<Tuple>, reference: &BTreeSet<Tuple>, syn: Option<
             })
             .clone()
     };
-    let mut same = |a: &Tuple, b: &Tuple| a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x == y || !keys(x).is_disjoint(&keys(y)));
+    let mut same = |a: &Tuple, b: &Tuple| {
+        a.len() == b.len()
+            && a.iter()
+                .zip(b)
+                .all(|(x, y)| x == y || !keys(x).is_disjoint(&keys(y)))
+    };
     let mut pool: Vec<&Tuple> = reference.iter().collect();
     let mut order: Vec<&Tuple> = cand.iter().collect();
     order.sort_by_key(|t| !reference.contains(*t)); // exact matches first, each group in tuple order
@@ -81,7 +93,11 @@ fn f(p: f64, r: f64) -> f64 {
 
 /// SPICE from tuples: `references[i]` holds the tuples of all references of image i (merged),
 /// `candidates[i]` the candidate's tuples.
-pub fn spice<S: AsRef<str>>(references: &[Vec<Vec<S>>], candidates: &[Vec<Vec<S>>], synonyms: Option<Synonyms>) -> Result<Spice> {
+pub fn spice<S: AsRef<str>>(
+    references: &[Vec<Vec<S>>],
+    candidates: &[Vec<Vec<S>>],
+    synonyms: Option<Synonyms>,
+) -> Result<Spice> {
     if references.is_empty() || references.len() != candidates.len() {
         return invalid("references and candidates must be non-empty and the same length.");
     }
@@ -92,8 +108,16 @@ pub fn spice<S: AsRef<str>>(references: &[Vec<Vec<S>>], candidates: &[Vec<Vec<S>
         let rt = tuples(r, &format!("references[{i}]"))?;
         let ct = tuples(c, &format!("candidates[{i}]"))?;
         let m = match_count(&ct, &rt, synonyms, &mut cache) as f64;
-        let p = if ct.is_empty() { 0.0 } else { m / ct.len() as f64 };
-        let rc = if rt.is_empty() { 0.0 } else { m / rt.len() as f64 };
+        let p = if ct.is_empty() {
+            0.0
+        } else {
+            m / ct.len() as f64
+        };
+        let rc = if rt.is_empty() {
+            0.0
+        } else {
+            m / rt.len() as f64
+        };
         ps.push(p);
         rs.push(rc);
         f1s.push(f(p, rc));
@@ -111,5 +135,13 @@ pub fn spice<S: AsRef<str>>(references: &[Vec<Vec<S>>], candidates: &[Vec<Vec<S>
         let r = if nr > 0 { mt as f64 / nr as f64 } else { 0.0 };
         f(p, r)
     };
-    Ok(Spice { value: mean(&f1s), per_image: f1s, precision: ps, recall: rs, object_f: tf(0), attribute_f: tf(1), relation_f: tf(2) })
+    Ok(Spice {
+        value: mean(&f1s),
+        per_image: f1s,
+        precision: ps,
+        recall: rs,
+        object_f: tf(0),
+        attribute_f: tf(1),
+        relation_f: tf(2),
+    })
 }

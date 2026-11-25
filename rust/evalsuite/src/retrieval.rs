@@ -47,7 +47,11 @@ pub struct QueryScores {
 
 fn finish(per_query: Vec<f64>) -> QueryScores {
     let ok: Vec<f64> = per_query.iter().copied().filter(|v| !v.is_nan()).collect();
-    let mean = if ok.is_empty() { f64::NAN } else { crate::util::np_sum(&ok) / ok.len() as f64 };
+    let mean = if ok.is_empty() {
+        f64::NAN
+    } else {
+        crate::util::np_sum(&ok) / ok.len() as f64
+    };
     QueryScores { mean, per_query }
 }
 
@@ -71,9 +75,17 @@ fn queries<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>]) -> Re
 }
 
 fn need_relevant<D>(relevant: &[Judgements<D>], what: &str) -> Result<()> {
-    let empty: Vec<usize> = relevant.iter().enumerate().filter(|(_, r)| r.is_empty()).map(|(i, _)| i).take(5).collect();
+    let empty: Vec<usize> = relevant
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.is_empty())
+        .map(|(i, _)| i)
+        .take(5)
+        .collect();
     if !empty.is_empty() {
-        return invalid(format!("{what} is undefined for queries without relevant documents (queries {empty:?})."));
+        return invalid(format!(
+            "{what} is undefined for queries without relevant documents (queries {empty:?})."
+        ));
     }
     Ok(())
 }
@@ -93,44 +105,89 @@ fn check_k(k: Option<usize>) -> Result<()> {
 }
 
 /// Precision@k: relevant documents among the top k, divided by k.
-pub fn precision_at_k<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: usize) -> Result<QueryScores> {
+pub fn precision_at_k<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: usize,
+) -> Result<QueryScores> {
     check_k(Some(k))?;
     queries(relevant, retrieved)?;
-    Ok(finish(relevant.iter().zip(retrieved).map(|(r, d)| top(d, Some(k)).iter().filter(|x| r.contains_key(x)).count() as f64 / k as f64).collect()))
+    Ok(finish(
+        relevant
+            .iter()
+            .zip(retrieved)
+            .map(|(r, d)| {
+                top(d, Some(k)).iter().filter(|x| r.contains_key(x)).count() as f64 / k as f64
+            })
+            .collect(),
+    ))
 }
 
 /// Recall@k: share of a query's relevant documents found in the top k.
-pub fn recall_at_k<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: usize) -> Result<QueryScores> {
+pub fn recall_at_k<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: usize,
+) -> Result<QueryScores> {
     check_k(Some(k))?;
     queries(relevant, retrieved)?;
     need_relevant(relevant, "Recall@k")?;
     Ok(finish(
-        relevant.iter().zip(retrieved).map(|(r, d)| top(d, Some(k)).iter().filter(|x| r.contains_key(x)).count() as f64 / r.len() as f64).collect(),
+        relevant
+            .iter()
+            .zip(retrieved)
+            .map(|(r, d)| {
+                top(d, Some(k)).iter().filter(|x| r.contains_key(x)).count() as f64 / r.len() as f64
+            })
+            .collect(),
     ))
 }
 
 /// Hit rate@k: whether any relevant document is in the top k.
-pub fn hit_rate_at_k<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: usize) -> Result<QueryScores> {
+pub fn hit_rate_at_k<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: usize,
+) -> Result<QueryScores> {
     check_k(Some(k))?;
     queries(relevant, retrieved)?;
-    Ok(finish(relevant.iter().zip(retrieved).map(|(r, d)| f64::from(u8::from(top(d, Some(k)).iter().any(|x| r.contains_key(x))))).collect()))
+    Ok(finish(
+        relevant
+            .iter()
+            .zip(retrieved)
+            .map(|(r, d)| f64::from(u8::from(top(d, Some(k)).iter().any(|x| r.contains_key(x)))))
+            .collect(),
+    ))
 }
 
 /// Mean reciprocal rank of the first relevant document (within the top k, if given).
-pub fn mrr<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: Option<usize>) -> Result<QueryScores> {
+pub fn mrr<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: Option<usize>,
+) -> Result<QueryScores> {
     check_k(k)?;
     queries(relevant, retrieved)?;
     Ok(finish(
         relevant
             .iter()
             .zip(retrieved)
-            .map(|(r, d)| top(d, k).iter().position(|x| r.contains_key(x)).map_or(0.0, |i| 1.0 / (i + 1) as f64))
+            .map(|(r, d)| {
+                top(d, k)
+                    .iter()
+                    .position(|x| r.contains_key(x))
+                    .map_or(0.0, |i| 1.0 / (i + 1) as f64)
+            })
             .collect(),
     ))
 }
 
 /// Mean average precision (within the top k, if given), normalised by the number of relevant documents.
-pub fn mean_average_precision_at_k<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: Option<usize>) -> Result<QueryScores> {
+pub fn mean_average_precision_at_k<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: Option<usize>,
+) -> Result<QueryScores> {
     check_k(k)?;
     queries(relevant, retrieved)?;
     need_relevant(relevant, "Average precision")?;
@@ -163,23 +220,42 @@ pub enum Gains {
 }
 
 /// Normalised discounted cumulative gain (within the top k, if given).
-pub fn ndcg_at_k<D: Hash + Eq>(relevant: &[Judgements<D>], retrieved: &[Vec<D>], k: Option<usize>, gains: Gains) -> Result<QueryScores> {
+pub fn ndcg_at_k<D: Hash + Eq>(
+    relevant: &[Judgements<D>],
+    retrieved: &[Vec<D>],
+    k: Option<usize>,
+    gains: Gains,
+) -> Result<QueryScores> {
     check_k(k)?;
     queries(relevant, retrieved)?;
     need_relevant(relevant, "NDCG")?;
-    let g = |x: f64| if gains == Gains::Linear { x } else { 2.0f64.powf(x) - 1.0 };
+    let g = |x: f64| {
+        if gains == Gains::Linear {
+            x
+        } else {
+            2.0f64.powf(x) - 1.0
+        }
+    };
     Ok(finish(
         relevant
             .iter()
             .zip(retrieved)
             .map(|(r, d)| {
-                let dcg: f64 = top(d, k).iter().enumerate().map(|(i, x)| g(r.get(x).copied().unwrap_or(0.0)) / ((i + 2) as f64).log2()).sum();
+                let dcg: f64 = top(d, k)
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| g(r.get(x).copied().unwrap_or(0.0)) / ((i + 2) as f64).log2())
+                    .sum();
                 let mut ideal: Vec<f64> = r.values().copied().collect();
                 ideal.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
                 if let Some(k) = k {
                     ideal.truncate(k);
                 }
-                let idcg: f64 = ideal.iter().enumerate().map(|(i, &x)| g(x) / ((i + 2) as f64).log2()).sum();
+                let idcg: f64 = ideal
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &x)| g(x) / ((i + 2) as f64).log2())
+                    .sum();
                 dcg / idcg
             })
             .collect(),

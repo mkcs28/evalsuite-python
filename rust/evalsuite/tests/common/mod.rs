@@ -5,7 +5,8 @@ use serde_json::Value;
 
 pub fn load(group: &str) -> Vec<Value> {
     let path = format!("{}/tests/fixtures/{group}.json", env!("CARGO_MANIFEST_DIR"));
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e} (run scripts/rust_fixtures.py)"));
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{path}: {e} (run scripts/rust_fixtures.py)"));
     serde_json::from_str::<Vec<Value>>(&text).unwrap()
 }
 
@@ -37,15 +38,33 @@ pub fn rows(v: &Value) -> Vec<Vec<f64>> {
 }
 
 pub fn bool_rows(v: &Value) -> Vec<Vec<bool>> {
-    v.as_array().unwrap().iter().map(|r| r.as_array().unwrap().iter().map(|x| num(x) != 0.0).collect()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            r.as_array()
+                .unwrap()
+                .iter()
+                .map(|x| num(x) != 0.0)
+                .collect()
+        })
+        .collect()
 }
 
 pub fn ints(v: &Value) -> Vec<i64> {
-    v.as_array().unwrap().iter().map(|x| x.as_i64().unwrap()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_i64().unwrap())
+        .collect()
 }
 
 pub fn strs(v: &Value) -> Vec<String> {
-    v.as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_owned()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_owned())
+        .collect()
 }
 
 /// A computed value: a number, or a (possibly nested) list of numbers flattened.
@@ -103,10 +122,18 @@ pub fn check(group: &str, rtol: f64, run: impl Fn(&str, &Value) -> Got) -> (usiz
         checked += 1;
         if !ok && bad.len() < 15 {
             let args = c["args"].to_string();
-            bad.push(format!("{f}: got {got:?}, expected {exp}  args {}", &args[..args.len().min(300)]));
+            bad.push(format!(
+                "{f}: got {got:?}, expected {exp}  args {}",
+                &args[..args.len().min(300)]
+            ));
         }
     }
     eprintln!("{group}: {checked} checked, {skipped} skipped");
-    assert!(bad.is_empty(), "{} mismatches in {group}:\n{}", bad.len(), bad.join("\n"));
+    assert!(
+        bad.is_empty(),
+        "{} mismatches in {group}:\n{}",
+        bad.len(),
+        bad.join("\n")
+    );
     (checked, skipped)
 }

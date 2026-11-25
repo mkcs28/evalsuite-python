@@ -43,12 +43,24 @@ pub struct ByLength {
 }
 
 /// Retrieval accuracy overall and per context length.
-pub fn retrieval_accuracy_by_length(correct: &[bool], context_lengths: &[f64], threshold: f64) -> Result<ByLength> {
+pub fn retrieval_accuracy_by_length(
+    correct: &[bool],
+    context_lengths: &[f64],
+    threshold: f64,
+) -> Result<ByLength> {
     nonempty(correct, "correct")?;
     floats(context_lengths, "context_lengths", Some(0.0), None)?;
-    same(correct.len(), context_lengths.len(), "correct", "context_lengths")?;
+    same(
+        correct.len(),
+        context_lengths.len(),
+        "correct",
+        "context_lengths",
+    )?;
     let c = as_f(correct);
-    let by: Vec<(f64, f64)> = uniq(context_lengths).into_iter().map(|v| (v, mean_where(&c, |i| context_lengths[i] == v).unwrap())).collect();
+    let by: Vec<(f64, f64)> = uniq(context_lengths)
+        .into_iter()
+        .map(|v| (v, mean_where(&c, |i| context_lengths[i] == v).unwrap()))
+        .collect();
     let mut effective = None;
     for &(v, a) in &by {
         if a >= threshold {
@@ -57,7 +69,12 @@ pub fn retrieval_accuracy_by_length(correct: &[bool], context_lengths: &[f64], t
             break;
         }
     }
-    Ok(ByLength { value: mean(&c), n_passing_lengths: by.iter().filter(|(_, a)| *a >= threshold).count(), by_length: by, effective_length: effective })
+    Ok(ByLength {
+        value: mean(&c),
+        n_passing_lengths: by.iter().filter(|(_, a)| *a >= threshold).count(),
+        by_length: by,
+        effective_length: effective,
+    })
 }
 
 /// Needle-in-a-haystack accuracy grid (lengths × depths; NaN for empty cells) and its worst cell.
@@ -71,19 +88,46 @@ pub struct Haystack {
 }
 
 /// Needle retrieval accuracy (`correct` in [0, 1]) by context length and needle depth (in [0, 1]).
-pub fn needle_in_haystack(correct: &[f64], context_lengths: &[f64], depths: &[f64]) -> Result<Haystack> {
+pub fn needle_in_haystack(
+    correct: &[f64],
+    context_lengths: &[f64],
+    depths: &[f64],
+) -> Result<Haystack> {
     floats(correct, "correct", Some(0.0), Some(1.0))?;
     floats(context_lengths, "context_lengths", Some(0.0), None)?;
     floats(depths, "depths", Some(0.0), Some(1.0))?;
-    same(correct.len(), context_lengths.len(), "correct", "context_lengths")?;
+    same(
+        correct.len(),
+        context_lengths.len(),
+        "correct",
+        "context_lengths",
+    )?;
     same(correct.len(), depths.len(), "correct", "depths")?;
     let (ls, ds) = (uniq(context_lengths), uniq(depths));
     let grid: Vec<Vec<f64>> = ls
         .iter()
-        .map(|&l| ds.iter().map(|&d| mean_where(correct, |i| context_lengths[i] == l && depths[i] == d).unwrap_or(f64::NAN)).collect())
+        .map(|&l| {
+            ds.iter()
+                .map(|&d| {
+                    mean_where(correct, |i| context_lengths[i] == l && depths[i] == d)
+                        .unwrap_or(f64::NAN)
+                })
+                .collect()
+        })
         .collect();
-    let worst = grid.iter().flatten().copied().filter(|x| !x.is_nan()).fold(f64::INFINITY, f64::min);
-    Ok(Haystack { value: mean(correct), lengths: ls, depths: ds, grid, worst_cell: worst })
+    let worst = grid
+        .iter()
+        .flatten()
+        .copied()
+        .filter(|x| !x.is_nan())
+        .fold(f64::INFINITY, f64::min);
+    Ok(Haystack {
+        value: mean(correct),
+        lengths: ls,
+        depths: ds,
+        grid,
+        worst_cell: worst,
+    })
 }
 
 fn check_positions(correct: &[f64], positions: &[f64]) -> Result<()> {
@@ -94,7 +138,11 @@ fn check_positions(correct: &[f64], positions: &[f64]) -> Result<()> {
 
 /// Position sensitivity: the gap between the best and worst accuracy over `n_bins` equal position bins;
 /// returns (gap, per-bin accuracies of the non-empty bins as (low edge, high edge, accuracy)).
-pub fn position_accuracy(correct: &[f64], positions: &[f64], n_bins: usize) -> Result<(f64, Vec<(f64, f64, f64)>)> {
+pub fn position_accuracy(
+    correct: &[f64],
+    positions: &[f64],
+    n_bins: usize,
+) -> Result<(f64, Vec<(f64, f64, f64)>)> {
     check_positions(correct, positions)?;
     if n_bins < 2 {
         return invalid("n_bins must be an integer >= 2.");
@@ -104,7 +152,14 @@ pub fn position_accuracy(correct: &[f64], positions: &[f64], n_bins: usize) -> R
     let mut by = Vec::new();
     for k in 0..n_bins {
         let (lo, hi) = (e[k], e[k + 1]);
-        let a = mean_where(correct, |i| positions[i] >= lo && if hi != last { positions[i] < hi } else { positions[i] <= hi });
+        let a = mean_where(correct, |i| {
+            positions[i] >= lo
+                && if hi != last {
+                    positions[i] < hi
+                } else {
+                    positions[i] <= hi
+                }
+        });
         if let Some(a) = a {
             by.push((lo, hi, a));
         }
@@ -131,18 +186,33 @@ pub fn lost_in_the_middle(correct: &[f64], positions: &[f64], edge: f64) -> Resu
     }
     let s = mean_where(correct, |i| positions[i] <= edge);
     let e = mean_where(correct, |i| positions[i] >= 1.0 - edge);
-    let m = mean_where(correct, |i| positions[i] > edge && positions[i] < 1.0 - edge);
+    let m = mean_where(correct, |i| {
+        positions[i] > edge && positions[i] < 1.0 - edge
+    });
     let (Some(s), Some(e), Some(m)) = (s, e, m) else {
         return invalid("Need examples at the start, the middle and the end of the context.");
     };
-    Ok(LostInMiddle { value: (s + e) / 2.0 - m, start_accuracy: s, middle_accuracy: m, end_accuracy: e })
+    Ok(LostInMiddle {
+        value: (s + e) / 2.0 - m,
+        start_accuracy: s,
+        middle_accuracy: m,
+        end_accuracy: e,
+    })
 }
 
 /// Share of provided facts the output used (pooled over examples with facts) and the mean per example.
-pub fn context_utilization<S: AsRef<str>>(used_facts: &[Vec<S>], provided_facts: &[Vec<S>]) -> Result<(f64, f64)> {
+pub fn context_utilization<S: AsRef<str>>(
+    used_facts: &[Vec<S>],
+    provided_facts: &[Vec<S>],
+) -> Result<(f64, f64)> {
     nonempty(used_facts, "used_facts")?;
     nonempty(provided_facts, "provided_facts")?;
-    same(used_facts.len(), provided_facts.len(), "used_facts", "provided_facts")?;
+    same(
+        used_facts.len(),
+        provided_facts.len(),
+        "used_facts",
+        "provided_facts",
+    )?;
     let (mut hit, mut tot, mut per) = (0usize, 0usize, Vec::new());
     for (u, p) in used_facts.iter().zip(provided_facts) {
         let ps: HashSet<&str> = p.iter().map(AsRef::as_ref).collect();
@@ -173,33 +243,73 @@ pub struct Coverage {
 }
 
 /// Key-point coverage of summaries; `weights` are optional pyramid weights per key point.
-pub fn summary_coverage(key_points_covered: &[Vec<bool>], weights: Option<&[Vec<f64>]>, claims_supported: Option<&[Vec<bool>]>) -> Result<Coverage> {
+pub fn summary_coverage(
+    key_points_covered: &[Vec<bool>],
+    weights: Option<&[Vec<f64>]>,
+    claims_supported: Option<&[Vec<bool>]>,
+) -> Result<Coverage> {
     nonempty(key_points_covered, "key_points_covered")?;
     if let Some(w) = weights {
-        same(key_points_covered.len(), w.len(), "key_points_covered", "weights")?;
+        same(
+            key_points_covered.len(),
+            w.len(),
+            "key_points_covered",
+            "weights",
+        )?;
     }
     let mut per = Vec::new();
     for (i, r) in key_points_covered.iter().enumerate() {
         let w = weights.map_or_else(|| vec![1.0; r.len()], |w| w[i].clone());
         if r.len() != w.len() || r.is_empty() {
-            return invalid(format!("Summary {i}: key points and weights must be non-empty and the same length."));
+            return invalid(format!(
+                "Summary {i}: key points and weights must be non-empty and the same length."
+            ));
         }
         floats(&w, &format!("weights[{i}]"), Some(0.0), None)?;
         let sw = np_sum(&w);
-        per.push(if sw != 0.0 { w.iter().zip(r).map(|(w, &c)| if c { *w } else { 0.0 }).sum::<f64>() / sw } else { 0.0 });
+        per.push(if sw != 0.0 {
+            w.iter()
+                .zip(r)
+                .map(|(w, &c)| if c { *w } else { 0.0 })
+                .sum::<f64>()
+                / sw
+        } else {
+            0.0
+        });
     }
     let (mut fc, mut full) = (None, None);
     if let Some(cl) = claims_supported {
-        same(key_points_covered.len(), cl.len(), "key_points_covered", "claims_supported")?;
+        same(
+            key_points_covered.len(),
+            cl.len(),
+            "key_points_covered",
+            "claims_supported",
+        )?;
         let flat: Vec<bool> = cl.iter().flatten().copied().collect();
-        fc = Some(if flat.is_empty() { f64::NAN } else { mean(&as_f(&flat)) });
-        full = Some(mean(&cl.iter().map(|r| f64::from(u8::from(r.iter().all(|&x| x)))).collect::<Vec<_>>()));
+        fc = Some(if flat.is_empty() {
+            f64::NAN
+        } else {
+            mean(&as_f(&flat))
+        });
+        full = Some(mean(
+            &cl.iter()
+                .map(|r| f64::from(u8::from(r.iter().all(|&x| x))))
+                .collect::<Vec<_>>(),
+        ));
     }
-    Ok(Coverage { value: mean(&per), factual_consistency: fc, fully_consistent_rate: full })
+    Ok(Coverage {
+        value: mean(&per),
+        factual_consistency: fc,
+        fully_consistent_rate: full,
+    })
 }
 
 /// Mean (and median) ratio of source to summary length in tokens (whitespace tokens by default).
-pub fn compression_ratio<S: AsRef<str>>(sources: &[S], summaries: &[S], tokenizer: Option<&dyn Fn(&str) -> usize>) -> Result<(f64, f64)> {
+pub fn compression_ratio<S: AsRef<str>>(
+    sources: &[S],
+    summaries: &[S],
+    tokenizer: Option<&dyn Fn(&str) -> usize>,
+) -> Result<(f64, f64)> {
     nonempty(sources, "sources")?;
     same(sources.len(), summaries.len(), "sources", "summaries")?;
     let count = |s: &str| tokenizer.map_or_else(|| py_split(s).len(), |f| f(s));
@@ -218,25 +328,44 @@ pub fn compression_ratio<S: AsRef<str>>(sources: &[S], summaries: &[S], tokenize
 /// j of output i), with the mean per output.
 pub fn citation_coverage(citations_per_statement: &[Vec<f64>]) -> Result<(Rate, f64)> {
     nonempty(citations_per_statement, "citations_per_statement")?;
-    let flat: Vec<bool> = citations_per_statement.iter().flatten().map(|&v| v > 0.0).collect();
+    let flat: Vec<bool> = citations_per_statement
+        .iter()
+        .flatten()
+        .map(|&v| v > 0.0)
+        .collect();
     if flat.is_empty() {
         return invalid("No statements given.");
     }
-    let per: Vec<f64> = citations_per_statement.iter().filter(|r| !r.is_empty()).map(|r| r.iter().filter(|&&v| v > 0.0).count() as f64 / r.len() as f64).collect();
+    let per: Vec<f64> = citations_per_statement
+        .iter()
+        .filter(|r| !r.is_empty())
+        .map(|r| r.iter().filter(|&&v| v > 0.0).count() as f64 / r.len() as f64)
+        .collect();
     Ok((rate(&flat), mean(&per)))
 }
 
 /// Cross-document consistency: share of questions whose answers (one per document set or variant) all agree,
 /// and the mean pairwise agreement. Strings are compared lowercased with whitespace collapsed unless a
 /// `normalize` function is given.
-pub fn cross_document_consistency<S: AsRef<str>>(answers: &[Vec<S>], normalize: Option<&dyn Fn(&str) -> String>) -> Result<(f64, f64)> {
+pub fn cross_document_consistency<S: AsRef<str>>(
+    answers: &[Vec<S>],
+    normalize: Option<&dyn Fn(&str) -> String>,
+) -> Result<(f64, f64)> {
     nonempty(answers, "answers")?;
     let (mut full, mut pair) = (Vec::new(), Vec::new());
     for (i, r) in answers.iter().enumerate() {
         if r.len() < 2 {
             return invalid(format!("answers[{i}] needs at least two answers."));
         }
-        let v: Vec<String> = r.iter().map(|a| normalize.map_or_else(|| py_split(&a.as_ref().to_lowercase()).join(" "), |f| f(a.as_ref()))).collect();
+        let v: Vec<String> = r
+            .iter()
+            .map(|a| {
+                normalize.map_or_else(
+                    || py_split(&a.as_ref().to_lowercase()).join(" "),
+                    |f| f(a.as_ref()),
+                )
+            })
+            .collect();
         full.push(f64::from(u8::from(v.iter().all(|x| *x == v[0]))));
         let (mut eq, mut n) = (0usize, 0usize);
         for a in 0..v.len() {

@@ -23,10 +23,15 @@ fn matrices(x: &[Matrix], name: &str) -> Result<usize> {
     let dim = x[0].first().map_or(0, Vec::len);
     for (i, m) in x.iter().enumerate() {
         if m.is_empty() || m[0].is_empty() {
-            return invalid(format!("{name}[{i}] must be a non-empty 2-D array (tokens × dim)."));
+            return invalid(format!(
+                "{name}[{i}] must be a non-empty 2-D array (tokens × dim)."
+            ));
         }
         if m.iter().any(|r| r.len() != dim) {
-            return invalid(format!("{name}[{i}] has dimension {}; expected {dim} like the others.", m[0].len()));
+            return invalid(format!(
+                "{name}[{i}] has dimension {}; expected {dim} like the others.",
+                m[0].len()
+            ));
         }
         if m.iter().flatten().any(|v| !v.is_finite()) {
             return invalid(format!("{name}[{i}] contains NaN or infinite values."));
@@ -38,7 +43,9 @@ fn matrices(x: &[Matrix], name: &str) -> Result<usize> {
 fn vectors(x: &[Vec<f64>], name: &str) -> Result<usize> {
     let dim = x.first().map_or(0, Vec::len);
     if x.is_empty() || dim == 0 || x.iter().any(|r| r.len() != dim) {
-        return invalid(format!("{name} must be a 2-D array with one embedding per row."));
+        return invalid(format!(
+            "{name} must be a 2-D array with one embedding per row."
+        ));
     }
     if x.iter().flatten().any(|v| !v.is_finite()) {
         return invalid(format!("{name} contains NaN or infinite values."));
@@ -51,10 +58,15 @@ fn weights(w: Option<&[f64]>, n: usize, name: &str) -> Result<Vec<f64>> {
         None => Ok(vec![1.0; n]),
         Some(a) => {
             if a.len() != n {
-                return invalid(format!("{name} must have one weight per token ({n}); got {}.", a.len()));
+                return invalid(format!(
+                    "{name} must have one weight per token ({n}); got {}.",
+                    a.len()
+                ));
             }
             if a.iter().any(|&x| !x.is_finite() || x < 0.0) || np_sum(a) <= 0.0 {
-                return invalid(format!("{name} must be finite, non-negative and not all zero."));
+                return invalid(format!(
+                    "{name} must be finite, non-negative and not all zero."
+                ));
             }
             Ok(a.to_vec())
         }
@@ -66,7 +78,9 @@ fn unit(a: &[Vec<f64>]) -> Result<Matrix> {
         .map(|r| {
             let n = r.iter().map(|x| x * x).sum::<f64>().sqrt();
             if n == 0.0 {
-                return invalid("Embeddings must not be all-zero vectors (cosine similarity is undefined).");
+                return invalid(
+                    "Embeddings must not be all-zero vectors (cosine similarity is undefined).",
+                );
             }
             Ok(r.iter().map(|x| x / n).collect())
         })
@@ -109,19 +123,56 @@ pub fn bertscore(
         return invalid("Reference and prediction embeddings must have the same dimension.");
     }
     let n = reference_embeddings.len();
-    if reference_weights.is_some_and(|w| w.len() != n) || prediction_weights.is_some_and(|w| w.len() != n) {
+    if reference_weights.is_some_and(|w| w.len() != n)
+        || prediction_weights.is_some_and(|w| w.len() != n)
+    {
         return invalid("Provide one weight array per example (or none).");
     }
     (0..n)
         .map(|k| {
-            let (r, p) = (unit(&reference_embeddings[k])?, unit(&prediction_embeddings[k])?);
-            let wr = weights(reference_weights.map(|w| w[k].as_slice()), r.len(), "reference_weights")?;
-            let wp = weights(prediction_weights.map(|w| w[k].as_slice()), p.len(), "prediction_weights")?;
-            let sim: Vec<Vec<f64>> = r.iter().map(|a| p.iter().map(|b| dot(a, b)).collect()).collect();
-            let col_max: Vec<f64> = (0..p.len()).map(|j| sim.iter().map(|row| row[j]).fold(f64::NEG_INFINITY, f64::max)).collect();
-            let row_max: Vec<f64> = sim.iter().map(|row| row.iter().copied().fold(f64::NEG_INFINITY, f64::max)).collect();
-            let mut precision = np_sum(&col_max.iter().zip(&wp).map(|(a, b)| a * b).collect::<Vec<_>>()) / np_sum(&wp);
-            let mut recall = np_sum(&row_max.iter().zip(&wr).map(|(a, b)| a * b).collect::<Vec<_>>()) / np_sum(&wr);
+            let (r, p) = (
+                unit(&reference_embeddings[k])?,
+                unit(&prediction_embeddings[k])?,
+            );
+            let wr = weights(
+                reference_weights.map(|w| w[k].as_slice()),
+                r.len(),
+                "reference_weights",
+            )?;
+            let wp = weights(
+                prediction_weights.map(|w| w[k].as_slice()),
+                p.len(),
+                "prediction_weights",
+            )?;
+            let sim: Vec<Vec<f64>> = r
+                .iter()
+                .map(|a| p.iter().map(|b| dot(a, b)).collect())
+                .collect();
+            let col_max: Vec<f64> = (0..p.len())
+                .map(|j| {
+                    sim.iter()
+                        .map(|row| row[j])
+                        .fold(f64::NEG_INFINITY, f64::max)
+                })
+                .collect();
+            let row_max: Vec<f64> = sim
+                .iter()
+                .map(|row| row.iter().copied().fold(f64::NEG_INFINITY, f64::max))
+                .collect();
+            let mut precision = np_sum(
+                &col_max
+                    .iter()
+                    .zip(&wp)
+                    .map(|(a, b)| a * b)
+                    .collect::<Vec<_>>(),
+            ) / np_sum(&wp);
+            let mut recall = np_sum(
+                &row_max
+                    .iter()
+                    .zip(&wr)
+                    .map(|(a, b)| a * b)
+                    .collect::<Vec<_>>(),
+            ) / np_sum(&wr);
             if let Some(b) = baseline {
                 precision = (precision - b) / (1.0 - b);
                 recall = (recall - b) / (1.0 - b);
@@ -152,7 +203,12 @@ pub enum Similarity {
 
 /// Row-wise similarity of two `(n, dim)` embedding arrays; `normalize` scales rows to unit length before a
 /// distance.
-pub fn embedding_similarity(reference_embeddings: &[Vec<f64>], prediction_embeddings: &[Vec<f64>], metric: Similarity, normalize: bool) -> Result<Vec<f64>> {
+pub fn embedding_similarity(
+    reference_embeddings: &[Vec<f64>],
+    prediction_embeddings: &[Vec<f64>],
+    metric: Similarity,
+    normalize: bool,
+) -> Result<Vec<f64>> {
     let da = vectors(reference_embeddings, "reference_embeddings")?;
     let db = vectors(prediction_embeddings, "prediction_embeddings")?;
     if da != db || reference_embeddings.len() != prediction_embeddings.len() {
@@ -161,13 +217,21 @@ pub fn embedding_similarity(reference_embeddings: &[Vec<f64>], prediction_embedd
     let (a, b) = if metric == Similarity::Cosine || normalize {
         (unit(reference_embeddings)?, unit(prediction_embeddings)?)
     } else {
-        (reference_embeddings.to_vec(), prediction_embeddings.to_vec())
+        (
+            reference_embeddings.to_vec(),
+            prediction_embeddings.to_vec(),
+        )
     };
     Ok(a.iter()
         .zip(&b)
         .map(|(x, y)| match metric {
             Similarity::Cosine => dot(x, y),
-            Similarity::Euclidean => x.iter().zip(y).map(|(p, q)| (p - q) * (p - q)).sum::<f64>().sqrt(),
+            Similarity::Euclidean => x
+                .iter()
+                .zip(y)
+                .map(|(p, q)| (p - q) * (p - q))
+                .sum::<f64>()
+                .sqrt(),
             Similarity::Manhattan => x.iter().zip(y).map(|(p, q)| (p - q).abs()).sum(),
         })
         .collect())
@@ -232,7 +296,9 @@ pub fn emd(a: &[f64], b: &[f64], cost: &[Vec<f64>]) -> f64 {
                 }
             }
         }
-        let target = (0..m).filter(|&j| rb[j] > eps && dist[n + j] < inf).min_by(|&x, &y| dist[n + x].partial_cmp(&dist[n + y]).unwrap());
+        let target = (0..m)
+            .filter(|&j| rb[j] > eps && dist[n + j] < inf)
+            .min_by(|&x, &y| dist[n + x].partial_cmp(&dist[n + y]).unwrap());
         let Some(t) = target else { break };
         // Nodes not reached stay unreachable (new residual edges only appear along the path), so only the
         // reached ones need their potential updated.
@@ -271,23 +337,41 @@ pub fn emd(a: &[f64], b: &[f64], cost: &[Vec<f64>]) -> f64 {
         ra[start] -= amount;
         rb[t] -= amount;
     }
-    let terms: Vec<f64> = (0..n).flat_map(|i| (0..m).map(move |j| (i, j))).map(|(i, j)| flow[i][j] * cost[i][j]).collect();
+    let terms: Vec<f64> = (0..n)
+        .flat_map(|i| (0..m).map(move |j| (i, j)))
+        .map(|(i, j)| flow[i][j] * cost[i][j])
+        .collect();
     terms.iter().sum()
 }
 
 /// Per-example MoverScore: 1 − EMD between the (optionally IDF-weighted) token embeddings, with Euclidean
 /// cost between L2-normalised embeddings.
-pub fn moverscore(reference_embeddings: &[Matrix], prediction_embeddings: &[Matrix], reference_weights: Option<&[Vec<f64>]>, prediction_weights: Option<&[Vec<f64>]>) -> Result<Vec<f64>> {
+pub fn moverscore(
+    reference_embeddings: &[Matrix],
+    prediction_embeddings: &[Matrix],
+    reference_weights: Option<&[Vec<f64>]>,
+    prediction_weights: Option<&[Vec<f64>]>,
+) -> Result<Vec<f64>> {
     matrices(reference_embeddings, "reference_embeddings")?;
     matrices(prediction_embeddings, "prediction_embeddings")?;
     if reference_embeddings.len() != prediction_embeddings.len() {
-        return invalid("reference_embeddings and prediction_embeddings must have the same length.");
+        return invalid(
+            "reference_embeddings and prediction_embeddings must have the same length.",
+        );
     }
     (0..reference_embeddings.len())
         .map(|k| {
             let (r, p) = (&reference_embeddings[k], &prediction_embeddings[k]);
-            let wr = weights(reference_weights.map(|w| w[k].as_slice()), r.len(), "reference_weights")?;
-            let wp = weights(prediction_weights.map(|w| w[k].as_slice()), p.len(), "prediction_weights")?;
+            let wr = weights(
+                reference_weights.map(|w| w[k].as_slice()),
+                r.len(),
+                "reference_weights",
+            )?;
+            let wp = weights(
+                prediction_weights.map(|w| w[k].as_slice()),
+                p.len(),
+                "prediction_weights",
+            )?;
             let (ru, pu) = (unit(r)?, unit(p)?);
             let cost: Vec<Vec<f64>> = ru
                 .iter()
@@ -312,12 +396,19 @@ fn kl(p: &[f64], q: &[f64]) -> f64 {
     if p.iter().zip(q).any(|(&a, &b)| a != 0.0 && b == 0.0) {
         return f64::INFINITY;
     }
-    let t: Vec<f64> = p.iter().zip(q).filter(|(&a, &b)| a != 0.0 && b != 0.0).map(|(a, b)| a * (a / b).ln()).collect();
+    let t: Vec<f64> = p
+        .iter()
+        .zip(q)
+        .filter(|(&a, &b)| a != 0.0 && b != 0.0)
+        .map(|(a, b)| a * (a / b).ln())
+        .collect();
     np_sum(&t)
 }
 
 fn trapezoid(x: &[f64], y: &[f64]) -> f64 {
-    let t: Vec<f64> = (1..x.len()).map(|i| (x[i] - x[i - 1]) * (y[i] + y[i - 1]) / 2.0).collect();
+    let t: Vec<f64> = (1..x.len())
+        .map(|i| (x[i] - x[i - 1]) * (y[i] + y[i - 1]) / 2.0)
+        .collect();
     np_sum(&t)
 }
 
@@ -328,16 +419,31 @@ fn argsort(v: &[f64]) -> Vec<usize> {
 }
 
 /// MAUVE from two quantised distributions (the step after clustering; as `mauve-text`).
-pub fn mauve_from_histograms(p: &[f64], q: &[f64], discretization: usize, scaling_factor: f64) -> f64 {
+pub fn mauve_from_histograms(
+    p: &[f64],
+    q: &[f64],
+    discretization: usize,
+    scaling_factor: f64,
+) -> f64 {
     let ws = crate::util::linspace(1e-6, 1.0 - 1e-6, discretization);
     let mut curve = vec![[0.0, f64::INFINITY]];
     for w in ws {
-        let r: Vec<f64> = p.iter().zip(q).map(|(a, b)| w * a + (1.0 - w) * b).collect();
+        let r: Vec<f64> = p
+            .iter()
+            .zip(q)
+            .map(|(a, b)| w * a + (1.0 - w) * b)
+            .collect();
         curve.push([kl(q, &r), kl(p, &r)]);
     }
     curve.push([f64::INFINITY, 0.0]);
-    let x: Vec<f64> = curve.iter().map(|c| (-scaling_factor * c[0]).exp()).collect();
-    let y: Vec<f64> = curve.iter().map(|c| (-scaling_factor * c[1]).exp()).collect();
+    let x: Vec<f64> = curve
+        .iter()
+        .map(|c| (-scaling_factor * c[0]).exp())
+        .collect();
+    let y: Vec<f64> = curve
+        .iter()
+        .map(|c| (-scaling_factor * c[1]).exp())
+        .collect();
     let (i1, i2) = (argsort(&x), argsort(&y));
     let pick = |v: &[f64], i: &[usize]| -> Vec<f64> { i.iter().map(|&k| v[k]).collect() };
     0.5 * (trapezoid(&pick(&x, &i1), &pick(&y, &i1)) + trapezoid(&pick(&y, &i2), &pick(&x, &i2)))
@@ -360,7 +466,16 @@ pub struct MauveOpts {
 
 impl Default for MauveOpts {
     fn default() -> Self {
-        MauveOpts { num_buckets: None, explained_variance: 0.9, kmeans_n_init: 5, kmeans_max_iter: 500, discretization: 25, scaling_factor: 5.0, smoothed: false, seed: 0 }
+        MauveOpts {
+            num_buckets: None,
+            explained_variance: 0.9,
+            kmeans_n_init: 5,
+            kmeans_max_iter: 500,
+            discretization: 25,
+            scaling_factor: 5.0,
+            smoothed: false,
+            seed: 0,
+        }
     }
 }
 
@@ -372,8 +487,14 @@ fn eigh(mut a: Vec<Vec<f64>>) -> (Vec<f64>, Vec<Vec<f64>>) {
         row[i] = 1.0;
     }
     for _ in 0..100 {
-        let off: f64 = (0..n).flat_map(|i| (0..n).filter(move |&j| j != i).map(move |j| (i, j))).map(|(i, j)| a[i][j] * a[i][j]).sum();
-        let scale: f64 = (0..n).map(|i| a[i][i] * a[i][i]).sum::<f64>().max(f64::MIN_POSITIVE);
+        let off: f64 = (0..n)
+            .flat_map(|i| (0..n).filter(move |&j| j != i).map(move |j| (i, j)))
+            .map(|(i, j)| a[i][j] * a[i][j])
+            .sum();
+        let scale: f64 = (0..n)
+            .map(|i| a[i][i] * a[i][i])
+            .sum::<f64>()
+            .max(f64::MIN_POSITIVE);
         if off <= 1e-30 * scale {
             break;
         }
@@ -408,7 +529,9 @@ fn eigh(mut a: Vec<Vec<f64>>) -> (Vec<f64>, Vec<Vec<f64>>) {
     let mut idx: Vec<usize> = (0..n).collect();
     idx.sort_by(|&x, &y| a[y][y].partial_cmp(&a[x][x]).unwrap());
     let vals = idx.iter().map(|&i| a[i][i].max(0.0)).collect();
-    let vecs = (0..n).map(|r| idx.iter().map(|&i| v[r][i]).collect()).collect();
+    let vecs = (0..n)
+        .map(|r| idx.iter().map(|&i| v[r][i]).collect())
+        .collect();
     (vals, vecs)
 }
 
@@ -418,13 +541,23 @@ fn sq(a: &[f64], b: &[f64]) -> f64 {
 
 fn kmeans(x: &[Vec<f64>], k: usize, seed: u64, n_init: usize, max_iter: usize) -> Vec<usize> {
     let mut rng = evalsuite_core::resample::Xoshiro256pp::new(seed, 0);
-    let uniform = |r: &mut evalsuite_core::resample::Xoshiro256pp| r.below(1 << 53) as f64 / (1u64 << 53) as f64;
+    let uniform = |r: &mut evalsuite_core::resample::Xoshiro256pp| {
+        r.below(1 << 53) as f64 / (1u64 << 53) as f64
+    };
     let n = x.len();
     let (mut best, mut best_inertia) = (vec![0; n], f64::INFINITY);
     for _ in 0..n_init.max(1) {
         let mut centers = vec![x[rng.below(n as u64) as usize].clone()];
         for _ in 1..k {
-            let d2: Vec<f64> = x.iter().map(|p| centers.iter().map(|c| sq(p, c)).fold(f64::INFINITY, f64::min)).collect();
+            let d2: Vec<f64> = x
+                .iter()
+                .map(|p| {
+                    centers
+                        .iter()
+                        .map(|c| sq(p, c))
+                        .fold(f64::INFINITY, f64::min)
+                })
+                .collect();
             let total: f64 = d2.iter().sum();
             let pick = if total > 0.0 {
                 let mut u = uniform(&mut rng) * total;
@@ -443,14 +576,25 @@ fn kmeans(x: &[Vec<f64>], k: usize, seed: u64, n_init: usize, max_iter: usize) -
         for it in 0..max_iter {
             let new: Vec<usize> = x
                 .iter()
-                .map(|p| (0..k).min_by(|&a, &b| sq(p, &centers[a]).partial_cmp(&sq(p, &centers[b])).unwrap()).unwrap())
+                .map(|p| {
+                    (0..k)
+                        .min_by(|&a, &b| {
+                            sq(p, &centers[a]).partial_cmp(&sq(p, &centers[b])).unwrap()
+                        })
+                        .unwrap()
+                })
                 .collect();
             if it > 0 && new == labels {
                 break;
             }
             labels = new;
             for (j, c) in centers.iter_mut().enumerate() {
-                let members: Vec<&Vec<f64>> = x.iter().zip(&labels).filter(|(_, &l)| l == j).map(|(p, _)| p).collect();
+                let members: Vec<&Vec<f64>> = x
+                    .iter()
+                    .zip(&labels)
+                    .filter(|(_, &l)| l == j)
+                    .map(|(p, _)| p)
+                    .collect();
                 if !members.is_empty() {
                     for (d, cd) in c.iter_mut().enumerate() {
                         *cd = members.iter().map(|m| m[d]).sum::<f64>() / members.len() as f64;
@@ -458,7 +602,11 @@ fn kmeans(x: &[Vec<f64>], k: usize, seed: u64, n_init: usize, max_iter: usize) -
                 }
             }
         }
-        let inertia: f64 = x.iter().zip(&labels).map(|(p, &l)| sq(p, &centers[l])).sum();
+        let inertia: f64 = x
+            .iter()
+            .zip(&labels)
+            .map(|(p, &l)| sq(p, &centers[l]))
+            .sum();
         if inertia < best_inertia {
             best_inertia = inertia;
             best = labels;
@@ -480,7 +628,11 @@ pub struct Mauve {
 ///
 /// The clustering uses this crate's seeded generator, so values differ slightly from the Python package's
 /// (NumPy-seeded) clustering; the histogram stage is identical. Report the seed.
-pub fn mauve(reference_features: &[Vec<f64>], generated_features: &[Vec<f64>], o: &MauveOpts) -> Result<Mauve> {
+pub fn mauve(
+    reference_features: &[Vec<f64>],
+    generated_features: &[Vec<f64>],
+    o: &MauveOpts,
+) -> Result<Mauve> {
     let dp = vectors(reference_features, "reference_features")?;
     let dq = vectors(generated_features, "generated_features")?;
     if dp != dq {
@@ -496,27 +648,53 @@ pub fn mauve(reference_features: &[Vec<f64>], generated_features: &[Vec<f64>], o
         Some(_) => return invalid("num_buckets must be 'auto' or an integer >= 2."),
     };
     if k > np_ + nq {
-        return invalid(format!("num_buckets ({k}) exceeds the number of texts ({}).", np_ + nq));
+        return invalid(format!(
+            "num_buckets ({k}) exceeds the number of texts ({}).",
+            np_ + nq
+        ));
     }
     let mut data = unit(generated_features)?;
     data.extend(unit(reference_features)?);
     let (n, d) = (data.len(), dp);
-    let mu: Vec<f64> = (0..d).map(|j| data.iter().map(|r| r[j]).sum::<f64>() / n as f64).collect();
-    let c: Vec<Vec<f64>> = data.iter().map(|r| r.iter().zip(&mu).map(|(x, m)| x - m).collect()).collect();
+    let mu: Vec<f64> = (0..d)
+        .map(|j| data.iter().map(|r| r[j]).sum::<f64>() / n as f64)
+        .collect();
+    let c: Vec<Vec<f64>> = data
+        .iter()
+        .map(|r| r.iter().zip(&mu).map(|(x, m)| x - m).collect())
+        .collect();
     // Principal components from the smaller Gram matrix: X Xᵀ (n ≤ d) or Xᵀ X.
     let reduced: Vec<Vec<f64>>;
     let dims;
     if n <= d {
-        let g: Vec<Vec<f64>> = c.iter().map(|a| c.iter().map(|b| dot(a, b)).collect()).collect();
+        let g: Vec<Vec<f64>> = c
+            .iter()
+            .map(|a| c.iter().map(|b| dot(a, b)).collect())
+            .collect();
         let (vals, vecs) = eigh(g);
         dims = pca_dims(&vals, o.explained_variance);
         // Scores of the first `dims` components: U·S, where U are the eigenvectors of X Xᵀ.
-        reduced = (0..n).map(|i| (0..dims).map(|k| vecs[i][k] * vals[k].sqrt()).collect()).collect();
+        reduced = (0..n)
+            .map(|i| (0..dims).map(|k| vecs[i][k] * vals[k].sqrt()).collect())
+            .collect();
     } else {
-        let g: Vec<Vec<f64>> = (0..d).map(|a| (0..d).map(|b| c.iter().map(|r| r[a] * r[b]).sum()).collect()).collect();
+        let g: Vec<Vec<f64>> = (0..d)
+            .map(|a| {
+                (0..d)
+                    .map(|b| c.iter().map(|r| r[a] * r[b]).sum())
+                    .collect()
+            })
+            .collect();
         let (vals, vecs) = eigh(g);
         dims = pca_dims(&vals, o.explained_variance);
-        reduced = c.iter().map(|r| (0..dims).map(|k| (0..d).map(|j| r[j] * vecs[j][k]).sum()).collect()).collect();
+        reduced = c
+            .iter()
+            .map(|r| {
+                (0..dims)
+                    .map(|k| (0..d).map(|j| r[j] * vecs[j][k]).sum())
+                    .collect()
+            })
+            .collect();
     }
     let labels = kmeans(&reduced, k, o.seed, o.kmeans_n_init, o.kmeans_max_iter);
     let mut qc = vec![0.0; k];
@@ -534,14 +712,22 @@ pub fn mauve(reference_features: &[Vec<f64>], generated_features: &[Vec<f64>], o
     let (sp, sq_) = (pc.iter().sum::<f64>(), qc.iter().sum::<f64>());
     let p: Vec<f64> = pc.iter().map(|x| x / sp).collect();
     let q: Vec<f64> = qc.iter().map(|x| x / sq_).collect();
-    Ok(Mauve { value: mauve_from_histograms(&p, &q, o.discretization, o.scaling_factor), num_buckets: k, pca_dims: dims })
+    Ok(Mauve {
+        value: mauve_from_histograms(&p, &q, o.discretization, o.scaling_factor),
+        num_buckets: k,
+        pca_dims: dims,
+    })
 }
 
 fn pca_dims(vals: &[f64], explained: f64) -> usize {
     let total: f64 = vals.iter().sum();
     let mut cum = 0.0;
     for (i, v) in vals.iter().enumerate() {
-        cum += if total > 0.0 { v / total } else { 1.0 / vals.len() as f64 };
+        cum += if total > 0.0 {
+            v / total
+        } else {
+            1.0 / vals.len() as f64
+        };
         if cum >= explained {
             return i + 1;
         }
@@ -570,9 +756,17 @@ pub fn model_score<R, P, S>(
     let mut out = Vec::with_capacity(references.len());
     for start in (0..references.len()).step_by(batch_size) {
         let end = (start + batch_size).min(references.len());
-        let got = scorer(&references[start..end], &predictions[start..end], sources.map(|s| &s[start..end]));
+        let got = scorer(
+            &references[start..end],
+            &predictions[start..end],
+            sources.map(|s| &s[start..end]),
+        );
         if got.len() != end - start {
-            return invalid(format!("scorer returned {} scores for a batch of {} examples.", got.len(), end - start));
+            return invalid(format!(
+                "scorer returned {} scores for a batch of {} examples.",
+                got.len(),
+                end - start
+            ));
         }
         if got.iter().any(|v| !v.is_finite()) {
             return invalid("scorer returned NaN or infinite scores.");

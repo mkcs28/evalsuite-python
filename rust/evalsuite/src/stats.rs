@@ -47,7 +47,10 @@ fn vec_check(x: &[f64], name: &str, min_n: usize) -> Result<()> {
         return invalid(format!("{name} contains NaN or infinite values."));
     }
     if x.len() < min_n {
-        return undefined(format!("{name} needs at least {min_n} observations; got {}.", x.len()));
+        return undefined(format!(
+            "{name} needs at least {min_n} observations; got {}.",
+            x.len()
+        ));
     }
     Ok(())
 }
@@ -91,7 +94,13 @@ fn mean_diff_ci(diff: f64, se: f64, df: f64, level: f64, alt: Alternative) -> (f
 }
 
 /// Two-sample t-test (Welch's by default; Student's with `equal_var`). Estimate: mean difference a − b.
-pub fn t_test(a: &[f64], b: &[f64], equal_var: bool, alt: Alternative, level: f64) -> Result<TestResult> {
+pub fn t_test(
+    a: &[f64],
+    b: &[f64],
+    equal_var: bool,
+    alt: Alternative,
+    level: f64,
+) -> Result<TestResult> {
     check_level(level)?;
     vec_check(a, "a", 2)?;
     vec_check(b, "b", 2)?;
@@ -107,12 +116,18 @@ pub fn t_test(a: &[f64], b: &[f64], equal_var: bool, alt: Alternative, level: f6
         ((sp2 * (1.0 / n1 + 1.0 / n2)).sqrt(), df)
     } else {
         let se = (v1 / n1 + v2 / n2).sqrt();
-        let df = (v1 / n1 + v2 / n2).powi(2) / ((v1 / n1).powi(2) / (n1 - 1.0) + (v2 / n2).powi(2) / (n2 - 1.0));
+        let df = (v1 / n1 + v2 / n2).powi(2)
+            / ((v1 / n1).powi(2) / (n1 - 1.0) + (v2 / n2).powi(2) / (n2 - 1.0));
         (se, df)
     };
     let diff = m1 - m2;
     let t = diff / se;
-    Ok(TestResult { statistic: t, p_value: t_p(t, df, alt), estimate: diff, ci: Some(mean_diff_ci(diff, se, df, level, alt)) })
+    Ok(TestResult {
+        statistic: t,
+        p_value: t_p(t, df, alt),
+        estimate: diff,
+        ci: Some(mean_diff_ci(diff, se, df, level, alt)),
+    })
 }
 
 /// Paired t-test on a − b. Estimate: mean difference.
@@ -121,7 +136,11 @@ pub fn paired_t_test(a: &[f64], b: &[f64], alt: Alternative, level: f64) -> Resu
     vec_check(a, "a", 2)?;
     vec_check(b, "b", 2)?;
     if a.len() != b.len() {
-        return invalid(format!("Paired samples must have the same length; got {} and {}.", a.len(), b.len()));
+        return invalid(format!(
+            "Paired samples must have the same length; got {} and {}.",
+            a.len(),
+            b.len()
+        ));
     }
     let d: Vec<f64> = a.iter().zip(b).map(|(x, y)| x - y).collect();
     let n = d.len() as f64;
@@ -132,13 +151,22 @@ pub fn paired_t_test(a: &[f64], b: &[f64], alt: Alternative, level: f64) -> Resu
     }
     let se = sd / n.sqrt();
     let t = diff / se;
-    Ok(TestResult { statistic: t, p_value: t_p(t, n - 1.0, alt), estimate: diff, ci: Some(mean_diff_ci(diff, se, n - 1.0, level, alt)) })
+    Ok(TestResult {
+        statistic: t,
+        p_value: t_p(t, n - 1.0, alt),
+        estimate: diff,
+        ci: Some(mean_diff_ci(diff, se, n - 1.0, level, alt)),
+    })
 }
 
 /// Average ranks of `values` and the sizes of the tie groups.
 fn ranks_and_ties(values: &[f64]) -> (Vec<f64>, Vec<f64>) {
     let mut order: Vec<usize> = (0..values.len()).collect();
-    order.sort_by(|&a, &b| values[a].partial_cmp(&values[b]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&a, &b| {
+        values[a]
+            .partial_cmp(&values[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let mut ranks = vec![0.0; values.len()];
     let mut ties = Vec::new();
     let mut s = 0;
@@ -204,7 +232,11 @@ pub fn mann_whitney_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestR
         (f * sf).clamp(0.0, 1.0)
     } else {
         let n = n1f + n2f;
-        let tie_term: f64 = ties.iter().filter(|&&t| t > 1.0).map(|t| t * t * t - t).sum();
+        let tie_term: f64 = ties
+            .iter()
+            .filter(|&&t| t > 1.0)
+            .map(|t| t * t * t - t)
+            .sum();
         let s = (n1f * n2f / 12.0 * ((n + 1.0) - tie_term / (n * (n - 1.0)))).sqrt();
         let mut num = u - n1f * n2f / 2.0;
         let sign = match alt {
@@ -227,7 +259,12 @@ pub fn mann_whitney_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestR
             f64::NAN
         }
     };
-    Ok(TestResult { statistic: u, p_value: p, estimate: 2.0 * u / (n1f * n2f) - 1.0, ci: None })
+    Ok(TestResult {
+        statistic: u,
+        p_value: p,
+        estimate: 2.0 * u / (n1f * n2f) - 1.0,
+        ci: None,
+    })
 }
 
 /// Distribution of the Wilcoxon signed-rank statistic T⁺ for n pairs without ties: counts for t = 0..=n(n+1)/2.
@@ -250,7 +287,11 @@ pub fn wilcoxon_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestResul
     vec_check(a, "a", 1)?;
     vec_check(b, "b", 1)?;
     if a.len() != b.len() {
-        return invalid(format!("Paired samples must have the same length; got {} and {}.", a.len(), b.len()));
+        return invalid(format!(
+            "Paired samples must have the same length; got {} and {}.",
+            a.len(),
+            b.len()
+        ));
     }
     let d: Vec<f64> = a.iter().zip(b).map(|(x, y)| x - y).collect();
     let nz: Vec<f64> = d.iter().copied().filter(|&v| v != 0.0).collect();
@@ -259,9 +300,23 @@ pub fn wilcoxon_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestResul
     }
     let abs: Vec<f64> = nz.iter().map(|v| v.abs()).collect();
     let (ranks, ties) = ranks_and_ties(&abs);
-    let t_plus: f64 = nz.iter().zip(&ranks).filter(|(v, _)| **v > 0.0).map(|(_, r)| r).sum();
-    let t_minus: f64 = nz.iter().zip(&ranks).filter(|(v, _)| **v < 0.0).map(|(_, r)| r).sum();
-    let stat = if alt == Alternative::TwoSided { t_plus.min(t_minus) } else { t_plus };
+    let t_plus: f64 = nz
+        .iter()
+        .zip(&ranks)
+        .filter(|(v, _)| **v > 0.0)
+        .map(|(_, r)| r)
+        .sum();
+    let t_minus: f64 = nz
+        .iter()
+        .zip(&ranks)
+        .filter(|(v, _)| **v < 0.0)
+        .map(|(_, r)| r)
+        .sum();
+    let stat = if alt == Alternative::TwoSided {
+        t_plus.min(t_minus)
+    } else {
+        t_plus
+    };
     let count = nz.len();
     let n_zero = d.len() - count;
     let has_ties = ties.iter().any(|&t| t > 1.0);
@@ -280,7 +335,9 @@ pub fn wilcoxon_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestResul
         match alt {
             Alternative::Less => cdf(t_plus.ceil()),
             Alternative::Greater => sf(t_plus.floor()),
-            Alternative::TwoSided => (2.0 * sf(t_plus.floor()).min(cdf(t_plus.ceil()))).clamp(0.0, 1.0),
+            Alternative::TwoSided => {
+                (2.0 * sf(t_plus.floor()).min(cdf(t_plus.ceil()))).clamp(0.0, 1.0)
+            }
         }
     } else if d.len() <= 13 {
         // Exact permutation distribution over all 2^count sign assignments of the (tied) ranks.
@@ -288,7 +345,10 @@ pub fn wilcoxon_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestResul
         let (mut le, mut ge) = (0u64, 0u64);
         let eps = 1e-10 * t_plus.abs().max(1.0);
         for mask in 0..total {
-            let s: f64 = (0..count).filter(|i| mask >> i & 1 == 1).map(|i| ranks[i]).sum();
+            let s: f64 = (0..count)
+                .filter(|i| mask >> i & 1 == 1)
+                .map(|i| ranks[i])
+                .sum();
             if s <= t_plus + eps {
                 le += 1;
             }
@@ -309,13 +369,21 @@ pub fn wilcoxon_test(a: &[f64], b: &[f64], alt: Alternative) -> Result<TestResul
         let se = ((n * (n + 1.0) * (2.0 * n + 1.0) - tie_term / 2.0) / 24.0).sqrt();
         z_p((t_plus - mn) / se, alt)
     };
-    Ok(TestResult { statistic: stat, p_value: p, estimate: (t_plus - t_minus) / (t_plus + t_minus), ci: None })
+    Ok(TestResult {
+        statistic: stat,
+        p_value: p,
+        estimate: (t_plus - t_minus) / (t_plus + t_minus),
+        ci: None,
+    })
 }
 
 /// Kruskal–Wallis H test across groups (tie-corrected). Estimate: epsilon-squared.
 pub fn kruskal_wallis_test(groups: &[&[f64]]) -> Result<TestResult> {
     if groups.len() < 2 {
-        return invalid(format!("The Kruskal–Wallis test needs at least 2 groups; got {}.", groups.len()));
+        return invalid(format!(
+            "The Kruskal–Wallis test needs at least 2 groups; got {}.",
+            groups.len()
+        ));
     }
     for (i, g) in groups.iter().enumerate() {
         vec_check(g, &format!("group {}", i + 1), 1)?;
@@ -330,21 +398,33 @@ pub fn kruskal_wallis_test(groups: &[&[f64]]) -> Result<TestResult> {
         acc += s * s / g.len() as f64;
         pos += g.len();
     }
-    let tie_term: f64 = ties.iter().filter(|&&t| t > 1.0).map(|t| t * t * t - t).sum();
+    let tie_term: f64 = ties
+        .iter()
+        .filter(|&&t| t > 1.0)
+        .map(|t| t * t * t - t)
+        .sum();
     let correction = 1.0 - tie_term / (n * n * n - n);
     if correction == 0.0 {
         return undefined("The Kruskal–Wallis test is undefined: all values are identical.");
     }
     let h = (12.0 / (n * (n + 1.0)) * acc - 3.0 * (n + 1.0)) / correction;
     let df = (groups.len() - 1) as f64;
-    Ok(TestResult { statistic: h, p_value: chi2_sf(h, df), estimate: h / ((n * n - 1.0) / (n + 1.0)), ci: None })
+    Ok(TestResult {
+        statistic: h,
+        p_value: chi2_sf(h, df),
+        estimate: h / ((n * n - 1.0) / (n + 1.0)),
+        ci: None,
+    })
 }
 
 /// Friedman test for k ≥ 3 related samples (each slice one model's scores over the same blocks).
 /// Estimate: Kendall's W.
 pub fn friedman_test(groups: &[&[f64]]) -> Result<TestResult> {
     if groups.len() < 3 {
-        return invalid(format!("The Friedman test needs at least 3 groups; got {}.", groups.len()));
+        return invalid(format!(
+            "The Friedman test needs at least 3 groups; got {}.",
+            groups.len()
+        ));
     }
     for (i, g) in groups.iter().enumerate() {
         vec_check(g, &format!("group {}", i + 1), 1)?;
@@ -375,19 +455,29 @@ pub fn friedman_test(groups: &[&[f64]]) -> Result<TestResult> {
     }
     let rr: f64 = r.iter().map(|x| x * x).sum();
     let chi = (12.0 / (nf * kf * (kf + 1.0)) * rr - 3.0 * nf * (kf + 1.0)) / c;
-    Ok(TestResult { statistic: chi, p_value: chi2_sf(chi, kf - 1.0), estimate: chi / (nf * (kf - 1.0)), ci: None })
+    Ok(TestResult {
+        statistic: chi,
+        p_value: chi2_sf(chi, kf - 1.0),
+        estimate: chi / (nf * (kf - 1.0)),
+        ci: None,
+    })
 }
 
 fn swilk_coefficients(n: usize) -> Vec<f64> {
     let nf = n as f64;
-    let m: Vec<f64> = (1..=n).map(|i| norm_ppf((i as f64 - 3.0 / 8.0) / (nf + 0.25))).collect();
+    let m: Vec<f64> = (1..=n)
+        .map(|i| norm_ppf((i as f64 - 3.0 / 8.0) / (nf + 0.25)))
+        .collect();
     let u = nf.powf(-0.5);
     let mtm: f64 = m.iter().map(|x| x * x).sum();
     let c: Vec<f64> = m.iter().map(|x| mtm.powf(-0.5) * x).collect();
     let (mnm1, mn) = (m[n - 2], m[n - 1]);
     let (cnm1, cn) = (c[n - 2], c[n - 1]);
-    let an = cn + 0.221157 * u - 0.147981 * u.powi(2) - 2.071190 * u.powi(3) + 4.434685 * u.powi(4) - 2.706056 * u.powi(5);
-    let anm1 = cnm1 + 0.042981 * u - 0.293762 * u.powi(2) - 1.752461 * u.powi(3) + 5.682633 * u.powi(4) - 3.582633 * u.powi(5);
+    let an = cn + 0.221157 * u - 0.147981 * u.powi(2) - 2.071190 * u.powi(3) + 4.434685 * u.powi(4)
+        - 2.706056 * u.powi(5);
+    let anm1 = cnm1 + 0.042981 * u - 0.293762 * u.powi(2) - 1.752461 * u.powi(3)
+        + 5.682633 * u.powi(4)
+        - 3.582633 * u.powi(5);
     let phi = if n <= 5 {
         (mtm - 2.0 * mn * mn) / (1.0 - 2.0 * an * an)
     } else {
@@ -455,12 +545,17 @@ fn table_check(t: &[Vec<f64>]) -> Result<()> {
 
 fn chi2_parts(t: &[Vec<f64>]) -> Result<(f64, Vec<Vec<f64>>, f64)> {
     let rows: Vec<f64> = t.iter().map(|r| r.iter().sum()).collect();
-    let cols: Vec<f64> = (0..t[0].len()).map(|j| t.iter().map(|r| r[j]).sum()).collect();
+    let cols: Vec<f64> = (0..t[0].len())
+        .map(|j| t.iter().map(|r| r[j]).sum())
+        .collect();
     if rows.iter().chain(&cols).any(|&s| s == 0.0) {
         return undefined("The χ² test is undefined when a row or column total is zero.");
     }
     let n: f64 = rows.iter().sum();
-    let expected: Vec<Vec<f64>> = rows.iter().map(|r| cols.iter().map(|c| r * c / n).collect()).collect();
+    let expected: Vec<Vec<f64>> = rows
+        .iter()
+        .map(|r| cols.iter().map(|c| r * c / n).collect())
+        .collect();
     let mut chi = 0.0;
     for (i, row) in t.iter().enumerate() {
         for (j, &o) in row.iter().enumerate() {
@@ -492,13 +587,22 @@ pub fn chi_square_test(table: &[Vec<f64>], correction: bool) -> Result<TestResul
         (uncorrected, chi2_sf(uncorrected, dof as f64))
     };
     let v = ((uncorrected / n) / (r.min(k) - 1) as f64).sqrt();
-    Ok(TestResult { statistic: chi, p_value: p, estimate: v, ci: None })
+    Ok(TestResult {
+        statistic: chi,
+        p_value: p,
+        estimate: v,
+        ci: None,
+    })
 }
 
 /// Cramér's V of a contingency table (optionally with Bergsma's bias correction).
 pub fn cramers_v(table: &[Vec<f64>], bias_correction: bool) -> Result<f64> {
     table_check(table)?;
-    let (n, _, chi) = chi2_parts(table).map_err(|_| crate::Error::Undefined("Cramér's V is undefined when a row or column total is zero.".into()))?;
+    let (n, _, chi) = chi2_parts(table).map_err(|_| {
+        crate::Error::Undefined(
+            "Cramér's V is undefined when a row or column total is zero.".into(),
+        )
+    })?;
     let (r, k) = (table.len() as f64, table[0].len() as f64);
     if !bias_correction {
         return Ok((chi / (n * (r.min(k) - 1.0))).sqrt());
@@ -522,13 +626,18 @@ fn fisher_p(a: i64, b: i64, c: i64, d: i64, alt: Alternative) -> f64 {
     let (lo, hi) = ((n - n2).max(0), n.min(n1));
     let mode = (n + 1) * (n1 + 1) / (total + 2);
     let (n1f, n2f, nf, tf) = (n1 as f64, n2 as f64, n as f64, total as f64);
-    let sd = (nf * (n1f / tf) * (n2f / tf) * (tf - nf) / (tf - 1.0).max(1.0)).max(1.0).sqrt();
+    let sd = (nf * (n1f / tf) * (n2f / tf) * (tf - nf) / (tf - 1.0).max(1.0))
+        .max(1.0)
+        .sqrt();
     let wlo = lo.max((mode as f64 - 40.0 * sd) as i64 - 2);
     let whi = hi.min((mode as f64 + 40.0 * sd) as i64 + 2);
     let lp: Vec<f64> = (wlo..=whi)
         .map(|x| {
             let x = x as f64;
-            -(ln_gamma(x + 1.0) + ln_gamma(n1f - x + 1.0) + ln_gamma(nf - x + 1.0) + ln_gamma(n2f - nf + x + 1.0))
+            -(ln_gamma(x + 1.0)
+                + ln_gamma(n1f - x + 1.0)
+                + ln_gamma(nf - x + 1.0)
+                + ln_gamma(n2f - nf + x + 1.0))
         })
         .collect();
     let mx = lp.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -574,15 +683,30 @@ pub fn fisher_exact_test(table: [[u64; 2]; 2], alt: Alternative) -> Result<TestR
     let (odds, p) = if [a + b, c + d, a + c, b + d].contains(&0) {
         (f64::NAN, 1.0)
     } else {
-        let odds = if b > 0 && c > 0 { (a * d) as f64 / (b * c) as f64 } else { f64::INFINITY };
+        let odds = if b > 0 && c > 0 {
+            (a * d) as f64 / (b * c) as f64
+        } else {
+            f64::INFINITY
+        };
         (odds, fisher_p(a, b, c, d, alt))
     };
-    Ok(TestResult { statistic: odds, p_value: p, estimate: odds, ci: None })
+    Ok(TestResult {
+        statistic: odds,
+        p_value: p,
+        estimate: odds,
+        ci: None,
+    })
 }
 
 /// McNemar's test for two classifiers on the same observations. `exact = None` uses the exact binomial test
 /// below 25 discordant pairs. Estimate: accuracy difference A − B.
-pub fn mcnemar_test<L: PartialEq>(y_true: &[L], pred_a: &[L], pred_b: &[L], exact: Option<bool>, correction: bool) -> Result<TestResult> {
+pub fn mcnemar_test<L: PartialEq>(
+    y_true: &[L],
+    pred_a: &[L],
+    pred_b: &[L],
+    exact: Option<bool>,
+    correction: bool,
+) -> Result<TestResult> {
     if y_true.is_empty() {
         return invalid("y_true is empty. Provide at least one example.");
     }
@@ -600,16 +724,31 @@ pub fn mcnemar_test<L: PartialEq>(y_true: &[L], pred_a: &[L], pred_b: &[L], exac
     let n_disc = b + c;
     let estimate = (b as f64 - c as f64) / y_true.len() as f64;
     if n_disc == 0 {
-        return Ok(TestResult { statistic: 0.0, p_value: 1.0, estimate, ci: None });
+        return Ok(TestResult {
+            statistic: 0.0,
+            p_value: 1.0,
+            estimate,
+            ci: None,
+        });
     }
     if exact.unwrap_or(n_disc < 25) {
         let k = b.min(c) as f64;
         let p = (2.0 * special::binom_cdf(k, n_disc as f64, 0.5)).min(1.0);
-        return Ok(TestResult { statistic: k, p_value: p, estimate, ci: None });
+        return Ok(TestResult {
+            statistic: k,
+            p_value: p,
+            estimate,
+            ci: None,
+        });
     }
     let d = (b as f64 - c as f64).abs() - if correction { 1.0 } else { 0.0 };
     let stat = d * d / n_disc as f64;
-    Ok(TestResult { statistic: stat, p_value: chi2_sf(stat, 1.0), estimate, ci: None })
+    Ok(TestResult {
+        statistic: stat,
+        p_value: chi2_sf(stat, 1.0),
+        estimate,
+        ci: None,
+    })
 }
 
 // ---- effect sizes ---------------------------------------------------------------------------------
@@ -650,7 +789,11 @@ pub fn cohens_d(a: &[f64], b: &[f64], paired: bool) -> Result<f64> {
 /// Hedges' g: Cohen's d with the small-sample correction J.
 pub fn hedges_g(a: &[f64], b: &[f64], paired: bool) -> Result<f64> {
     finite_pair(a, b)?;
-    let df = if paired { a.len() as f64 - 1.0 } else { (a.len() + b.len()) as f64 - 2.0 };
+    let df = if paired {
+        a.len() as f64 - 1.0
+    } else {
+        (a.len() + b.len()) as f64 - 2.0
+    };
     if df < 2.0 {
         return undefined("Hedges' g needs at least three observations.");
     }
@@ -697,10 +840,22 @@ pub fn adjust_pvalues(p: &[f64], method: Adjust) -> Result<Vec<f64>> {
     let mut order: Vec<usize> = (0..m).collect();
     order.sort_by(|&a, &b| p[a].partial_cmp(&p[b]).unwrap_or(std::cmp::Ordering::Equal));
     let mut adj: Vec<f64> = match method {
-        Adjust::Holm | Adjust::Hochberg => order.iter().enumerate().map(|(i, &j)| p[j] * (m - i) as f64).collect(),
+        Adjust::Holm | Adjust::Hochberg => order
+            .iter()
+            .enumerate()
+            .map(|(i, &j)| p[j] * (m - i) as f64)
+            .collect(),
         _ => {
-            let factor = if method == Adjust::By { np_sum(&(1..=m).map(|k| 1.0 / k as f64).collect::<Vec<_>>()) } else { 1.0 };
-            order.iter().enumerate().map(|(i, &j)| p[j] * mf * factor / (i + 1) as f64).collect()
+            let factor = if method == Adjust::By {
+                np_sum(&(1..=m).map(|k| 1.0 / k as f64).collect::<Vec<_>>())
+            } else {
+                1.0
+            };
+            order
+                .iter()
+                .enumerate()
+                .map(|(i, &j)| p[j] * mf * factor / (i + 1) as f64)
+                .collect()
         }
     };
     if method == Adjust::Holm {
@@ -736,7 +891,12 @@ pub enum ProportionMethod {
 }
 
 /// Confidence interval for a binomial proportion.
-pub fn proportion_ci(successes: u64, n: u64, level: f64, method: ProportionMethod) -> Result<Interval> {
+pub fn proportion_ci(
+    successes: u64,
+    n: u64,
+    level: f64,
+    method: ProportionMethod,
+) -> Result<Interval> {
     check_level(level)?;
     if n == 0 {
         return invalid("n must be a positive integer.");
@@ -756,19 +916,36 @@ pub fn proportion_ci(successes: u64, n: u64, level: f64, method: ProportionMetho
             (centre - half, centre + half)
         }
         ProportionMethod::ClopperPearson => (
-            if successes == 0 { 0.0 } else { special::beta_inc_inv(s, nf - s + 1.0, alpha / 2.0) },
-            if successes == n { 1.0 } else { special::beta_inc_inv(s + 1.0, nf - s, 1.0 - alpha / 2.0) },
+            if successes == 0 {
+                0.0
+            } else {
+                special::beta_inc_inv(s, nf - s + 1.0, alpha / 2.0)
+            },
+            if successes == n {
+                1.0
+            } else {
+                special::beta_inc_inv(s + 1.0, nf - s, 1.0 - alpha / 2.0)
+            },
         ),
         ProportionMethod::Normal => {
             let half = z * (p * (1.0 - p) / nf).sqrt();
             ((p - half).max(0.0), (p + half).min(1.0))
         }
     };
-    Ok(Interval { estimate: p, low, high })
+    Ok(Interval {
+        estimate: p,
+        low,
+        high,
+    })
 }
 
 /// Confidence interval for accuracy (a binomial proportion of correct predictions).
-pub fn accuracy_ci<L: PartialEq>(y_true: &[L], y_pred: &[L], level: f64, method: ProportionMethod) -> Result<Interval> {
+pub fn accuracy_ci<L: PartialEq>(
+    y_true: &[L],
+    y_pred: &[L],
+    level: f64,
+    method: ProportionMethod,
+) -> Result<Interval> {
     if y_true.len() != y_pred.len() {
         return invalid("y_true and y_pred must have the same shape.");
     }
@@ -788,7 +965,9 @@ fn delong(pos: &[bool], cols: &[&[f64]]) -> Result<(Vec<f64>, Vec<Vec<f64>>, Vec
     let m = pos.iter().filter(|p| **p).count();
     let n = pos.len() - m;
     if m == 0 || n == 0 {
-        return undefined("DeLong's method needs at least one positive and one negative observation.");
+        return undefined(
+            "DeLong's method needs at least one positive and one negative observation.",
+        );
     }
     let (mf, nf) = (m as f64, n as f64);
     let (mut auc, mut v10, mut v01) = (Vec::new(), Vec::new(), Vec::new());
@@ -796,14 +975,23 @@ fn delong(pos: &[bool], cols: &[&[f64]]) -> Result<(Vec<f64>, Vec<Vec<f64>>, Vec
         let (tzp, tzn, tx, ty) = evalsuite_core::ranks::delong_ranks(pos, s);
         auc.push((np_sum(&tzp) - mf * (mf + 1.0) / 2.0) / (mf * nf));
         v10.push(tzp.iter().zip(&tx).map(|(z, x)| (z - x) / nf).collect());
-        v01.push(tzn.iter().zip(&ty).map(|(z, y)| 1.0 - (z - y) / mf).collect());
+        v01.push(
+            tzn.iter()
+                .zip(&ty)
+                .map(|(z, y)| 1.0 - (z - y) / mf)
+                .collect(),
+        );
     }
     Ok((auc, v10, v01))
 }
 
 fn cov(a: &[f64], b: &[f64]) -> f64 {
     let (ma, mb) = (mean(a), mean(b));
-    a.iter().zip(b).map(|(x, y)| (x - ma) * (y - mb)).sum::<f64>() / (a.len() - 1) as f64
+    a.iter()
+        .zip(b)
+        .map(|(x, y)| (x - ma) * (y - mb))
+        .sum::<f64>()
+        / (a.len() - 1) as f64
 }
 
 /// DeLong confidence interval for one ROC AUC (binary 0/1 `y_true`).
@@ -819,11 +1007,20 @@ pub fn roc_auc_ci(y_true: &[u8], y_prob: &[f64], level: f64) -> Result<Interval>
     let s01 = if n > 1.0 { cov(&v01[0], &v01[0]) } else { 0.0 };
     let se = (s10 / m + s01 / n).sqrt();
     let z = norm_ppf(1.0 - (1.0 - level) / 2.0);
-    Ok(Interval { estimate: auc[0], low: (auc[0] - z * se).max(0.0), high: (auc[0] + z * se).min(1.0) })
+    Ok(Interval {
+        estimate: auc[0],
+        low: (auc[0] - z * se).max(0.0),
+        high: (auc[0] + z * se).min(1.0),
+    })
 }
 
 /// DeLong's test for two correlated ROC AUCs on the same observations. Estimate: AUC_A − AUC_B.
-pub fn delong_test(y_true: &[u8], prob_a: &[f64], prob_b: &[f64], level: f64) -> Result<TestResult> {
+pub fn delong_test(
+    y_true: &[u8],
+    prob_a: &[f64],
+    prob_b: &[f64],
+    level: f64,
+) -> Result<TestResult> {
     check_level(level)?;
     if prob_a.len() != prob_b.len() || y_true.len() != prob_a.len() {
         return invalid("y_true, y_prob_a and y_prob_b must have the same length.");
@@ -838,13 +1035,20 @@ pub fn delong_test(y_true: &[u8], prob_a: &[f64], prob_b: &[f64], level: f64) ->
     };
     let diff = auc[0] - auc[1];
     let var = c(0, 0) + c(1, 1) - 2.0 * c(0, 1);
-    let (z, p, se) = if var <= 0.0 { (0.0, 1.0, 0.0) } else {
+    let (z, p, se) = if var <= 0.0 {
+        (0.0, 1.0, 0.0)
+    } else {
         let se = var.sqrt();
         let z = diff / se;
         (z, 2.0 * norm_cdf(-z.abs()), se)
     };
     let zc = norm_ppf(1.0 - (1.0 - level) / 2.0);
-    Ok(TestResult { statistic: z, p_value: p, estimate: diff, ci: Some((diff - zc * se, diff + zc * se)) })
+    Ok(TestResult {
+        statistic: z,
+        p_value: p,
+        estimate: diff,
+        ci: Some((diff - zc * se, diff + zc * se)),
+    })
 }
 
 // ---- bootstrap ------------------------------------------------------------------------------------
@@ -874,7 +1078,14 @@ pub struct Bootstrap {
 
 impl Default for Bootstrap {
     fn default() -> Self {
-        Bootstrap { n_resamples: 2000, level: 0.95, method: BootstrapMethod::Bca, seed: 0, strata: None, jackknife_groups: 1000 }
+        Bootstrap {
+            n_resamples: 2000,
+            level: 0.95,
+            method: BootstrapMethod::Bca,
+            seed: 0,
+            strata: None,
+            jackknife_groups: 1000,
+        }
     }
 }
 
@@ -902,7 +1113,12 @@ pub fn resample_indices(n: usize, opts: &Bootstrap) -> Vec<i64> {
                 members.extend((0..n).filter(|&i| s[i] == v).map(|i| i as i64));
                 offsets.push(members.len());
             }
-            evalsuite_core::resample::bootstrap_indices(n, opts.n_resamples, opts.seed, Some((&members, &offsets)))
+            evalsuite_core::resample::bootstrap_indices(
+                n,
+                opts.n_resamples,
+                opts.seed,
+                Some((&members, &offsets)),
+            )
         }
     }
 }
@@ -910,10 +1126,14 @@ pub fn resample_indices(n: usize, opts: &Bootstrap) -> Vec<i64> {
 fn check_boot(n: usize, o: &Bootstrap) -> Result<()> {
     check_level(o.level)?;
     if o.n_resamples < 100 {
-        return invalid("n_resamples must be an integer of at least 100 (1000 or more recommended).");
+        return invalid(
+            "n_resamples must be an integer of at least 100 (1000 or more recommended).",
+        );
     }
     if n < 2 {
-        return undefined(format!("Resampling needs at least 2 observations; got {n}."));
+        return undefined(format!(
+            "Resampling needs at least 2 observations; got {n}."
+        ));
     }
     if let Some(s) = &o.strata {
         if s.len() != n {
@@ -923,7 +1143,12 @@ fn check_boot(n: usize, o: &Bootstrap) -> Result<()> {
     Ok(())
 }
 
-fn distribution(metric: &(dyn Fn(&[usize]) -> Result<f64> + Sync), idx: &[i64], n: usize, rows: usize) -> Vec<f64> {
+fn distribution(
+    metric: &(dyn Fn(&[usize]) -> Result<f64> + Sync),
+    idx: &[i64],
+    n: usize,
+    rows: usize,
+) -> Vec<f64> {
     use rayon::prelude::*;
     idx.par_chunks(n)
         .take(rows)
@@ -948,7 +1173,11 @@ fn distribution(metric: &(dyn Fn(&[usize]) -> Result<f64> + Sync), idx: &[i64], 
 /// let ci = bootstrap_ci(y.len(), acc, &Bootstrap { seed: 1, ..Default::default() }).unwrap();
 /// assert!(ci.low <= ci.estimate && ci.estimate <= ci.high);
 /// ```
-pub fn bootstrap_ci(n: usize, metric: impl Fn(&[usize]) -> Result<f64> + Sync, opts: &Bootstrap) -> Result<BootstrapInterval> {
+pub fn bootstrap_ci(
+    n: usize,
+    metric: impl Fn(&[usize]) -> Result<f64> + Sync,
+    opts: &Bootstrap,
+) -> Result<BootstrapInterval> {
     check_boot(n, opts)?;
     let all: Vec<usize> = (0..n).collect();
     let estimate = metric(&all)?;
@@ -962,42 +1191,79 @@ pub fn bootstrap_ci(n: usize, metric: impl Fn(&[usize]) -> Result<f64> + Sync, o
             opts.n_resamples
         ));
     }
-    let valid = sorted(&boot.iter().copied().filter(|v| !v.is_nan()).collect::<Vec<_>>());
+    let valid = sorted(
+        &boot
+            .iter()
+            .copied()
+            .filter(|v| !v.is_nan())
+            .collect::<Vec<_>>(),
+    );
     let alpha = 1.0 - opts.level;
     let (low, high) = match opts.method {
-        BootstrapMethod::Percentile => (quantile(&valid, alpha / 2.0), quantile(&valid, 1.0 - alpha / 2.0)),
-        BootstrapMethod::Basic => (2.0 * estimate - quantile(&valid, 1.0 - alpha / 2.0), 2.0 * estimate - quantile(&valid, alpha / 2.0)),
+        BootstrapMethod::Percentile => (
+            quantile(&valid, alpha / 2.0),
+            quantile(&valid, 1.0 - alpha / 2.0),
+        ),
+        BootstrapMethod::Basic => (
+            2.0 * estimate - quantile(&valid, 1.0 - alpha / 2.0),
+            2.0 * estimate - quantile(&valid, alpha / 2.0),
+        ),
         BootstrapMethod::Bca => {
             let below = valid.iter().filter(|&&v| v < estimate).count() as f64;
             let equal = valid.iter().filter(|&&v| v == estimate).count() as f64;
             let share = (below + 0.5 * equal) / valid.len() as f64;
             if share <= 0.0 || share >= 1.0 {
-                (quantile(&valid, alpha / 2.0), quantile(&valid, 1.0 - alpha / 2.0))
+                (
+                    quantile(&valid, alpha / 2.0),
+                    quantile(&valid, 1.0 - alpha / 2.0),
+                )
             } else {
                 let z0 = norm_ppf(share);
                 let jack = jackknife(n, &metric, opts);
                 let jm = mean(&jack);
                 let diffs: Vec<f64> = jack.iter().map(|j| jm - j).collect();
-                let denom = 6.0 * np_sum(&diffs.iter().map(|d| d * d).collect::<Vec<_>>()).powf(1.5);
-                let accel = if denom > 0.0 { np_sum(&diffs.iter().map(|d| d * d * d).collect::<Vec<_>>()) / denom } else { 0.0 };
+                let denom =
+                    6.0 * np_sum(&diffs.iter().map(|d| d * d).collect::<Vec<_>>()).powf(1.5);
+                let accel = if denom > 0.0 {
+                    np_sum(&diffs.iter().map(|d| d * d * d).collect::<Vec<_>>()) / denom
+                } else {
+                    0.0
+                };
                 let q = |za: f64| {
                     let num = z0 + za;
                     norm_cdf(z0 + num / (1.0 - accel * num))
                 };
-                (quantile(&valid, q(norm_ppf(alpha / 2.0))), quantile(&valid, q(norm_ppf(1.0 - alpha / 2.0))))
+                (
+                    quantile(&valid, q(norm_ppf(alpha / 2.0))),
+                    quantile(&valid, q(norm_ppf(1.0 - alpha / 2.0))),
+                )
             }
         }
     };
-    Ok(BootstrapInterval { estimate, low, high, failed_resamples: failed })
+    Ok(BootstrapInterval {
+        estimate,
+        low,
+        high,
+        failed_resamples: failed,
+    })
 }
 
-fn jackknife(n: usize, metric: &(dyn Fn(&[usize]) -> Result<f64> + Sync), opts: &Bootstrap) -> Vec<f64> {
+fn jackknife(
+    n: usize,
+    metric: &(dyn Fn(&[usize]) -> Result<f64> + Sync),
+    opts: &Bootstrap,
+) -> Vec<f64> {
     use rayon::prelude::*;
     let blocks: Vec<Vec<usize>> = if n <= opts.jackknife_groups {
         (0..n).map(|i| vec![i]).collect()
     } else {
         // A seeded permutation (the compiled core's generator) split into nearly equal blocks.
-        let perm = evalsuite_core::resample::bootstrap_indices(n, 1, opts.seed ^ 0x9E37_79B9_7F4A_7C15, None);
+        let perm = evalsuite_core::resample::bootstrap_indices(
+            n,
+            1,
+            opts.seed ^ 0x9E37_79B9_7F4A_7C15,
+            None,
+        );
         let mut order: Vec<usize> = (0..n).collect();
         order.sort_by_key(|&i| (perm[i], i));
         crate::calibration::array_split(&order, opts.jackknife_groups)
@@ -1027,7 +1293,12 @@ pub fn paired_bootstrap_test(
     let idx = resample_indices(n, opts);
     let da = distribution(&metric_a, &idx, n, opts.n_resamples);
     let db = distribution(&metric_b, &idx, n, opts.n_resamples);
-    let diff: Vec<f64> = da.iter().zip(&db).map(|(a, b)| a - b).filter(|v| !v.is_nan()).collect();
+    let diff: Vec<f64> = da
+        .iter()
+        .zip(&db)
+        .map(|(a, b)| a - b)
+        .filter(|v| !v.is_nan())
+        .collect();
     let extreme = diff
         .iter()
         .filter(|&&d| {
@@ -1042,7 +1313,12 @@ pub fn paired_bootstrap_test(
     let p = (1.0 + extreme) / (diff.len() as f64 + 1.0);
     let s = sorted(&diff);
     let alpha = 1.0 - opts.level;
-    Ok(TestResult { statistic: observed, p_value: p, estimate: observed, ci: Some((quantile(&s, alpha / 2.0), quantile(&s, 1.0 - alpha / 2.0))) })
+    Ok(TestResult {
+        statistic: observed,
+        p_value: p,
+        estimate: observed,
+        ci: Some((quantile(&s, alpha / 2.0), quantile(&s, 1.0 - alpha / 2.0))),
+    })
 }
 
 /// Which model pairs [`compare`] tests.
@@ -1112,23 +1388,47 @@ pub fn compare(
         let est = f(&all)?;
         let d = distribution(*f, &idx, n, opts.n_resamples);
         let failed = d.iter().filter(|v| v.is_nan()).count();
-        let s = sorted(&d.iter().copied().filter(|v| !v.is_nan()).collect::<Vec<_>>());
-        estimates.push(ModelEstimate { model: name.to_string(), estimate: est, low: quantile(&s, a), high: quantile(&s, 1.0 - a), failed_resamples: failed });
+        let s = sorted(
+            &d.iter()
+                .copied()
+                .filter(|v| !v.is_nan())
+                .collect::<Vec<_>>(),
+        );
+        estimates.push(ModelEstimate {
+            model: name.to_string(),
+            estimate: est,
+            low: quantile(&s, a),
+            high: quantile(&s, 1.0 - a),
+            failed_resamples: failed,
+        });
         dists.push(d);
         observed.push(est);
     }
     let index: Vec<(usize, usize)> = match pairs {
-        Pairs::All => (0..models.len()).flat_map(|i| (i + 1..models.len()).map(move |j| (i, j))).collect(),
+        Pairs::All => (0..models.len())
+            .flat_map(|i| (i + 1..models.len()).map(move |j| (i, j)))
+            .collect(),
         Pairs::Baseline(b) => {
             let bi = models.iter().position(|(m, _)| m == b).unwrap();
-            (0..models.len()).filter(|&i| i != bi).map(|i| (i, bi)).collect()
+            (0..models.len())
+                .filter(|&i| i != bi)
+                .map(|i| (i, bi))
+                .collect()
         }
     };
     let mut tests = Vec::with_capacity(index.len());
     for &(i, j) in &index {
-        let diff: Vec<f64> = dists[i].iter().zip(&dists[j]).map(|(x, y)| x - y).filter(|v| !v.is_nan()).collect();
+        let diff: Vec<f64> = dists[i]
+            .iter()
+            .zip(&dists[j])
+            .map(|(x, y)| x - y)
+            .filter(|v| !v.is_nan())
+            .collect();
         let obs = observed[i] - observed[j];
-        let extreme = diff.iter().filter(|&&d| (d - obs).abs() >= obs.abs()).count() as f64;
+        let extreme = diff
+            .iter()
+            .filter(|&&d| (d - obs).abs() >= obs.abs())
+            .count() as f64;
         let s = sorted(&diff);
         tests.push(PairTest {
             model_a: models[i].0.to_string(),
@@ -1141,7 +1441,10 @@ pub fn compare(
             significant: false,
         });
     }
-    let adj = adjust_pvalues(&tests.iter().map(|t| t.p_value).collect::<Vec<_>>(), correction)?;
+    let adj = adjust_pvalues(
+        &tests.iter().map(|t| t.p_value).collect::<Vec<_>>(),
+        correction,
+    )?;
     for (t, p) in tests.iter_mut().zip(adj) {
         t.p_adjusted = p;
         t.significant = p < alpha;

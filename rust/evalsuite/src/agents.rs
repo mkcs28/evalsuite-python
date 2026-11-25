@@ -43,7 +43,11 @@ impl ToolCall {
             }),
             other => other,
         };
-        ToolCall { name: name.into(), arguments, ok: None }
+        ToolCall {
+            name: name.into(),
+            arguments,
+            ok: None,
+        }
     }
 
     /// Sets whether the call executed successfully.
@@ -54,18 +58,28 @@ impl ToolCall {
 
     /// A call from a JSON object `{"name": .., "arguments"?: .., "ok"?: bool}`.
     pub fn from_json(v: &Value) -> Result<ToolCall> {
-        let Some(o) = v.as_object() else { return invalid("A tool call must be an object with a 'name'.") };
+        let Some(o) = v.as_object() else {
+            return invalid("A tool call must be an object with a 'name'.");
+        };
         let Some(name) = o.get("name").and_then(Value::as_str) else {
             return invalid("A tool call must be an object with a 'name'.");
         };
-        let mut c = ToolCall::new(name, o.get("arguments").cloned().unwrap_or(Value::Object(Map::new())));
+        let mut c = ToolCall::new(
+            name,
+            o.get("arguments")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new())),
+        );
         c.ok = o.get("ok").and_then(Value::as_bool);
         Ok(c)
     }
 
     /// The call's identity: name and arguments, canonically encoded.
     pub fn key(&self) -> String {
-        canonical(&Value::Array(vec![Value::String(self.name.clone()), self.arguments.clone()]))
+        canonical(&Value::Array(vec![
+            Value::String(self.name.clone()),
+            self.arguments.clone(),
+        ]))
     }
 }
 
@@ -85,7 +99,10 @@ pub struct TaskCompletion {
 }
 
 /// Share of tasks completed.
-pub fn task_completion_rate(completed: &[bool], progress: Option<&[f64]>) -> Result<TaskCompletion> {
+pub fn task_completion_rate(
+    completed: &[bool],
+    progress: Option<&[f64]>,
+) -> Result<TaskCompletion> {
     nonempty(completed, "completed")?;
     let progress_rate = match progress {
         Some(p) => {
@@ -95,7 +112,10 @@ pub fn task_completion_rate(completed: &[bool], progress: Option<&[f64]>) -> Res
         }
         None => None,
     };
-    Ok(TaskCompletion { rate: rate(completed), progress_rate })
+    Ok(TaskCompletion {
+        rate: rate(completed),
+        progress_rate,
+    })
 }
 
 /// Invalid tool-call rate with the share of calls per reason and the execution failure rate.
@@ -111,7 +131,10 @@ pub struct InvalidCalls {
 
 /// Share of calls to an unknown tool, with unparseable arguments, or with arguments failing the tool's JSON
 /// Schema. `tools` maps tool name → argument schema (`null` or `{}` accepts anything).
-pub fn invalid_tool_call_rate(trajectories_: &[Vec<ToolCall>], tools: &Map<String, Value>) -> Result<InvalidCalls> {
+pub fn invalid_tool_call_rate(
+    trajectories_: &[Vec<ToolCall>],
+    tools: &Map<String, Value>,
+) -> Result<InvalidCalls> {
     if tools.is_empty() {
         return invalid("tools must be a non-empty mapping tool name -> argument JSON Schema.");
     }
@@ -125,7 +148,12 @@ pub fn invalid_tool_call_rate(trajectories_: &[Vec<ToolCall>], tools: &Map<Strin
                 unknown += 1;
                 true
             }
-            Some(_) if call.arguments.as_object().is_some_and(|o| o.contains_key("__unparseable__")) => {
+            Some(_)
+                if call
+                    .arguments
+                    .as_object()
+                    .is_some_and(|o| o.contains_key("__unparseable__")) =>
+            {
                 unparse += 1;
                 true
             }
@@ -155,7 +183,11 @@ pub fn invalid_tool_call_rate(trajectories_: &[Vec<ToolCall>], tools: &Map<Strin
         unknown_tool: unknown as f64 / n,
         unparseable_arguments: unparse as f64 / n,
         schema: schema as f64 / n,
-        execution_failure_rate: if executed > 0 { failed as f64 / executed as f64 } else { f64::NAN },
+        execution_failure_rate: if executed > 0 {
+            failed as f64 / executed as f64
+        } else {
+            f64::NAN
+        },
     })
 }
 
@@ -171,14 +203,33 @@ pub struct Efficiency {
 pub fn tool_use_efficiency(n_calls: &[f64], optimal_calls: &[f64]) -> Result<Efficiency> {
     floats(n_calls, "n_calls", Some(0.0), None)?;
     floats(optimal_calls, "optimal_calls", Some(0.0), None)?;
-    same(n_calls.len(), optimal_calls.len(), "n_calls", "optimal_calls")?;
+    same(
+        n_calls.len(),
+        optimal_calls.len(),
+        "n_calls",
+        "optimal_calls",
+    )?;
     let eff: Vec<f64> = n_calls
         .iter()
         .zip(optimal_calls)
-        .map(|(&a, &o)| if a == 0.0 { f64::from(u8::from(o == 0.0)) } else { (o / a).min(1.0) })
+        .map(|(&a, &o)| {
+            if a == 0.0 {
+                f64::from(u8::from(o == 0.0))
+            } else {
+                (o / a).min(1.0)
+            }
+        })
         .collect();
-    let excess: Vec<f64> = n_calls.iter().zip(optimal_calls).map(|(a, o)| (a - o).max(0.0)).collect();
-    Ok(Efficiency { value: mean(&eff), mean_excess_calls: mean(&excess), n_tasks: eff.len() })
+    let excess: Vec<f64> = n_calls
+        .iter()
+        .zip(optimal_calls)
+        .map(|(a, o)| (a - o).max(0.0))
+        .collect();
+    Ok(Efficiency {
+        value: mean(&eff),
+        mean_excess_calls: mean(&excess),
+        n_tasks: eff.len(),
+    })
 }
 
 /// Mean steps per task, with distribution summaries.
@@ -192,7 +243,11 @@ pub struct Steps {
 }
 
 /// Steps (and optionally tool calls) per task.
-pub fn steps_per_task(steps: &[f64], tool_calls: Option<&[f64]>, completed: Option<&[bool]>) -> Result<Steps> {
+pub fn steps_per_task(
+    steps: &[f64],
+    tool_calls: Option<&[f64]>,
+    completed: Option<&[bool]>,
+) -> Result<Steps> {
     floats(steps, "steps", Some(0.0), None)?;
     let tool_calls = match tool_calls {
         Some(t) => {
@@ -205,12 +260,22 @@ pub fn steps_per_task(steps: &[f64], tool_calls: Option<&[f64]>, completed: Opti
     let mean_steps_completed = match completed {
         Some(c) => {
             same(steps.len(), c.len(), "steps", "completed")?;
-            let s: Vec<f64> = steps.iter().zip(c).filter(|(_, &k)| k).map(|(&s, _)| s).collect();
+            let s: Vec<f64> = steps
+                .iter()
+                .zip(c)
+                .filter(|(_, &k)| k)
+                .map(|(&s, _)| s)
+                .collect();
             Some(if s.is_empty() { f64::NAN } else { mean(&s) })
         }
         None => None,
     };
-    Ok(Steps { value: mean(steps), steps: Summary::of(steps), tool_calls, mean_steps_completed })
+    Ok(Steps {
+        value: mean(steps),
+        steps: Summary::of(steps),
+        tool_calls,
+        mean_steps_completed,
+    })
 }
 
 fn lcs<T: PartialEq>(a: &[T], b: &[T]) -> usize {
@@ -221,7 +286,11 @@ fn lcs<T: PartialEq>(a: &[T], b: &[T]) -> usize {
     for x in a {
         let mut cur = vec![0usize; b.len() + 1];
         for (j, y) in b.iter().enumerate() {
-            cur[j + 1] = if x == y { prev[j] + 1 } else { prev[j + 1].max(cur[j]) };
+            cur[j + 1] = if x == y {
+                prev[j] + 1
+            } else {
+                prev[j + 1].max(cur[j])
+            };
         }
         prev = cur;
     }
@@ -238,21 +307,41 @@ pub struct PlanAdherence {
 }
 
 /// Order-aware agreement of the executed steps with the plan (longest common subsequence).
-pub fn plan_adherence<T: PartialEq>(plans: &[Vec<T>], executed: &[Vec<T>]) -> Result<PlanAdherence> {
+pub fn plan_adherence<T: PartialEq>(
+    plans: &[Vec<T>],
+    executed: &[Vec<T>],
+) -> Result<PlanAdherence> {
     nonempty(plans, "plans")?;
     nonempty(executed, "executed")?;
     same(plans.len(), executed.len(), "plans", "executed")?;
     let (mut f1, mut pr, mut rc, mut ex) = (vec![], vec![], vec![], vec![]);
     for (p, e) in plans.iter().zip(executed) {
         let l = lcs(p, e) as f64;
-        let a = if e.is_empty() { f64::from(u8::from(p.is_empty())) } else { l / e.len() as f64 };
-        let b = if p.is_empty() { 1.0 } else { l / p.len() as f64 };
+        let a = if e.is_empty() {
+            f64::from(u8::from(p.is_empty()))
+        } else {
+            l / e.len() as f64
+        };
+        let b = if p.is_empty() {
+            1.0
+        } else {
+            l / p.len() as f64
+        };
         pr.push(a);
         rc.push(b);
-        f1.push(if a + b == 0.0 { 0.0 } else { 2.0 * a * b / (a + b) });
+        f1.push(if a + b == 0.0 {
+            0.0
+        } else {
+            2.0 * a * b / (a + b)
+        });
         ex.push(p == e);
     }
-    Ok(PlanAdherence { value: mean(&f1), precision: mean(&pr), recall: mean(&rc), exact_match: bool_mean(&ex) })
+    Ok(PlanAdherence {
+        value: mean(&f1),
+        precision: mean(&pr),
+        recall: mean(&rc),
+        exact_match: bool_mean(&ex),
+    })
 }
 
 /// Joint goal accuracy (whole state correct) and slot accuracy over the union of slots.
@@ -264,18 +353,37 @@ pub struct StateTracking {
 }
 
 /// Dialogue-state tracking accuracy; each state maps slot → value.
-pub fn state_tracking_accuracy(expected: &[Map<String, Value>], predicted: &[Map<String, Value>]) -> Result<StateTracking> {
+pub fn state_tracking_accuracy(
+    expected: &[Map<String, Value>],
+    predicted: &[Map<String, Value>],
+) -> Result<StateTracking> {
     nonempty(expected, "expected_states")?;
     nonempty(predicted, "predicted_states")?;
-    same(expected.len(), predicted.len(), "expected_states", "predicted_states")?;
+    same(
+        expected.len(),
+        predicted.len(),
+        "expected_states",
+        "predicted_states",
+    )?;
     let (mut joint, mut ok, mut n) = (Vec::new(), 0usize, 0usize);
     for (a, b) in expected.iter().zip(predicted) {
-        joint.push(a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).is_some_and(|w| py_equal(v, w))));
+        joint.push(
+            a.len() == b.len()
+                && a.iter()
+                    .all(|(k, v)| b.get(k).is_some_and(|w| py_equal(v, w))),
+        );
         let keys: HashSet<&String> = a.keys().chain(b.keys()).collect();
         n += keys.len();
-        ok += keys.iter().filter(|k| matches!((a.get(**k), b.get(**k)), (Some(x), Some(y)) if py_equal(x, y))).count();
+        ok += keys
+            .iter()
+            .filter(|k| matches!((a.get(**k), b.get(**k)), (Some(x), Some(y)) if py_equal(x, y)))
+            .count();
     }
-    Ok(StateTracking { value: bool_mean(&joint), slot_accuracy: if n > 0 { ok as f64 / n as f64 } else { 1.0 }, n_turns: expected.len() })
+    Ok(StateTracking {
+        value: bool_mean(&joint),
+        slot_accuracy: if n > 0 { ok as f64 / n as f64 } else { 1.0 },
+        n_turns: expected.len(),
+    })
 }
 
 /// Share of failed calls (`ok == Some(false)`) followed later by a successful call to the same tool.
@@ -285,7 +393,11 @@ pub fn tool_failure_recovery_rate(trajectories_: &[Vec<ToolCall>]) -> Result<Rat
     for t in trajectories_ {
         for (i, c) in t.iter().enumerate() {
             if c.ok == Some(false) {
-                flags.push(t[i + 1..].iter().any(|d| d.name == c.name && d.ok == Some(true)));
+                flags.push(
+                    t[i + 1..]
+                        .iter()
+                        .any(|d| d.name == c.name && d.ok == Some(true)),
+                );
             }
         }
     }
@@ -304,7 +416,10 @@ pub struct Unnecessary {
 }
 
 /// Share of calls repeating an earlier identical call (same name and arguments) of the same trajectory.
-pub fn unnecessary_tool_call_rate(trajectories_: &[Vec<ToolCall>], loop_length: usize) -> Result<Unnecessary> {
+pub fn unnecessary_tool_call_rate(
+    trajectories_: &[Vec<ToolCall>],
+    loop_length: usize,
+) -> Result<Unnecessary> {
     if loop_length < 2 {
         return invalid("loop_length must be an integer >= 2.");
     }
@@ -316,7 +431,11 @@ pub fn unnecessary_tool_call_rate(trajectories_: &[Vec<ToolCall>], loop_length: 
         for c in t {
             let k = c.key();
             repeats.push(seen.contains(&k));
-            run = if prev.as_ref() == Some(&k) { run + 1 } else { 1 };
+            run = if prev.as_ref() == Some(&k) {
+                run + 1
+            } else {
+                1
+            };
             longest = longest.max(run);
             seen.insert(k.clone());
             prev = Some(k);
@@ -326,7 +445,10 @@ pub fn unnecessary_tool_call_rate(trajectories_: &[Vec<ToolCall>], loop_length: 
     if repeats.is_empty() {
         return invalid("The trajectories contain no tool calls.");
     }
-    Ok(Unnecessary { rate: rate(&repeats), loop_rate: bool_mean(&loops) })
+    Ok(Unnecessary {
+        rate: rate(&repeats),
+        loop_rate: bool_mean(&loops),
+    })
 }
 
 /// Share of tasks needing at least one human intervention, and the mean count per task.
@@ -348,7 +470,11 @@ pub struct AgentCost {
 }
 
 /// Cost per task (any unit), optionally with durations and completion.
-pub fn agent_cost_per_task(costs: &[f64], durations: Option<&[f64]>, completed: Option<&[bool]>) -> Result<AgentCost> {
+pub fn agent_cost_per_task(
+    costs: &[f64],
+    durations: Option<&[f64]>,
+    completed: Option<&[bool]>,
+) -> Result<AgentCost> {
     floats(costs, "costs", Some(0.0), None)?;
     let total = crate::util::np_sum(costs);
     let time = match durations {
@@ -363,9 +489,22 @@ pub fn agent_cost_per_task(costs: &[f64], durations: Option<&[f64]>, completed: 
         Some(c) => {
             same(costs.len(), c.len(), "costs", "completed")?;
             let k = c.iter().filter(|&&x| x).count();
-            (Some(if k > 0 { total / k as f64 } else { f64::INFINITY }), Some(bool_mean(c)))
+            (
+                Some(if k > 0 {
+                    total / k as f64
+                } else {
+                    f64::INFINITY
+                }),
+                Some(bool_mean(c)),
+            )
         }
         None => (None, None),
     };
-    Ok(AgentCost { value: mean(costs), total_cost: total, time, cost_per_success, success_rate })
+    Ok(AgentCost {
+        value: mean(costs),
+        total_cost: total,
+        time,
+        cost_per_success,
+        success_rate,
+    })
 }

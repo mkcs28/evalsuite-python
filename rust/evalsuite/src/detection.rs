@@ -43,7 +43,9 @@ fn to_xyxy(b: &[[f64; 4]], f: BoxFormat, name: &str) -> Result<Vec<[f64; 4]>> {
         return invalid(format!("{name} contains NaN or infinite coordinates."));
     }
     if out.iter().any(|x| x[2] < x[0] || x[3] < x[1]) {
-        return invalid(format!("{name} has boxes with negative width or height (check box_format)."));
+        return invalid(format!(
+            "{name} has boxes with negative width or height (check box_format)."
+        ));
     }
     Ok(out)
 }
@@ -54,7 +56,10 @@ fn area(b: &[f64; 4]) -> f64 {
 
 /// Pairwise IoU matrix (rows: `a`, columns: `b`).
 pub fn box_iou(a: &[[f64; 4]], b: &[[f64; 4]], format: BoxFormat) -> Result<Vec<Vec<f64>>> {
-    let (a, b) = (to_xyxy(a, format, "boxes_a")?, to_xyxy(b, format, "boxes_b")?);
+    let (a, b) = (
+        to_xyxy(a, format, "boxes_a")?,
+        to_xyxy(b, format, "boxes_b")?,
+    );
     Ok(a.iter()
         .map(|d| {
             b.iter()
@@ -114,12 +119,19 @@ fn flatten(images: &[Image], f: BoxFormat) -> Result<Flat> {
             return invalid(format!("Image {i}: labels must have one entry per box."));
         }
         if im.dt_scores.len() != db.len() || im.dt_scores.iter().any(|s| !s.is_finite()) {
-            return invalid(format!("y_pred[{i}]['scores'] must have one finite score per box."));
+            return invalid(format!(
+                "y_pred[{i}]['scores'] must have one finite score per box."
+            ));
         }
         let crowd = im.gt_crowd.clone().unwrap_or_else(|| vec![false; gb.len()]);
-        let ar = im.gt_area.clone().unwrap_or_else(|| gb.iter().map(area).collect());
+        let ar = im
+            .gt_area
+            .clone()
+            .unwrap_or_else(|| gb.iter().map(area).collect());
         if crowd.len() != gb.len() || ar.len() != gb.len() {
-            return invalid(format!("y_true[{i}]: 'iscrowd' and 'area' need one value per box."));
+            return invalid(format!(
+                "y_true[{i}]: 'iscrowd' and 'area' need one value per box."
+            ));
         }
         fl.gt_boxes.extend(gb.iter().flatten());
         fl.gt_labels.extend(&im.gt_labels);
@@ -134,7 +146,13 @@ fn flatten(images: &[Image], f: BoxFormat) -> Result<Flat> {
     Ok(fl)
 }
 
-fn coco(images: &[Image], f: BoxFormat, thrs: &[f64], max_dets: &[usize], areas: &[(f64, f64)]) -> Result<evalsuite_core::coco::Evaluation> {
+fn coco(
+    images: &[Image],
+    f: BoxFormat,
+    thrs: &[f64],
+    max_dets: &[usize],
+    areas: &[(f64, f64)],
+) -> Result<evalsuite_core::coco::Evaluation> {
     let fl = flatten(images, f)?;
     let img = evalsuite_core::coco::Images {
         gt_boxes: &fl.gt_boxes,
@@ -148,7 +166,9 @@ fn coco(images: &[Image], f: BoxFormat, thrs: &[f64], max_dets: &[usize], areas:
         dt_off: &fl.dt_off,
     };
     let rec = crate::util::linspace(0.0, 1.0, 101);
-    Ok(evalsuite_core::coco::evaluate(&img, thrs, max_dets, areas, &rec))
+    Ok(evalsuite_core::coco::evaluate(
+        &img, thrs, max_dets, areas, &rec,
+    ))
 }
 
 fn mean_valid(v: impl Iterator<Item = f64>) -> f64 {
@@ -168,7 +188,12 @@ fn check_iou(t: f64) -> Result<f64> {
 }
 
 /// COCO mean average precision: over IoU 0.50:0.95 (`iou_threshold = None`) or at one threshold.
-pub fn mean_average_precision(images: &[Image], iou_threshold: Option<f64>, format: BoxFormat, max_detections: usize) -> Result<f64> {
+pub fn mean_average_precision(
+    images: &[Image],
+    iou_threshold: Option<f64>,
+    format: BoxFormat,
+    max_detections: usize,
+) -> Result<f64> {
     let thrs = match iou_threshold {
         None => coco_ious(),
         Some(t) => vec![check_iou(t)?],
@@ -186,7 +211,11 @@ pub struct DetectionReport {
 }
 
 /// Full COCO evaluation summary.
-pub fn detection_report(images: &[Image], format: BoxFormat, max_detections: usize) -> Result<DetectionReport> {
+pub fn detection_report(
+    images: &[Image],
+    format: BoxFormat,
+    max_detections: usize,
+) -> Result<DetectionReport> {
     if max_detections < 1 {
         return invalid("max_detections must be a positive integer.");
     }
@@ -196,13 +225,21 @@ pub fn detection_report(images: &[Image], format: BoxFormat, max_detections: usi
     let e = coco(images, format, &coco_ious(), &md, &AREAS)?;
     let (t_n, r_n, k_n, a_n, m_n) = (10, 101, e.cats.len(), 4, md.len());
     let m = md.iter().position(|&x| x == max_detections).unwrap();
-    let p = |t: usize, r: usize, k: usize, a: usize, mi: usize| e.precision[(((t * r_n + r) * k_n + k) * a_n + a) * m_n + mi];
-    let rc = |t: usize, k: usize, a: usize, mi: usize| e.recall[((t * k_n + k) * a_n + a) * m_n + mi];
+    let p = |t: usize, r: usize, k: usize, a: usize, mi: usize| {
+        e.precision[(((t * r_n + r) * k_n + k) * a_n + a) * m_n + mi]
+    };
+    let rc =
+        |t: usize, k: usize, a: usize, mi: usize| e.recall[((t * k_n + k) * a_n + a) * m_n + mi];
     let ap = |t: Option<usize>, a: usize| {
         let ts: Vec<usize> = t.map_or_else(|| (0..t_n).collect(), |t| vec![t]);
-        mean_valid(ts.iter().flat_map(|&t| (0..r_n).flat_map(move |r| (0..k_n).map(move |k| p(t, r, k, a, m)))))
+        mean_valid(
+            ts.iter()
+                .flat_map(|&t| (0..r_n).flat_map(move |r| (0..k_n).map(move |k| p(t, r, k, a, m)))),
+        )
     };
-    let ar = |a: usize, mi: usize| mean_valid((0..t_n).flat_map(|t| (0..k_n).map(move |k| rc(t, k, a, mi))));
+    let ar = |a: usize, mi: usize| {
+        mean_valid((0..t_n).flat_map(|t| (0..k_n).map(move |k| rc(t, k, a, mi))))
+    };
     let mi = |d: usize| md.iter().position(|&x| x == d).unwrap();
     let values = vec![
         ("map", ap(None, 0)),
@@ -213,7 +250,14 @@ pub fn detection_report(images: &[Image], format: BoxFormat, max_detections: usi
         ("map_large", ap(None, 3)),
         ("mar_1", ar(0, mi(1))),
         ("mar_10", ar(0, mi(10))),
-        (if max_detections == 100 { "mar_100" } else { "mar_max" }, ar(0, m)),
+        (
+            if max_detections == 100 {
+                "mar_100"
+            } else {
+                "mar_max"
+            },
+            ar(0, m),
+        ),
         ("mar_small", ar(1, m)),
         ("mar_medium", ar(2, m)),
         ("mar_large", ar(3, m)),
@@ -222,7 +266,12 @@ pub fn detection_report(images: &[Image], format: BoxFormat, max_detections: usi
         .cats
         .iter()
         .enumerate()
-        .map(|(k, &c)| (c, mean_valid((0..t_n).flat_map(|t| (0..r_n).map(move |r| p(t, r, k, 0, m))))))
+        .map(|(k, &c)| {
+            (
+                c,
+                mean_valid((0..t_n).flat_map(|t| (0..r_n).map(move |r| p(t, r, k, 0, m)))),
+            )
+        })
         .collect();
     Ok(DetectionReport { values, per_class })
 }
@@ -250,7 +299,9 @@ pub fn average_precision_detection(
         Interpolation::Coco => {
             let e = coco(images, format, &[t], &[max_detections], &AREAS[..1])?;
             let k_n = e.cats.len();
-            let per = (0..k_n).map(|k| mean_valid((0..101).map(|r| e.precision[r * k_n + k]))).collect();
+            let per = (0..k_n)
+                .map(|k| mean_valid((0..101).map(|r| e.precision[r * k_n + k])))
+                .collect();
             Ok((e.cats, per))
         }
         Interpolation::Voc => voc(images, t, format, max_detections),
@@ -261,7 +312,12 @@ fn stable_desc(s: &[f64]) -> Vec<usize> {
     evalsuite_core::curve::descending_order(s)
 }
 
-fn voc(images: &[Image], t: f64, format: BoxFormat, max_det: usize) -> Result<(Vec<i64>, Vec<f64>)> {
+fn voc(
+    images: &[Image],
+    t: f64,
+    format: BoxFormat,
+    max_det: usize,
+) -> Result<(Vec<i64>, Vec<f64>)> {
     let fl = flatten(images, format)?;
     let mut cats: Vec<i64> = fl.gt_labels.iter().chain(&fl.dt_labels).copied().collect();
     cats.sort_unstable();
@@ -272,8 +328,12 @@ fn voc(images: &[Image], t: f64, format: BoxFormat, max_det: usize) -> Result<(V
         let (mut scores, mut matched, mut ignored) = (Vec::new(), Vec::new(), Vec::new());
         let mut npig = 0usize;
         for i in 0..images.len() {
-            let g: Vec<usize> = (fl.gt_off[i]..fl.gt_off[i + 1]).filter(|&j| fl.gt_labels[j] == cat).collect();
-            let d: Vec<usize> = (fl.dt_off[i]..fl.dt_off[i + 1]).filter(|&j| fl.dt_labels[j] == cat).collect();
+            let g: Vec<usize> = (fl.gt_off[i]..fl.gt_off[i + 1])
+                .filter(|&j| fl.gt_labels[j] == cat)
+                .collect();
+            let d: Vec<usize> = (fl.dt_off[i]..fl.dt_off[i + 1])
+                .filter(|&j| fl.dt_labels[j] == cat)
+                .collect();
             let ds: Vec<f64> = d.iter().map(|&j| fl.dt_scores[j]).collect();
             let order: Vec<usize> = stable_desc(&ds).into_iter().take(max_det).collect();
             let d: Vec<usize> = order.iter().map(|&o| d[o]).collect();
@@ -295,14 +355,27 @@ fn voc(images: &[Image], t: f64, format: BoxFormat, max_det: usize) -> Result<(V
                     let w = (db[2].min(gb[2]) - db[0].max(gb[0])).max(0.0);
                     let h = (db[3].min(gb[3]) - db[1].max(gb[1])).max(0.0);
                     let inter = w * h;
-                    let union = if fl.gt_crowd[gj] { area(&db) } else { area(&db) + area(&gb) - inter };
+                    let union = if fl.gt_crowd[gj] {
+                        area(&db)
+                    } else {
+                        area(&db) + area(&gb) - inter
+                    };
                     ious[a * gn.max(1) + b] = if union > 0.0 { inter / union } else { 0.0 };
                 }
             }
-            let gi: Vec<bool> = if gn == 0 { vec![true] } else { gorder.iter().map(|&x| gign[x]).collect() };
-            let cr: Vec<bool> = if gn == 0 { vec![false] } else { gorder.iter().map(|&x| fl.gt_crowd[g[x]]).collect() };
+            let gi: Vec<bool> = if gn == 0 {
+                vec![true]
+            } else {
+                gorder.iter().map(|&x| gign[x]).collect()
+            };
+            let cr: Vec<bool> = if gn == 0 {
+                vec![false]
+            } else {
+                gorder.iter().map(|&x| fl.gt_crowd[g[x]]).collect()
+            };
             let out = vec![false; dn];
-            let (m, ig) = evalsuite_core::coco::match_images(&ious, &gi, &cr, &out, 1, dn, gn.max(1), &[t]);
+            let (m, ig) =
+                evalsuite_core::coco::match_images(&ious, &gi, &cr, &out, 1, dn, gn.max(1), &[t]);
             for (a, &dj) in d.iter().enumerate() {
                 scores.push(fl.dt_scores[dj]);
                 matched.push(m[a]);
@@ -328,7 +401,11 @@ fn voc(images: &[Image], t: f64, format: BoxFormat, max_det: usize) -> Result<(V
             continue;
         }
         let rc: Vec<f64> = tp.iter().map(|x| x / npig as f64).collect();
-        let pr: Vec<f64> = tp.iter().zip(&fp).map(|(a, b)| a / (a + b).max(f64::EPSILON)).collect();
+        let pr: Vec<f64> = tp
+            .iter()
+            .zip(&fp)
+            .map(|(a, b)| a / (a + b).max(f64::EPSILON))
+            .collect();
         let mut mrec = vec![0.0];
         mrec.extend(&rc);
         mrec.push(1.0);
@@ -338,7 +415,10 @@ fn voc(images: &[Image], t: f64, format: BoxFormat, max_det: usize) -> Result<(V
         for i in (0..mpre.len() - 1).rev() {
             mpre[i] = mpre[i].max(mpre[i + 1]);
         }
-        let terms: Vec<f64> = (0..mrec.len() - 1).filter(|&i| mrec[i + 1] != mrec[i]).map(|i| (mrec[i + 1] - mrec[i]) * mpre[i + 1]).collect();
+        let terms: Vec<f64> = (0..mrec.len() - 1)
+            .filter(|&i| mrec[i + 1] != mrec[i])
+            .map(|i| (mrec[i + 1] - mrec[i]) * mpre[i + 1])
+            .collect();
         per[k] = crate::util::np_sum(&terms);
     }
     Ok((cats, per))

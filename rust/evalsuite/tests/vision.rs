@@ -49,17 +49,33 @@ fn segmentation_matches_python() {
             num_classes: k,
             ignore_index: ign,
             average: avg,
-            aggregate: if a["aggregate"] == "image" { Aggregate::Image } else { Aggregate::Dataset },
+            aggregate: if a["aggregate"] == "image" {
+                Aggregate::Image
+            } else {
+                Aggregate::Dataset
+            },
             empty: a["empty"].as_f64(),
             ..Default::default()
         };
-        let so = SurfaceOpts { spacing: opt_nums(&a["spacing"]), num_classes: k, ignore_index: ign, macro_average: avg == Average::Macro, ..Default::default() };
-        let bo = Opts { include_background: false, ..o.clone() };
+        let so = SurfaceOpts {
+            spacing: opt_nums(&a["spacing"]),
+            num_classes: k,
+            ignore_index: ign,
+            macro_average: avg == Average::Macro,
+            ..Default::default()
+        };
+        let bo = Opts {
+            include_background: false,
+            ..o.clone()
+        };
         match f {
             "dice" => sc(s::dice(&t, &p, &o)),
             "iou" => sc(s::iou(&t, &p, &o)),
-            "pixel_accuracy" => s::pixel_accuracy(&t, &p, ign).map_or_else(|e| Got::Err(e.to_string()), Got::Num),
-            "mean_pixel_accuracy" => s::mean_pixel_accuracy(&t, &p, k, ign).map_or_else(|e| Got::Err(e.to_string()), Got::Num),
+            "pixel_accuracy" => {
+                s::pixel_accuracy(&t, &p, ign).map_or_else(|e| Got::Err(e.to_string()), Got::Num)
+            }
+            "mean_pixel_accuracy" => s::mean_pixel_accuracy(&t, &p, k, ign)
+                .map_or_else(|e| Got::Err(e.to_string()), Got::Num),
             "boundary_iou" => sc(s::boundary_iou(&t, &p, 0.05, &bo)),
             "hausdorff_distance" => sc(s::hausdorff_distance(&t, &p, num(&a["percentile"]), &so)),
             "average_surface_distance" => sc(s::average_surface_distance(&t, &p, &so)),
@@ -70,7 +86,12 @@ fn segmentation_matches_python() {
 }
 
 fn images(a: &Value) -> Vec<Image> {
-    let boxes = |v: &Value| -> Vec<[f64; 4]> { rows(v).into_iter().map(|r| [r[0], r[1], r[2], r[3]]).collect() };
+    let boxes = |v: &Value| -> Vec<[f64; 4]> {
+        rows(v)
+            .into_iter()
+            .map(|r| [r[0], r[1], r[2], r[3]])
+            .collect()
+    };
     a["y_true"]
         .as_array()
         .unwrap()
@@ -79,7 +100,14 @@ fn images(a: &Value) -> Vec<Image> {
         .map(|(g, p)| Image {
             gt_boxes: boxes(&g["boxes"]),
             gt_labels: ints(&g["labels"]),
-            gt_crowd: Some(g["iscrowd"].as_array().unwrap().iter().map(|x| x.as_bool().unwrap()).collect()),
+            gt_crowd: Some(
+                g["iscrowd"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.as_bool().unwrap())
+                    .collect(),
+            ),
             gt_area: None,
             dt_boxes: boxes(&p["boxes"]),
             dt_labels: ints(&p["labels"]),
@@ -92,17 +120,35 @@ fn images(a: &Value) -> Vec<Image> {
 fn detection_matches_python() {
     let (n, sk) = check("detection", 1e-12, |f, a| match f {
         "box_iou" => {
-            let b = |v: &Value| -> Vec<[f64; 4]> { rows(v).into_iter().map(|r| [r[0], r[1], r[2], r[3]]).collect() };
-            d::box_iou(&b(&a["a"]), &b(&a["b"]), BoxFormat::Xyxy).map_or_else(|e| Got::Err(e.to_string()), |m| Got::List(m.concat()))
+            let b = |v: &Value| -> Vec<[f64; 4]> {
+                rows(v)
+                    .into_iter()
+                    .map(|r| [r[0], r[1], r[2], r[3]])
+                    .collect()
+            };
+            d::box_iou(&b(&a["a"]), &b(&a["b"]), BoxFormat::Xyxy)
+                .map_or_else(|e| Got::Err(e.to_string()), |m| Got::List(m.concat()))
         }
-        "mean_average_precision" => d::mean_average_precision(&images(a), a["iou_threshold"].as_f64(), BoxFormat::Xyxy, 100)
-            .map_or_else(|e| Got::Err(e.to_string()), Got::Num),
+        "mean_average_precision" => d::mean_average_precision(
+            &images(a),
+            a["iou_threshold"].as_f64(),
+            BoxFormat::Xyxy,
+            100,
+        )
+        .map_or_else(|e| Got::Err(e.to_string()), Got::Num),
         "average_precision_detection" => {
-            let interp = if a["interpolation"] == "voc" { Interpolation::Voc } else { Interpolation::Coco };
-            d::average_precision_detection(&images(a), 0.5, interp, BoxFormat::Xyxy, 100).map_or_else(|e| Got::Err(e.to_string()), |(_, v)| Got::List(v))
+            let interp = if a["interpolation"] == "voc" {
+                Interpolation::Voc
+            } else {
+                Interpolation::Coco
+            };
+            d::average_precision_detection(&images(a), 0.5, interp, BoxFormat::Xyxy, 100)
+                .map_or_else(|e| Got::Err(e.to_string()), |(_, v)| Got::List(v))
         }
-        "detection_report" => d::detection_report(&images(a), BoxFormat::Xyxy, 100)
-            .map_or_else(|e| Got::Err(e.to_string()), |r| Got::List(r.values.iter().map(|x| x.1).collect())),
+        "detection_report" => d::detection_report(&images(a), BoxFormat::Xyxy, 100).map_or_else(
+            |e| Got::Err(e.to_string()),
+            |r| Got::List(r.values.iter().map(|x| x.1).collect()),
+        ),
         _ => Got::Skip,
     });
     assert!(n > 100 && sk == 0);

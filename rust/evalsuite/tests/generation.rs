@@ -1,11 +1,18 @@
 mod common;
 
 use common::*;
-use evalsuite::generation::{self as g, BleuOpts, ChrfOpts, Measure, MeteorOpts, Rouge, Smooth, Tokenize};
+use evalsuite::generation::{
+    self as g, BleuOpts, ChrfOpts, Measure, MeteorOpts, Rouge, Smooth, Tokenize,
+};
 use serde_json::Value;
 
 fn refs(a: &Value) -> Vec<Vec<String>> {
-    a["references"].as_array().unwrap().iter().map(strs).collect()
+    a["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(strs)
+        .collect()
 }
 
 fn v(r: evalsuite::Result<f64>) -> Got {
@@ -19,7 +26,15 @@ fn l(r: evalsuite::Result<Vec<f64>>) -> Got {
 #[test]
 fn generation_matches_python() {
     let (n, sk) = check("generation", 1e-9, |f, a| {
-        let tok = |x: &Value| if x.as_str() == Some("none") { Tokenize::None } else if x.as_str() == Some("13a") { Tokenize::Thirteen } else { Tokenize::None };
+        let tok = |x: &Value| {
+            if x.as_str() == Some("none") {
+                Tokenize::None
+            } else if x.as_str() == Some("13a") {
+                Tokenize::Thirteen
+            } else {
+                Tokenize::None
+            }
+        };
         if f == "tokenize_13a" {
             let t = g::tokenize_13a(a["line"].as_str().unwrap());
             let mut out = vec![t.len() as f64];
@@ -28,12 +43,20 @@ fn generation_matches_python() {
         }
         if f == "cross_entropy" || f == "perplexity" {
             let lp = rows(&a["token_logprobs"]);
-            return if f == "cross_entropy" { v(g::cross_entropy(&lp, num(&a["base"]))) } else { v(g::perplexity(&lp, a["average"] == "sequences")) };
+            return if f == "cross_entropy" {
+                v(g::cross_entropy(&lp, num(&a["base"])))
+            } else {
+                v(g::perplexity(&lp, a["average"] == "sequences"))
+            };
         }
         let p = strs(&a["predictions"]);
         match f {
             "self_bleu" => v(g::self_bleu(&p, 4, Tokenize::Thirteen)),
-            "distinct_n" => v(g::distinct_n(&p, a["n"].as_u64().unwrap() as usize, a["lowercase"].as_bool().unwrap())),
+            "distinct_n" => v(g::distinct_n(
+                &p,
+                a["n"].as_u64().unwrap() as usize,
+                a["lowercase"].as_bool().unwrap(),
+            )),
             _ => {
                 let r = refs(a);
                 match f {
@@ -44,7 +67,12 @@ fn generation_matches_python() {
                             "none" => Smooth::None,
                             _ => Smooth::Exp,
                         };
-                        let o = BleuOpts { smooth, lowercase: a["lowercase"].as_bool().unwrap(), tokenize: tok(&a["tokenize"]), ..Default::default() };
+                        let o = BleuOpts {
+                            smooth,
+                            lowercase: a["lowercase"].as_bool().unwrap(),
+                            tokenize: tok(&a["tokenize"]),
+                            ..Default::default()
+                        };
                         v(g::bleu(&r, &p, &o))
                     }
                     "sentence_bleu" => l(g::sentence_bleu(&r, &p, &BleuOpts::default())),
@@ -83,7 +111,14 @@ fn generation_matches_python() {
                         };
                         l(g::meteor(&r, &p, &o))
                     }
-                    "cider" => l(g::cider(&r, &p, 4, 6.0, a["lowercase"].as_bool().unwrap(), Tokenize::None)),
+                    "cider" => l(g::cider(
+                        &r,
+                        &p,
+                        4,
+                        6.0,
+                        a["lowercase"].as_bool().unwrap(),
+                        Tokenize::None,
+                    )),
                     _ => Got::Skip,
                 }
             }

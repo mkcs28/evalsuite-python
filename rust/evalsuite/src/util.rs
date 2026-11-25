@@ -25,20 +25,11 @@ pub fn var(a: &[f64], ddof: usize) -> f64 {
     np_sum(&sq) / (a.len() - ddof) as f64
 }
 
-/// Checks that `x` is non-empty and finite.
-pub fn check_finite(x: &[f64], name: &str) -> Result<()> {
-    if x.is_empty() {
-        return invalid(format!("{name} is empty. Provide at least one example."));
-    }
-    if x.iter().any(|v| !v.is_finite()) {
-        return invalid(format!("{name} contains NaN or infinite values."));
-    }
-    Ok(())
-}
-
 pub fn same_len(a: usize, b: usize, what: &str) -> Result<()> {
     if a != b {
-        return invalid(format!("{what} must contain the same number of observations. Received {a} and {b}."));
+        return invalid(format!(
+            "{what} must contain the same number of observations. Received {a} and {b}."
+        ));
     }
     Ok(())
 }

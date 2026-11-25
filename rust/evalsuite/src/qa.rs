@@ -29,6 +29,16 @@ pub enum Norm<'a> {
     Custom(&'a dyn Fn(&str) -> String),
 }
 
+impl std::fmt::Debug for Norm<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Norm::Squad => "Squad",
+            Norm::None => "None",
+            Norm::Custom(_) => "Custom(..)",
+        })
+    }
+}
+
 impl Norm<'_> {
     fn apply(&self, s: &str) -> String {
         match self {
@@ -46,7 +56,11 @@ fn articles() -> &'static Regex {
 
 /// SQuAD answer normalisation.
 pub fn normalize_answer(text: &str) -> String {
-    let t: String = text.to_lowercase().chars().filter(|c| !c.is_ascii_punctuation()).collect();
+    let t: String = text
+        .to_lowercase()
+        .chars()
+        .filter(|c| !c.is_ascii_punctuation())
+        .collect();
     py_split(&articles().replace_all(&t, " ")).join(" ")
 }
 
@@ -76,7 +90,11 @@ fn f1(pred: &str, reference: &str) -> f64 {
 }
 
 /// Per-example exact match (1 if the normalised prediction equals any normalised reference).
-pub fn exact_match<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], norm: Norm) -> Result<Vec<f64>> {
+pub fn exact_match<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    norm: Norm,
+) -> Result<Vec<f64>> {
     check(references, predictions)?;
     Ok(predictions
         .iter()
@@ -89,35 +107,53 @@ pub fn exact_match<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predicti
 }
 
 /// Per-example token F1 (best over the references).
-pub fn token_f1<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], norm: Norm) -> Result<Vec<f64>> {
+pub fn token_f1<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    norm: Norm,
+) -> Result<Vec<f64>> {
     check(references, predictions)?;
     Ok(predictions
         .iter()
         .zip(references)
         .map(|(p, rs)| {
             let p = norm.apply(p.as_ref());
-            rs.iter().map(|r| f1(&p, &norm.apply(r.as_ref()))).fold(f64::NEG_INFINITY, f64::max)
+            rs.iter()
+                .map(|r| f1(&p, &norm.apply(r.as_ref())))
+                .fold(f64::NEG_INFINITY, f64::max)
         })
         .collect())
 }
 
 /// Per-question majority-vote accuracy: the most frequent normalised sample (first seen among ties) is
 /// compared with the references.
-pub fn majority_vote_accuracy<R: AsRef<str>, S: AsRef<str>>(references: &[Vec<R>], samples: &[Vec<S>], norm: Norm) -> Result<Vec<f64>> {
+pub fn majority_vote_accuracy<R: AsRef<str>, S: AsRef<str>>(
+    references: &[Vec<R>],
+    samples: &[Vec<S>],
+    norm: Norm,
+) -> Result<Vec<f64>> {
     let firsts: Vec<&str> = samples.iter().map(|_| "").collect();
     check(references, &firsts)?;
     let mut out = Vec::with_capacity(samples.len());
     for (i, (answers, rs)) in samples.iter().zip(references).enumerate() {
         if answers.is_empty() {
-            return invalid(format!("samples[{i}] must be a non-empty list of answer strings."));
+            return invalid(format!(
+                "samples[{i}] must be a non-empty list of answer strings."
+            ));
         }
         let normed: Vec<String> = answers.iter().map(|a| norm.apply(a.as_ref())).collect();
         let mut counts: HashMap<&str, (usize, usize)> = HashMap::new();
         for (j, a) in normed.iter().enumerate() {
             counts.entry(a).or_insert((0, j)).0 += 1;
         }
-        let top = counts.iter().max_by(|a, b| a.1 .0.cmp(&b.1 .0).then(b.1 .1.cmp(&a.1 .1))).unwrap().0;
-        out.push(f64::from(u8::from(rs.iter().any(|r| norm.apply(r.as_ref()) == *top))));
+        let top = counts
+            .iter()
+            .max_by(|a, b| a.1 .0.cmp(&b.1 .0).then(b.1 .1.cmp(&a.1 .1)))
+            .unwrap()
+            .0;
+        out.push(f64::from(u8::from(
+            rs.iter().any(|r| norm.apply(r.as_ref()) == *top),
+        )));
     }
     Ok(out)
 }
@@ -131,13 +167,19 @@ pub fn pass_at_k(n_samples: &[u64], n_correct: &[u64], k: u64) -> Result<Vec<f64
         return invalid("n_correct is empty. Provide at least one example.");
     }
     if n_samples.len() != n_correct.len() {
-        return invalid(format!("n_samples and n_correct differ in length: {} and {}.", n_samples.len(), n_correct.len()));
+        return invalid(format!(
+            "n_samples and n_correct differ in length: {} and {}.",
+            n_samples.len(),
+            n_correct.len()
+        ));
     }
     if n_samples.iter().zip(n_correct).any(|(n, c)| c > n) {
         return invalid("Each n_correct must be between 0 and its n_samples.");
     }
     if let Some(m) = n_samples.iter().copied().filter(|&n| n < k).min() {
-        return invalid(format!("pass@{k} needs at least k = {k} samples per problem; the smallest n is {m}."));
+        return invalid(format!(
+            "pass@{k} needs at least k = {k} samples per problem; the smallest n is {m}."
+        ));
     }
     Ok(n_samples
         .iter()
@@ -179,7 +221,10 @@ fn clean_number(s: &str) -> String {
     static RE: OnceLock<Regex> = OnceLock::new();
     let s = s.replace([',', '$'], "");
     let s = py_strip(&s);
-    if RE.get_or_init(|| Regex::new(r"\A-?\d+\.0+\z").unwrap()).is_match(s) {
+    if RE
+        .get_or_init(|| Regex::new(r"\A-?\d+\.0+\z").unwrap())
+        .is_match(s)
+    {
         return s.split('.').next().unwrap().to_owned();
     }
     s.to_owned()
@@ -208,7 +253,18 @@ fn py_splitlines(s: &str) -> Vec<&str> {
     let mut start = 0;
     let mut it = s.char_indices().peekable();
     while let Some((i, c)) = it.next() {
-        if matches!(c, '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}' | '\u{1d}' | '\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}') {
+        if matches!(
+            c,
+            '\n' | '\r'
+                | '\u{b}'
+                | '\u{c}'
+                | '\u{1c}'
+                | '\u{1d}'
+                | '\u{1e}'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
+        ) {
             out.push(&s[start..i]);
             let mut end = i + c.len_utf8();
             if c == '\r' && it.peek().map(|p| p.1) == Some('\n') {
@@ -288,11 +344,18 @@ pub fn extract_answer(text: &str, style: AnswerStyle) -> Option<String> {
                     None => Some(py_strip(tail).to_owned()).filter(|s| !s.is_empty()),
                 };
             }
-            number().find_iter(text).last().map(|m| clean_number(m.as_str()))
+            number()
+                .find_iter(text)
+                .last()
+                .map(|m| clean_number(m.as_str()))
         }
         AnswerStyle::Boxed => boxed(text).map(|b| py_strip(b).to_owned()),
         AnswerStyle::Choice => choice(text),
-        AnswerStyle::LastLine => py_splitlines(py_strip(text)).into_iter().map(py_strip).filter(|l| !l.is_empty()).last().map(str::to_owned),
+        AnswerStyle::LastLine => py_splitlines(py_strip(text))
+            .into_iter()
+            .map(py_strip)
+            .rfind(|l| !l.is_empty())
+            .map(str::to_owned),
     }
 }
 
@@ -306,7 +369,12 @@ pub struct Benchmark {
 
 /// Accuracy of answers extracted from outputs against gold answers (a gold solution's `####` or `\boxed`
 /// answer is used when present). `normalize` optionally maps both sides.
-pub fn benchmark_accuracy<R: AsRef<str>, O: AsRef<str>>(references: &[R], outputs: &[O], style: AnswerStyle, normalize: Option<&dyn Fn(&str) -> String>) -> Result<Benchmark> {
+pub fn benchmark_accuracy<R: AsRef<str>, O: AsRef<str>>(
+    references: &[R],
+    outputs: &[O],
+    style: AnswerStyle,
+    normalize: Option<&dyn Fn(&str) -> String>,
+) -> Result<Benchmark> {
     if outputs.is_empty() {
         return invalid("outputs is empty. Provide at least one example.");
     }
@@ -320,7 +388,9 @@ pub fn benchmark_accuracy<R: AsRef<str>, O: AsRef<str>>(references: &[R], output
     let (mut hits, mut missing) = (Vec::new(), 0usize);
     for (g, o) in references.iter().zip(outputs) {
         let g = g.as_ref();
-        let mut gold = if matches!(style, AnswerStyle::Gsm8k | AnswerStyle::Boxed) && (g.contains("####") || g.contains("\\boxed")) {
+        let mut gold = if matches!(style, AnswerStyle::Gsm8k | AnswerStyle::Boxed)
+            && (g.contains("####") || g.contains("\\boxed"))
+        {
             extract_answer(g, style)
         } else {
             Some(py_strip(g).to_owned())
@@ -338,5 +408,9 @@ pub fn benchmark_accuracy<R: AsRef<str>, O: AsRef<str>>(references: &[R], output
         }
     }
     let value = hits.iter().filter(|&&h| h).count() as f64 / hits.len() as f64;
-    Ok(Benchmark { value, per_example: hits, no_answer_found: missing })
+    Ok(Benchmark {
+        value,
+        per_example: hits,
+        no_answer_found: missing,
+    })
 }

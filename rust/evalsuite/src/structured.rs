@@ -72,7 +72,9 @@ pub fn extract_json(text: &str, mode: JsonMode) -> Option<Value> {
             }
         }
     }
-    candidates.into_iter().find_map(|c| serde_json::from_str(c).ok())
+    candidates
+        .into_iter()
+        .find_map(|c| serde_json::from_str(c).ok())
 }
 
 fn outputs<S: AsRef<str>>(o: &[S]) -> Result<()> {
@@ -85,7 +87,12 @@ fn outputs<S: AsRef<str>>(o: &[S]) -> Result<()> {
 /// Share of outputs that parse as JSON.
 pub fn json_validity<S: AsRef<str>>(outputs_: &[S], mode: JsonMode) -> Result<Flags> {
     outputs(outputs_)?;
-    Ok(flags(outputs_.iter().map(|o| extract_json(o.as_ref(), mode).is_some()).collect()))
+    Ok(flags(
+        outputs_
+            .iter()
+            .map(|o| extract_json(o.as_ref(), mode).is_some())
+            .collect(),
+    ))
 }
 
 /// JSON Schema compliance with the first error of each failing output.
@@ -97,7 +104,11 @@ pub struct SchemaCompliance {
 }
 
 /// Share of outputs that parse as JSON and validate against `schema` (see [`crate::json_schema`]).
-pub fn json_schema_compliance<S: AsRef<str>>(outputs_: &[S], schema: &Value, mode: JsonMode) -> Result<SchemaCompliance> {
+pub fn json_schema_compliance<S: AsRef<str>>(
+    outputs_: &[S],
+    schema: &Value,
+    mode: JsonMode,
+) -> Result<SchemaCompliance> {
     if !schema.is_object() {
         return invalid("schema must be a JSON Schema object (a dict).");
     }
@@ -118,7 +129,10 @@ pub fn json_schema_compliance<S: AsRef<str>>(outputs_: &[S], schema: &Value, mod
             }
         }
     }
-    Ok(SchemaCompliance { flags: flags(ok), errors })
+    Ok(SchemaCompliance {
+        flags: flags(ok),
+        errors,
+    })
 }
 
 /// Share of outputs that are well-formed XML (documents with a DOCTYPE or ENTITY declaration are rejected),
@@ -155,7 +169,9 @@ fn get<'a>(obj: &'a Value, path: &str) -> Option<&'a Value> {
     for part in path.split('.') {
         node = match node {
             Value::Object(o) if o.contains_key(part) => &o[part],
-            Value::Array(a) if !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) => a.get(part.parse::<usize>().ok()?)?,
+            Value::Array(a) if !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) => {
+                a.get(part.parse::<usize>().ok()?)?
+            }
             _ => return None,
         };
     }
@@ -177,14 +193,21 @@ pub type Normalize<'a> = &'a dyn Fn(&Value) -> Value;
 
 /// `expected[i]` maps dotted field paths (`"a.b.0"`) to values; `outputs[i]` is a model output — a JSON
 /// string (parsed with `mode`) or an already parsed value.
-pub fn required_field_accuracy(expected: &[Map<String, Value>], outputs_: &[Value], mode: JsonMode, normalize: Option<Normalize>) -> Result<FieldAccuracy> {
+pub fn required_field_accuracy(
+    expected: &[Map<String, Value>],
+    outputs_: &[Value],
+    mode: JsonMode,
+    normalize: Option<Normalize>,
+) -> Result<FieldAccuracy> {
     if expected.is_empty() || expected.len() != outputs_.len() {
         return invalid("expected and outputs must be non-empty and the same length.");
     }
     let (mut hits, mut totals) = (Vec::new(), Vec::new());
     for (i, (e, o)) in expected.iter().zip(outputs_).enumerate() {
         if e.is_empty() {
-            return invalid(format!("expected[{i}] must be a non-empty dict of field path -> value."));
+            return invalid(format!(
+                "expected[{i}] must be a non-empty dict of field path -> value."
+            ));
         }
         let obj = match o {
             Value::String(s) => extract_json(s, mode),
@@ -215,13 +238,19 @@ pub fn required_field_accuracy(expected: &[Map<String, Value>], outputs_: &[Valu
 
 fn pair(exp: &[Vec<ToolCall>], pred: &[Vec<ToolCall>]) -> Result<()> {
     if exp.is_empty() || exp.len() != pred.len() {
-        return invalid("expected_calls and predicted_calls must be non-empty and the same length.");
+        return invalid(
+            "expected_calls and predicted_calls must be non-empty and the same length.",
+        );
     }
     Ok(())
 }
 
 /// Share of examples calling the right tools (as a multiset, or in order with `ordered`); arguments ignored.
-pub fn tool_selection_accuracy(expected: &[Vec<ToolCall>], predicted: &[Vec<ToolCall>], ordered: bool) -> Result<Flags> {
+pub fn tool_selection_accuracy(
+    expected: &[Vec<ToolCall>],
+    predicted: &[Vec<ToolCall>],
+    ordered: bool,
+) -> Result<Flags> {
     pair(expected, predicted)?;
     Ok(flags(
         expected
@@ -242,7 +271,11 @@ pub fn tool_selection_accuracy(expected: &[Vec<ToolCall>], predicted: &[Vec<Tool
 
 /// Share of expected calls matched by a predicted call to the same tool with equal arguments (each predicted
 /// call used once).
-pub fn tool_argument_accuracy(expected: &[Vec<ToolCall>], predicted: &[Vec<ToolCall>], normalize: Option<Normalize>) -> Result<f64> {
+pub fn tool_argument_accuracy(
+    expected: &[Vec<ToolCall>],
+    predicted: &[Vec<ToolCall>],
+    normalize: Option<Normalize>,
+) -> Result<f64> {
     pair(expected, predicted)?;
     let (mut hits, mut total) = (0usize, 0usize);
     for (e, p) in expected.iter().zip(predicted) {
@@ -290,25 +323,62 @@ pub struct CallF1 {
 }
 
 /// Pooled precision / recall / F1 of predicted against expected tool calls.
-pub fn tool_call_f1(expected: &[Vec<ToolCall>], predicted: &[Vec<ToolCall>], matching: CallMatch) -> Result<CallF1> {
+pub fn tool_call_f1(
+    expected: &[Vec<ToolCall>],
+    predicted: &[Vec<ToolCall>],
+    matching: CallMatch,
+) -> Result<CallF1> {
     pair(expected, predicted)?;
     let (mut matched, mut n_pred, mut n_exp, mut bad) = (0usize, 0usize, 0usize, 0usize);
     for (e, p) in expected.iter().zip(predicted) {
         n_exp += e.len();
         n_pred += p.len();
-        bad += p.iter().filter(|c| c.arguments.as_object().is_some_and(|o| o.contains_key("__unparseable__"))).count();
+        bad += p
+            .iter()
+            .filter(|c| {
+                c.arguments
+                    .as_object()
+                    .is_some_and(|o| o.contains_key("__unparseable__"))
+            })
+            .count();
         let mut pool: Vec<&ToolCall> = p.iter().collect();
         for call in e {
-            if let Some(k) = pool.iter().position(|c| c.name == call.name && (matching == CallMatch::Name || json_equal(&c.arguments, &call.arguments))) {
+            if let Some(k) = pool.iter().position(|c| {
+                c.name == call.name
+                    && (matching == CallMatch::Name || json_equal(&c.arguments, &call.arguments))
+            }) {
                 matched += 1;
                 pool.remove(k);
             }
         }
     }
-    let precision = if n_pred > 0 { matched as f64 / n_pred as f64 } else { f64::from(u8::from(n_exp == 0)) };
-    let recall = if n_exp > 0 { matched as f64 / n_exp as f64 } else { 1.0 };
-    let f1 = if precision + recall == 0.0 { 0.0 } else { 2.0 * precision * recall / (precision + recall) };
-    Ok(CallF1 { f1, precision, recall, invalid_call_rate: if n_pred > 0 { bad as f64 / n_pred as f64 } else { 0.0 }, n_expected: n_exp, n_predicted: n_pred })
+    let precision = if n_pred > 0 {
+        matched as f64 / n_pred as f64
+    } else {
+        f64::from(u8::from(n_exp == 0))
+    };
+    let recall = if n_exp > 0 {
+        matched as f64 / n_exp as f64
+    } else {
+        1.0
+    };
+    let f1 = if precision + recall == 0.0 {
+        0.0
+    } else {
+        2.0 * precision * recall / (precision + recall)
+    };
+    Ok(CallF1 {
+        f1,
+        precision,
+        recall,
+        invalid_call_rate: if n_pred > 0 {
+            bad as f64 / n_pred as f64
+        } else {
+            0.0
+        },
+        n_expected: n_exp,
+        n_predicted: n_pred,
+    })
 }
 
 /// The outcome of one API call.
@@ -375,7 +445,12 @@ pub fn format_compliance<S: AsRef<str>>(outputs_: &[S], pattern: &str) -> Result
     outputs(outputs_)?;
     compile(pattern)?;
     let re = anchored(pattern)?;
-    Ok(flags(outputs_.iter().map(|o| re.is_match(py_strip(o.as_ref()))).collect()))
+    Ok(flags(
+        outputs_
+            .iter()
+            .map(|o| re.is_match(py_strip(o.as_ref())))
+            .collect(),
+    ))
 }
 
 /// Share of later-turn checks still satisfied: `turn_checks[c][t]` = the checks of turn t of conversation c.
@@ -403,14 +478,20 @@ pub fn extra_content_rate<S: AsRef<str>>(outputs_: &[S], payload: Payload) -> Re
     Ok(flags(match payload {
         Payload::Json => outputs_
             .iter()
-            .map(|o| extract_json(o.as_ref(), JsonMode::Strict).is_none() && extract_json(o.as_ref(), JsonMode::Lenient).is_some())
+            .map(|o| {
+                extract_json(o.as_ref(), JsonMode::Strict).is_none()
+                    && extract_json(o.as_ref(), JsonMode::Lenient).is_some()
+            })
             .collect(),
         Payload::Regex(p) => {
             if p.is_empty() {
                 return invalid("payload must be 'json', or 'regex' together with a pattern.");
             }
             let (re, full) = (compile(p)?, anchored(p)?);
-            outputs_.iter().map(|o| re.is_match(o.as_ref()) && !full.is_match(py_strip(o.as_ref()))).collect()
+            outputs_
+                .iter()
+                .map(|o| re.is_match(o.as_ref()) && !full.is_match(py_strip(o.as_ref())))
+                .collect()
         }
     }))
 }

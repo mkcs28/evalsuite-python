@@ -17,6 +17,14 @@
 //! assert!((rmse - 0.6123724356957945).abs() < 1e-15);
 //! ```
 #![forbid(unsafe_code)]
+// Reference constants are kept with the digits of their published sources; index loops mirror the
+// reference formulas.
+#![allow(
+    clippy::excessive_precision,
+    clippy::type_complexity,
+    clippy::needless_range_loop,
+    clippy::neg_cmp_op_on_partial_ord
+)]
 #![warn(missing_debug_implementations)]
 
 pub mod agents;
@@ -35,21 +43,21 @@ pub mod labels;
 pub mod longcontext;
 pub mod multilingual;
 pub mod qa;
-pub mod robustness;
 pub mod rag;
 pub mod regression;
 pub mod retrieval;
+pub mod robustness;
 pub mod safety;
 pub mod segmentation;
 pub mod semantic;
 pub mod special;
 pub mod spice;
+pub mod stats;
 pub mod structured;
 pub mod summary;
-pub mod stats;
 pub mod uncertainty;
 pub(crate) mod util;
 
 pub use error::{Error, Result};
-pub use serde_json::{json, Value};
 pub use labels::Label;
+pub use serde_json::{json, Value};

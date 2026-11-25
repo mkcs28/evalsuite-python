@@ -27,16 +27,40 @@ fn semantic_parity() {
                     _ => BertMeasure::F1,
                 };
                 if key == "weighted" {
-                    list(bertscore(&mats(&a["refs"]), &mats(&a["preds"]), Some(&rows(&a["rw"])), Some(&rows(&a["pw"])), m, Some(0.3)))
+                    list(bertscore(
+                        &mats(&a["refs"]),
+                        &mats(&a["preds"]),
+                        Some(&rows(&a["rw"])),
+                        Some(&rows(&a["pw"])),
+                        m,
+                        Some(0.3),
+                    ))
                 } else {
-                    list(bertscore(&mats(&a["refs"]), &mats(&a["preds"]), None, None, m, None))
+                    list(bertscore(
+                        &mats(&a["refs"]),
+                        &mats(&a["preds"]),
+                        None,
+                        None,
+                        m,
+                        None,
+                    ))
                 }
             }
             "moverscore" => {
                 if key == "weighted" {
-                    list(moverscore(&mats(&a["refs"]), &mats(&a["preds"]), Some(&rows(&a["rw"])), Some(&rows(&a["pw"]))))
+                    list(moverscore(
+                        &mats(&a["refs"]),
+                        &mats(&a["preds"]),
+                        Some(&rows(&a["rw"])),
+                        Some(&rows(&a["pw"])),
+                    ))
                 } else {
-                    list(moverscore(&mats(&a["refs"]), &mats(&a["preds"]), None, None))
+                    list(moverscore(
+                        &mats(&a["refs"]),
+                        &mats(&a["preds"]),
+                        None,
+                        None,
+                    ))
                 }
             }
             "embedding_similarity" => {
@@ -45,9 +69,19 @@ fn semantic_parity() {
                     "manhattan" => Similarity::Manhattan,
                     _ => Similarity::Cosine,
                 };
-                list(embedding_similarity(&rows(&a["a"]), &rows(&a["b"]), m, a["normalize"].as_bool().unwrap()))
+                list(embedding_similarity(
+                    &rows(&a["a"]),
+                    &rows(&a["b"]),
+                    m,
+                    a["normalize"].as_bool().unwrap(),
+                ))
             }
-            "mauve_from_histograms" => Got::Num(mauve_from_histograms(&nums(&a["p"]), &nums(&a["q"]), a["disc"].as_u64().unwrap() as usize, a["sf"].as_f64().unwrap())),
+            "mauve_from_histograms" => Got::Num(mauve_from_histograms(
+                &nums(&a["p"]),
+                &nums(&a["q"]),
+                a["disc"].as_u64().unwrap() as usize,
+                a["sf"].as_f64().unwrap(),
+            )),
             _ => Got::Skip,
         }
     });
@@ -59,12 +93,20 @@ fn mauve_behaves() {
     // Same distribution -> close to 1; disjoint clusters -> close to 0.
     let mut s = 1u64;
     let mut r = || {
-        s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        s = s
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((s >> 11) as f64 / (1u64 << 53) as f64) - 0.5
     };
-    let a: Vec<Vec<f64>> = (0..200).map(|i| vec![(i % 4) as f64 + 0.1 * r(), 0.1 * r(), 1.0 + 0.1 * r()]).collect();
-    let b: Vec<Vec<f64>> = (0..200).map(|i| vec![(i % 4) as f64 + 0.1 * r(), 0.1 * r(), 1.0 + 0.1 * r()]).collect();
-    let c: Vec<Vec<f64>> = (0..200).map(|_| vec![0.1 * r(), 5.0 + 0.1 * r(), -1.0 + 0.1 * r()]).collect();
+    let a: Vec<Vec<f64>> = (0..200)
+        .map(|i| vec![(i % 4) as f64 + 0.1 * r(), 0.1 * r(), 1.0 + 0.1 * r()])
+        .collect();
+    let b: Vec<Vec<f64>> = (0..200)
+        .map(|i| vec![(i % 4) as f64 + 0.1 * r(), 0.1 * r(), 1.0 + 0.1 * r()])
+        .collect();
+    let c: Vec<Vec<f64>> = (0..200)
+        .map(|_| vec![0.1 * r(), 5.0 + 0.1 * r(), -1.0 + 0.1 * r()])
+        .collect();
     let o = MauveOpts::default();
     let same = mauve(&a, &b, &o).unwrap().value;
     let far = mauve(&a, &c, &o).unwrap().value;

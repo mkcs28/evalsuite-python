@@ -17,7 +17,9 @@ pub fn binary_counts<L: Label>(
 ) -> Result<(f64, f64, f64, f64)> {
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     if ctx.kind != Kind::Binary {
-        return unsupported("Diagnostic metrics are defined for binary outcomes; this target is multiclass.");
+        return unsupported(
+            "Diagnostic metrics are defined for binary outcomes; this target is multiclass.",
+        );
     }
     let total: f64 = crate::util::np_sum(&ctx.w);
     match ctx.positive(pos_label)? {
@@ -62,37 +64,74 @@ fn need_both(tp: f64, fp: f64, fn_: f64, tn: f64, what: &str) -> Result<()> {
 }
 
 fn sens_spec(tp: f64, fp: f64, fn_: f64, tn: f64) -> (f64, f64) {
-    let s = if tp + fn_ != 0.0 { tp / (tp + fn_) } else { f64::NAN };
-    let p = if tn + fp != 0.0 { tn / (tn + fp) } else { f64::NAN };
+    let s = if tp + fn_ != 0.0 {
+        tp / (tp + fn_)
+    } else {
+        f64::NAN
+    };
+    let p = if tn + fp != 0.0 {
+        tn / (tn + fp)
+    } else {
+        f64::NAN
+    };
     (s, p)
 }
 
 /// Sensitivity (true positive rate).
-pub fn sensitivity<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>, z: ZeroDivision) -> Result<f64> {
+pub fn sensitivity<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+    z: ZeroDivision,
+) -> Result<f64> {
     let (tp, _, fn_, _) = binary_counts(y_true, y_pred, pos_label, w)?;
     Ok(zd(tp, tp + fn_, z))
 }
 
 /// Specificity (true negative rate).
-pub fn specificity<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>, z: ZeroDivision) -> Result<f64> {
+pub fn specificity<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+    z: ZeroDivision,
+) -> Result<f64> {
     let (_, fp, _, tn) = binary_counts(y_true, y_pred, pos_label, w)?;
     Ok(zd(tn, tn + fp, z))
 }
 
 /// Positive predictive value.
-pub fn ppv<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>, z: ZeroDivision) -> Result<f64> {
+pub fn ppv<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+    z: ZeroDivision,
+) -> Result<f64> {
     let (tp, fp, _, _) = binary_counts(y_true, y_pred, pos_label, w)?;
     Ok(zd(tp, tp + fp, z))
 }
 
 /// Negative predictive value.
-pub fn npv<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>, z: ZeroDivision) -> Result<f64> {
+pub fn npv<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+    z: ZeroDivision,
+) -> Result<f64> {
     let (_, _, fn_, tn) = binary_counts(y_true, y_pred, pos_label, w)?;
     Ok(zd(tn, tn + fn_, z))
 }
 
 /// Positive likelihood ratio: sensitivity / (1 − specificity).
-pub fn lr_positive<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<f64> {
+pub fn lr_positive<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let (tp, fp, fn_, tn) = binary_counts(y_true, y_pred, pos_label, w)?;
     need_both(tp, fp, fn_, tn, "LR+")?;
     let (s, p) = sens_spec(tp, fp, fn_, tn);
@@ -100,7 +139,12 @@ pub fn lr_positive<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, 
 }
 
 /// Negative likelihood ratio: (1 − sensitivity) / specificity.
-pub fn lr_negative<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<f64> {
+pub fn lr_negative<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let (tp, fp, fn_, tn) = binary_counts(y_true, y_pred, pos_label, w)?;
     need_both(tp, fp, fn_, tn, "LR−")?;
     let (s, p) = sens_spec(tp, fp, fn_, tn);
@@ -130,14 +174,24 @@ pub fn diagnostic_odds_ratio<L: Label>(
 }
 
 /// Youden's J: sensitivity + specificity − 1.
-pub fn youden_j<L: Label>(y_true: &[L], y_pred: &[L], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<f64> {
+pub fn youden_j<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let (tp, fp, fn_, tn) = binary_counts(y_true, y_pred, pos_label, w)?;
     need_both(tp, fp, fn_, tn, "Youden's J")?;
     let (s, p) = sens_spec(tp, fp, fn_, tn);
     Ok(s + p - 1.0)
 }
 
-fn risk<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<(Vec<f64>, Vec<f64>)> {
+fn risk<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<(Vec<f64>, Vec<f64>)> {
     let ctx = Ctx::new(y_true, None, None, w)?;
     if ctx.kind != Kind::Binary {
         return unsupported("Decision curves are defined for binary outcomes.");
@@ -145,7 +199,11 @@ fn risk<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, w: Option
     check_probs(y_prob, ctx.n(), "y_prob")?;
     let y = match ctx.positive(pos_label)? {
         None => vec![0.0; ctx.n()],
-        Some(i) => ctx.true_idx.iter().map(|&t| f64::from(u8::from(t == i))).collect(),
+        Some(i) => ctx
+            .true_idx
+            .iter()
+            .map(|&t| f64::from(u8::from(t == i)))
+            .collect(),
     };
     Ok((y, ctx.w))
 }
@@ -158,7 +216,13 @@ fn check_threshold(t: f64) -> Result<()> {
 }
 
 /// Net benefit of treating when the predicted risk is at least `threshold` (Vickers & Elkin).
-pub fn net_benefit<L: Label>(y_true: &[L], y_prob: &[f64], threshold: f64, pos_label: Option<&L>, w: Option<&[f64]>) -> Result<f64> {
+pub fn net_benefit<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    threshold: f64,
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let (y, w) = risk(y_true, y_prob, pos_label, w)?;
     check_threshold(threshold)?;
     let n = crate::util::np_sum(&w);
@@ -190,7 +254,11 @@ pub fn decision_curve<L: Label>(
     }
     let n = crate::util::np_sum(&w);
     let mut order: Vec<usize> = (0..y.len()).collect();
-    order.sort_by(|&a, &b| y_prob[a].partial_cmp(&y_prob[b]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&a, &b| {
+        y_prob[a]
+            .partial_cmp(&y_prob[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let sorted: Vec<f64> = order.iter().map(|&i| y_prob[i]).collect();
     let mut below_pos = vec![0.0];
     let mut below_neg = vec![0.0];

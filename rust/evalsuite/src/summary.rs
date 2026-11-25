@@ -33,7 +33,13 @@ pub fn rate(flags: &[bool]) -> Rate {
     let n = flags.len();
     let k = flags.iter().filter(|&&f| f).count();
     let (ci_low, ci_high) = wilson(k as f64, n as f64);
-    Rate { value: k as f64 / n as f64, count: k, n, ci_low, ci_high }
+    Rate {
+        value: k as f64 / n as f64,
+        count: k,
+        n,
+        ci_low,
+        ci_high,
+    }
 }
 
 /// Mean, sample standard deviation (ddof 1; 0 for one value), extremes and percentiles (linear interpolation).
@@ -108,15 +114,25 @@ pub(crate) fn nonempty<T>(x: &[T], name: &str) -> Result<()> {
 
 pub(crate) fn same(a: usize, b: usize, na: &str, nb: &str) -> Result<()> {
     if a != b {
-        return invalid(format!("{na} and {nb} must have the same length. Received {a} and {b}."));
+        return invalid(format!(
+            "{na} and {nb} must have the same length. Received {a} and {b}."
+        ));
     }
     Ok(())
 }
 
 /// Mean of `values` per group label, sorted by label.
-pub fn by_group<S: AsRef<str>>(values: &[f64], groups: &[S], name: &str) -> Result<Vec<(String, f64)>> {
+pub fn by_group<S: AsRef<str>>(
+    values: &[f64],
+    groups: &[S],
+    name: &str,
+) -> Result<Vec<(String, f64)>> {
     if groups.len() != values.len() {
-        return invalid(format!("{name} must have one label per example ({}); got {}.", values.len(), groups.len()));
+        return invalid(format!(
+            "{name} must have one label per example ({}); got {}.",
+            values.len(),
+            groups.len()
+        ));
     }
     let mut labels: Vec<&str> = groups.iter().map(AsRef::as_ref).collect();
     labels.sort_unstable();
@@ -124,7 +140,12 @@ pub fn by_group<S: AsRef<str>>(values: &[f64], groups: &[S], name: &str) -> Resu
     Ok(labels
         .into_iter()
         .map(|l| {
-            let v: Vec<f64> = values.iter().zip(groups).filter(|(_, g)| g.as_ref() == l).map(|(v, _)| *v).collect();
+            let v: Vec<f64> = values
+                .iter()
+                .zip(groups)
+                .filter(|(_, g)| g.as_ref() == l)
+                .map(|(v, _)| *v)
+                .collect();
             (l.to_owned(), np_sum(&v) / v.len() as f64)
         })
         .collect())

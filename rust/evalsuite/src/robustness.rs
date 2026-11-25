@@ -48,19 +48,36 @@ fn drop_result(c: &[bool], p: &[bool]) -> Drop {
         clean_accuracy: ca,
         absolute_drop: ca - pa,
         relative_drop: if ca > 0.0 { (ca - pa) / ca } else { f64::NAN },
-        flip_rate: if k > 0 { flipped as f64 / k as f64 } else { f64::NAN },
+        flip_rate: if k > 0 {
+            flipped as f64 / k as f64
+        } else {
+            f64::NAN
+        },
     }
 }
 
 /// Robust accuracy on adversarial rewrites of the same inputs.
-pub fn adversarial_robustness(clean_correct: &[bool], adversarial_correct: &[bool]) -> Result<Drop> {
-    pair(clean_correct, adversarial_correct, "clean_correct", "adversarial_correct")?;
+pub fn adversarial_robustness(
+    clean_correct: &[bool],
+    adversarial_correct: &[bool],
+) -> Result<Drop> {
+    pair(
+        clean_correct,
+        adversarial_correct,
+        "clean_correct",
+        "adversarial_correct",
+    )?;
     Ok(drop_result(clean_correct, adversarial_correct))
 }
 
 /// Accuracy on noisy versions (typos, casing, …) of the same inputs.
 pub fn noise_robustness(clean_correct: &[bool], noisy_correct: &[bool]) -> Result<Drop> {
-    pair(clean_correct, noisy_correct, "clean_correct", "noisy_correct")?;
+    pair(
+        clean_correct,
+        noisy_correct,
+        "clean_correct",
+        "noisy_correct",
+    )?;
     Ok(drop_result(clean_correct, noisy_correct))
 }
 
@@ -126,24 +143,57 @@ fn agreement(v: &[String]) -> (bool, f64, usize) {
     for x in v {
         *counts.entry(x).or_default() += 1;
     }
-    (v.iter().all(|x| *x == v[0]), eq as f64 / n as f64, counts.values().copied().max().unwrap_or(0))
+    (
+        v.iter().all(|x| *x == v[0]),
+        eq as f64 / n as f64,
+        counts.values().copied().max().unwrap_or(0),
+    )
 }
 
 /// Share of items answered identically under every paraphrase, and the mean pairwise agreement.
-pub fn paraphrase_consistency<S: AsRef<str>>(answers: &[Vec<S>], normalize: Option<&dyn Fn(&str) -> String>) -> Result<(f64, f64)> {
+pub fn paraphrase_consistency<S: AsRef<str>>(
+    answers: &[Vec<S>],
+    normalize: Option<&dyn Fn(&str) -> String>,
+) -> Result<(f64, f64)> {
     nonempty(answers, "answers")?;
     if answers.iter().any(|r| r.len() < 2) {
         return invalid("Every item needs answers to at least two paraphrases.");
     }
-    let st: Vec<(bool, f64, usize)> = answers.iter().map(|r| agreement(&r.iter().map(|a| norm(a.as_ref(), normalize)).collect::<Vec<_>>())).collect();
-    Ok((mean(&st.iter().map(|s| f64::from(u8::from(s.0))).collect::<Vec<_>>()), mean(&st.iter().map(|s| s.1).collect::<Vec<_>>())))
+    let st: Vec<(bool, f64, usize)> = answers
+        .iter()
+        .map(|r| {
+            agreement(
+                &r.iter()
+                    .map(|a| norm(a.as_ref(), normalize))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+    Ok((
+        mean(
+            &st.iter()
+                .map(|s| f64::from(u8::from(s.0)))
+                .collect::<Vec<_>>(),
+        ),
+        mean(&st.iter().map(|s| s.1).collect::<Vec<_>>()),
+    ))
 }
 
 /// Out-of-distribution accuracy with the in-distribution accuracy and their gap.
 pub fn ood_accuracy(correct: &[bool], is_ood: &[bool]) -> Result<(f64, f64, f64)> {
     pair(correct, is_ood, "correct", "is_ood")?;
-    let ood: Vec<bool> = correct.iter().zip(is_ood).filter(|(_, &o)| o).map(|(c, _)| *c).collect();
-    let ind: Vec<bool> = correct.iter().zip(is_ood).filter(|(_, &o)| !o).map(|(c, _)| *c).collect();
+    let ood: Vec<bool> = correct
+        .iter()
+        .zip(is_ood)
+        .filter(|(_, &o)| o)
+        .map(|(c, _)| *c)
+        .collect();
+    let ind: Vec<bool> = correct
+        .iter()
+        .zip(is_ood)
+        .filter(|(_, &o)| !o)
+        .map(|(c, _)| *c)
+        .collect();
     if ood.is_empty() || ind.is_empty() {
         return invalid("Need both in-distribution and out-of-distribution examples.");
     }
@@ -172,24 +222,60 @@ pub fn distribution_shift_drop(source_scores: &[f64], target_scores: &[f64]) -> 
     let (lo, hi) = if ns > 1.0 && nt > 1.0 {
         let (vs, vt) = (var(source_scores, 1) / ns, var(target_scores, 1) / nt);
         let se = (vs + vt).sqrt();
-        let dof = if vs + vt > 0.0 { (vs + vt).powi(2) / (vs * vs / (ns - 1.0) + vt * vt / (nt - 1.0)) } else { f64::INFINITY };
-        let q = if dof.is_finite() { crate::special::t_ppf(0.975, dof) } else { 1.959963984540054 };
+        let dof = if vs + vt > 0.0 {
+            (vs + vt).powi(2) / (vs * vs / (ns - 1.0) + vt * vt / (nt - 1.0))
+        } else {
+            f64::INFINITY
+        };
+        let q = if dof.is_finite() {
+            crate::special::t_ppf(0.975, dof)
+        } else {
+            1.959963984540054
+        };
         (drop - q * se, drop + q * se)
     } else {
         (f64::NAN, f64::NAN)
     };
-    Ok(ShiftDrop { value: drop, source_mean: ms, target_mean: mt, relative_drop: if ms != 0.0 { drop / ms } else { f64::NAN }, ci_low: lo, ci_high: hi })
+    Ok(ShiftDrop {
+        value: drop,
+        source_mean: ms,
+        target_mean: mt,
+        relative_drop: if ms != 0.0 { drop / ms } else { f64::NAN },
+        ci_low: lo,
+        ci_high: hi,
+    })
 }
 
 /// Share of counterfactual pairs (inputs differing only in a protected or irrelevant attribute) whose
 /// predictions differ, with the rate per group when `groups` is given.
-pub fn invariance_violation_rate<S: AsRef<str>, G: AsRef<str>>(original: &[S], counterfactual: &[S], normalize: Option<&dyn Fn(&str) -> String>, groups: Option<&[G]>) -> Result<(Rate, Vec<(String, f64)>)> {
+pub fn invariance_violation_rate<S: AsRef<str>, G: AsRef<str>>(
+    original: &[S],
+    counterfactual: &[S],
+    normalize: Option<&dyn Fn(&str) -> String>,
+    groups: Option<&[G]>,
+) -> Result<(Rate, Vec<(String, f64)>)> {
     nonempty(original, "original_predictions")?;
     nonempty(counterfactual, "counterfactual_predictions")?;
-    same(original.len(), counterfactual.len(), "original_predictions", "counterfactual_predictions")?;
-    let flags: Vec<bool> = original.iter().zip(counterfactual).map(|(a, b)| norm(a.as_ref(), normalize) != norm(b.as_ref(), normalize)).collect();
+    same(
+        original.len(),
+        counterfactual.len(),
+        "original_predictions",
+        "counterfactual_predictions",
+    )?;
+    let flags: Vec<bool> = original
+        .iter()
+        .zip(counterfactual)
+        .map(|(a, b)| norm(a.as_ref(), normalize) != norm(b.as_ref(), normalize))
+        .collect();
     let by = match groups {
-        Some(g) => by_group(&flags.iter().map(|&f| f64::from(u8::from(f))).collect::<Vec<_>>(), g, "groups")?,
+        Some(g) => by_group(
+            &flags
+                .iter()
+                .map(|&f| f64::from(u8::from(f)))
+                .collect::<Vec<_>>(),
+            g,
+            "groups",
+        )?,
         None => vec![],
     };
     Ok((rate(&flags), by))
@@ -206,7 +292,10 @@ pub struct Stability {
 }
 
 /// Agreement among repeated samples per prompt (at least two each).
-pub fn response_stability<S: AsRef<str>>(samples: &[Vec<S>], normalize: Option<&dyn Fn(&str) -> String>) -> Result<Stability> {
+pub fn response_stability<S: AsRef<str>>(
+    samples: &[Vec<S>],
+    normalize: Option<&dyn Fn(&str) -> String>,
+) -> Result<Stability> {
     nonempty(samples, "samples")?;
     if samples.iter().any(|r| r.len() < 2) {
         return invalid("Every prompt needs at least two samples.");
@@ -214,14 +303,26 @@ pub fn response_stability<S: AsRef<str>>(samples: &[Vec<S>], normalize: Option<&
     let st: Vec<(bool, f64, usize, usize)> = samples
         .iter()
         .map(|r| {
-            let (u, p, m) = agreement(&r.iter().map(|a| norm(a.as_ref(), normalize)).collect::<Vec<_>>());
+            let (u, p, m) = agreement(
+                &r.iter()
+                    .map(|a| norm(a.as_ref(), normalize))
+                    .collect::<Vec<_>>(),
+            );
             (u, p, m, r.len())
         })
         .collect();
     Ok(Stability {
         value: mean(&st.iter().map(|s| s.1).collect::<Vec<_>>()),
-        unanimous_rate: mean(&st.iter().map(|s| f64::from(u8::from(s.0))).collect::<Vec<_>>()),
-        modal_share: mean(&st.iter().map(|s| s.2 as f64 / s.3 as f64).collect::<Vec<_>>()),
+        unanimous_rate: mean(
+            &st.iter()
+                .map(|s| f64::from(u8::from(s.0)))
+                .collect::<Vec<_>>(),
+        ),
+        modal_share: mean(
+            &st.iter()
+                .map(|s| s.2 as f64 / s.3 as f64)
+                .collect::<Vec<_>>(),
+        ),
     })
 }
 
@@ -262,9 +363,16 @@ pub fn error_rate<S: AsRef<str>>(statuses: &[S], ok: &[&str]) -> Result<Errors> 
         *counts.entry(s.as_ref()).or_default() += 1;
     }
     let n = statuses.len() as f64;
-    let mut by: Vec<(String, f64)> = counts.iter().map(|(k, v)| ((*k).to_owned(), *v as f64 / n)).collect();
+    let mut by: Vec<(String, f64)> = counts
+        .iter()
+        .map(|(k, v)| ((*k).to_owned(), *v as f64 / n))
+        .collect();
     by.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(Errors { rate: rate(&fail), timeout_rate: counts.get("timeout").copied().unwrap_or(0) as f64 / n, by_status: by })
+    Ok(Errors {
+        rate: rate(&fail),
+        timeout_rate: counts.get("timeout").copied().unwrap_or(0) as f64 / n,
+        by_status: by,
+    })
 }
 
 /// Share of failed episodes that recovered, with the failure rate.
@@ -273,7 +381,12 @@ pub fn recovery_success_rate(failed: &[bool], recovered: &[bool]) -> Result<(Rat
     if failed.iter().zip(recovered).any(|(f, r)| *r && !*f) {
         return invalid("recovered is True for an episode where failed is False.");
     }
-    let r: Vec<bool> = failed.iter().zip(recovered).filter(|(f, _)| **f).map(|(_, r)| *r).collect();
+    let r: Vec<bool> = failed
+        .iter()
+        .zip(recovered)
+        .filter(|(f, _)| **f)
+        .map(|(_, r)| *r)
+        .collect();
     if r.is_empty() {
         return invalid("No episode failed: the recovery rate is undefined.");
     }
@@ -317,15 +430,31 @@ pub fn prompt_sensitivity(correct_by_template: &[Vec<f64>]) -> Result<Sensitivit
         / n as f64;
     let mx = acc.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let mn = acc.iter().copied().fold(f64::INFINITY, f64::min);
-    Ok(Sensitivity { value: mx - mn, std: var(&acc, 1).sqrt(), worst: mn, best: mx, mean: mean(&acc), by_template: acc, example_disagreement_rate: flips })
+    Ok(Sensitivity {
+        value: mx - mn,
+        std: var(&acc, 1).sqrt(),
+        worst: mn,
+        best: mx,
+        mean: mean(&acc),
+        by_template: acc,
+        example_disagreement_rate: flips,
+    })
 }
 
 /// Truncation sensitivity: the least-squares slope of accuracy against log2(context length), with the
 /// accuracy per length and the drop from the shortest to the longest.
-pub fn truncation_sensitivity(correct: &[f64], context_lengths: &[f64]) -> Result<(f64, Vec<(f64, f64)>, f64)> {
+pub fn truncation_sensitivity(
+    correct: &[f64],
+    context_lengths: &[f64],
+) -> Result<(f64, Vec<(f64, f64)>, f64)> {
     floats(correct, "correct", None, None)?;
     floats(context_lengths, "context_lengths", Some(1.0), None)?;
-    same(correct.len(), context_lengths.len(), "correct", "context_lengths")?;
+    same(
+        correct.len(),
+        context_lengths.len(),
+        "correct",
+        "context_lengths",
+    )?;
     let mut levels = crate::util::sorted(context_lengths);
     levels.dedup();
     if levels.len() < 2 {
@@ -333,7 +462,16 @@ pub fn truncation_sensitivity(correct: &[f64], context_lengths: &[f64]) -> Resul
     }
     let acc: Vec<f64> = levels
         .iter()
-        .map(|&v| mean(&correct.iter().zip(context_lengths).filter(|(_, &l)| l == v).map(|(c, _)| *c).collect::<Vec<_>>()))
+        .map(|&v| {
+            mean(
+                &correct
+                    .iter()
+                    .zip(context_lengths)
+                    .filter(|(_, &l)| l == v)
+                    .map(|(c, _)| *c)
+                    .collect::<Vec<_>>(),
+            )
+        })
         .collect();
     let x: Vec<f64> = levels.iter().map(|v| v.log2()).collect();
     let (mx, my) = (mean(&x), mean(&acc));

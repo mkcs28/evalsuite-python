@@ -64,9 +64,16 @@ fn is_13a_punct(c: char) -> bool {
 
 /// sacreBLEU's default `13a` tokenizer (mteval-v13a).
 pub fn tokenize_13a(line: &str) -> Vec<String> {
-    let mut s = line.replace("<skipped>", "").replace("-\n", "").replace('\n', " ");
+    let mut s = line
+        .replace("<skipped>", "")
+        .replace("-\n", "")
+        .replace('\n', " ");
     if s.contains('&') {
-        s = s.replace("&quot;", "\"").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">");
+        s = s
+            .replace("&quot;", "\"")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">");
     }
     let s = format!(" {s} ");
     // 1. pad punctuation (apostrophe, comma, period and dash excluded)
@@ -81,7 +88,11 @@ pub fn tokenize_13a(line: &str) -> Vec<String> {
         }
     }
     // 2–4: two-character rules applied left to right without overlap, as `re.sub`.
-    let rule = |text: &str, first: &dyn Fn(char) -> bool, second: &dyn Fn(char) -> bool, out: &dyn Fn(char, char) -> String| -> String {
+    let rule = |text: &str,
+                first: &dyn Fn(char) -> bool,
+                second: &dyn Fn(char) -> bool,
+                out: &dyn Fn(char, char) -> String|
+     -> String {
         let cs: Vec<char> = text.chars().collect();
         let mut o = String::with_capacity(text.len() + 16);
         let mut i = 0;
@@ -140,7 +151,11 @@ pub(crate) fn check<R: AsRef<str>, P: AsRef<str>>(refs: &[Vec<R>], preds: &[P]) 
         return invalid("predictions is empty. Provide at least one example.");
     }
     if refs.len() != preds.len() {
-        return invalid(format!("references must have one entry per prediction. Received {} and {}.", refs.len(), preds.len()));
+        return invalid(format!(
+            "references must have one entry per prediction. Received {} and {}.",
+            refs.len(),
+            preds.len()
+        ));
     }
     if refs.iter().any(Vec::is_empty) {
         return invalid("Every prediction needs at least one reference.");
@@ -170,7 +185,13 @@ pub struct BleuOpts<'a> {
 
 impl Default for BleuOpts<'_> {
     fn default() -> Self {
-        BleuOpts { max_order: 4, smooth: Smooth::Exp, lowercase: false, tokenize: Tokenize::Thirteen, effective_order: false }
+        BleuOpts {
+            max_order: 4,
+            smooth: Smooth::Exp,
+            lowercase: false,
+            tokenize: Tokenize::Thirteen,
+            effective_order: false,
+        }
     }
 }
 
@@ -183,7 +204,13 @@ fn bleu_score(stats: &[f64], order: usize, smooth: Smooth, effective: bool) -> f
     let (sys, rl) = (stats[0], stats[1]);
     let mut correct = stats[2..2 + order].to_vec();
     let mut total = stats[2 + order..].to_vec();
-    let bp = if sys >= rl { 1.0 } else if sys > 0.0 { (1.0 - rl / sys).exp() } else { 0.0 };
+    let bp = if sys >= rl {
+        1.0
+    } else if sys > 0.0 {
+        (1.0 - rl / sys).exp()
+    } else {
+        0.0
+    };
     if correct.iter().all(|&c| c == 0.0) {
         return 0.0;
     }
@@ -216,32 +243,62 @@ fn bleu_score(stats: &[f64], order: usize, smooth: Smooth, effective: bool) -> f
             prec[n - 1] = 100.0 * correct[n - 1] / total[n - 1];
         }
     }
-    let logs: f64 = prec[..eff].iter().map(|&p| if p > 0.0 { p.ln() } else { -9_999_999_999.0 }).sum();
+    let logs: f64 = prec[..eff]
+        .iter()
+        .map(|&p| if p > 0.0 { p.ln() } else { -9_999_999_999.0 })
+        .sum();
     bp * (logs / eff as f64).exp()
 }
 
 fn segment_stats(hyps: &[Vec<String>], refs: &[Vec<Vec<String>>], order: usize) -> Vec<Vec<f64>> {
     use rayon::prelude::*;
     let mut v = Vocab::default();
-    let h: Vec<Vec<u32>> = hyps.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
-    let r: Vec<Vec<Vec<u32>>> = refs.iter().map(|rs| rs.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect()).collect();
+    let h: Vec<Vec<u32>> = hyps
+        .iter()
+        .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+        .collect();
+    let r: Vec<Vec<Vec<u32>>> = refs
+        .iter()
+        .map(|rs| {
+            rs.iter()
+                .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                .collect()
+        })
+        .collect();
     h.par_iter()
         .zip(r.par_iter())
         .map(|(h, rs)| {
             let rr: Vec<&[u32]> = rs.iter().map(Vec::as_slice).collect();
-            evalsuite_core::text::bleu_stats(h, &rr, order).into_iter().map(|x| x as f64).collect()
+            evalsuite_core::text::bleu_stats(h, &rr, order)
+                .into_iter()
+                .map(|x| x as f64)
+                .collect()
         })
         .collect()
 }
 
 /// Corpus BLEU (0–100), statistics summed over the corpus as sacreBLEU.
-pub fn bleu<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], o: &BleuOpts<'_>) -> Result<f64> {
+pub fn bleu<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    o: &BleuOpts<'_>,
+) -> Result<f64> {
     check(references, predictions)?;
     if o.max_order == 0 {
         return invalid("max_order must be a positive integer.");
     }
-    let h: Vec<Vec<String>> = predictions.iter().map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize)).collect();
-    let r: Vec<Vec<Vec<String>>> = references.iter().map(|rs| rs.iter().map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize)).collect()).collect();
+    let h: Vec<Vec<String>> = predictions
+        .iter()
+        .map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize))
+        .collect();
+    let r: Vec<Vec<Vec<String>>> = references
+        .iter()
+        .map(|rs| {
+            rs.iter()
+                .map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize))
+                .collect()
+        })
+        .collect();
     let mut acc = vec![0.0f64; 2 + 2 * o.max_order];
     for seg in segment_stats(&h, &r, o.max_order) {
         for (a, v) in acc.iter_mut().zip(seg) {
@@ -252,21 +309,56 @@ pub fn bleu<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[
 }
 
 /// Sentence BLEU per prediction (effective order, as sacreBLEU's `sentence_score`).
-pub fn sentence_bleu<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], o: &BleuOpts<'_>) -> Result<Vec<f64>> {
+pub fn sentence_bleu<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    o: &BleuOpts<'_>,
+) -> Result<Vec<f64>> {
     check(references, predictions)?;
-    let h: Vec<Vec<String>> = predictions.iter().map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize)).collect();
-    let r: Vec<Vec<Vec<String>>> = references.iter().map(|rs| rs.iter().map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize)).collect()).collect();
-    Ok(segment_stats(&h, &r, o.max_order).iter().map(|s| bleu_score(s, o.max_order, o.smooth, true)).collect())
+    let h: Vec<Vec<String>> = predictions
+        .iter()
+        .map(|p| prep(p.as_ref(), o.lowercase, &o.tokenize))
+        .collect();
+    let r: Vec<Vec<Vec<String>>> = references
+        .iter()
+        .map(|rs| {
+            rs.iter()
+                .map(|x| prep(x.as_ref(), o.lowercase, &o.tokenize))
+                .collect()
+        })
+        .collect();
+    Ok(segment_stats(&h, &r, o.max_order)
+        .iter()
+        .map(|s| bleu_score(s, o.max_order, o.smooth, true))
+        .collect())
 }
 
 /// Self-BLEU: mean BLEU of each prediction against all the others (lower means more diverse).
-pub fn self_bleu<P: AsRef<str>>(predictions: &[P], max_order: usize, tokenize: Tokenize<'_>) -> Result<f64> {
+pub fn self_bleu<P: AsRef<str>>(
+    predictions: &[P],
+    max_order: usize,
+    tokenize: Tokenize<'_>,
+) -> Result<f64> {
     if predictions.len() < 2 {
         return invalid("Self-BLEU needs at least two predictions.");
     }
-    let t: Vec<Vec<String>> = predictions.iter().map(|p| tokenize.run(py_rstrip(p.as_ref()))).collect();
-    let refs: Vec<Vec<Vec<String>>> = (0..t.len()).map(|i| t.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, x)| x.clone()).collect()).collect();
-    let scores: Vec<f64> = segment_stats(&t, &refs, max_order).iter().map(|s| bleu_score(s, max_order, Smooth::Exp, true)).collect();
+    let t: Vec<Vec<String>> = predictions
+        .iter()
+        .map(|p| tokenize.run(py_rstrip(p.as_ref())))
+        .collect();
+    let refs: Vec<Vec<Vec<String>>> = (0..t.len())
+        .map(|i| {
+            t.iter()
+                .enumerate()
+                .filter(|(j, _)| *j != i)
+                .map(|(_, x)| x.clone())
+                .collect()
+        })
+        .collect();
+    let scores: Vec<f64> = segment_stats(&t, &refs, max_order)
+        .iter()
+        .map(|s| bleu_score(s, max_order, Smooth::Exp, true))
+        .collect();
     Ok(np_sum(&scores) / scores.len() as f64)
 }
 
@@ -304,12 +396,23 @@ pub struct ChrfOpts {
 
 impl Default for ChrfOpts {
     fn default() -> Self {
-        ChrfOpts { char_order: 6, word_order: 0, beta: 2.0, lowercase: false, whitespace: false, eps_smoothing: false }
+        ChrfOpts {
+            char_order: 6,
+            word_order: 0,
+            beta: 2.0,
+            lowercase: false,
+            whitespace: false,
+            eps_smoothing: false,
+        }
     }
 }
 
 /// Corpus chrF (0–100): statistics summed over the corpus, each example using its best reference.
-pub fn chrf<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], o: &ChrfOpts) -> Result<f64> {
+pub fn chrf<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    o: &ChrfOpts,
+) -> Result<f64> {
     check(references, predictions)?;
     if o.char_order == 0 {
         return invalid("char_order must be a positive integer.");
@@ -319,52 +422,126 @@ pub fn chrf<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[
         .iter()
         .map(|p| p.as_ref())
         .chain(references.iter().flatten().map(|r| r.as_ref()))
-        .map(|s| if o.word_order > 0 { chrf_words(&if o.lowercase { py_lower(s) } else { s.to_owned() }) } else { vec![] })
+        .map(|s| {
+            if o.word_order > 0 {
+                chrf_words(&if o.lowercase {
+                    py_lower(s)
+                } else {
+                    s.to_owned()
+                })
+            } else {
+                vec![]
+            }
+        })
         .collect();
     let mut v = Vocab::default();
-    let ids: Vec<Vec<u32>> = words_all.iter().map(|w| v.encode(&w.iter().map(String::as_str).collect::<Vec<_>>())).collect();
+    let ids: Vec<Vec<u32>> = words_all
+        .iter()
+        .map(|w| v.encode(&w.iter().map(String::as_str).collect::<Vec<_>>()))
+        .collect();
     let chars_of = |s: &str| -> Vec<u32> {
-        let s = if o.lowercase { py_lower(s) } else { s.to_owned() };
-        let line: String = if o.whitespace { s } else { py_split(&s).concat() };
+        let s = if o.lowercase {
+            py_lower(s)
+        } else {
+            s.to_owned()
+        };
+        let line: String = if o.whitespace {
+            s
+        } else {
+            py_split(&s).concat()
+        };
         line.chars().map(u32::from).collect()
     };
     let mut total = vec![0.0f64; 3 * order];
     let mut k = predictions.len();
     for (i, (p, rs)) in predictions.iter().zip(references).enumerate() {
         let hc = chars_of(p.as_ref());
-        let h = evalsuite_core::text::ChrfText { chars: &hc, words: &ids[i] };
+        let h = evalsuite_core::text::ChrfText {
+            chars: &hc,
+            words: &ids[i],
+        };
         let rcs: Vec<Vec<u32>> = rs.iter().map(|r| chars_of(r.as_ref())).collect();
         let rws: Vec<usize> = (k..k + rs.len()).collect();
         k += rs.len();
-        let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs.iter().zip(&rws).map(|(c, &w)| evalsuite_core::text::ChrfText { chars: c, words: &ids[w] }).collect();
-        if let Some(best) = evalsuite_core::text::chrf_segment(&h, &rt, o.char_order, o.word_order, o.beta, o.eps_smoothing) {
+        let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs
+            .iter()
+            .zip(&rws)
+            .map(|(c, &w)| evalsuite_core::text::ChrfText {
+                chars: c,
+                words: &ids[w],
+            })
+            .collect();
+        if let Some(best) = evalsuite_core::text::chrf_segment(
+            &h,
+            &rt,
+            o.char_order,
+            o.word_order,
+            o.beta,
+            o.eps_smoothing,
+        ) {
             for (t, b) in total.iter_mut().zip(best) {
                 *t += b;
             }
         }
     }
-    Ok(evalsuite_core::text::chrf_f(&total, order, o.beta, o.eps_smoothing))
+    Ok(evalsuite_core::text::chrf_f(
+        &total,
+        order,
+        o.beta,
+        o.eps_smoothing,
+    ))
 }
 
 /// Translation edit rate (0–100+), as sacreBLEU's TER (Tercom shifts).
-pub fn ter<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], case_sensitive: bool) -> Result<f64> {
+pub fn ter<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    case_sensitive: bool,
+) -> Result<f64> {
     check(references, predictions)?;
     let tok = |s: &str| -> Vec<String> {
         let s = py_rstrip(s);
-        let s = if case_sensitive { s.to_owned() } else { py_lower(s) };
+        let s = if case_sensitive {
+            s.to_owned()
+        } else {
+            py_lower(s)
+        };
         py_split(&s).into_iter().map(str::to_owned).collect()
     };
     let h: Vec<Vec<String>> = predictions.iter().map(|p| tok(p.as_ref())).collect();
-    let r: Vec<Vec<Vec<String>>> = references.iter().map(|rs| rs.iter().map(|x| tok(x.as_ref())).collect()).collect();
+    let r: Vec<Vec<Vec<String>>> = references
+        .iter()
+        .map(|rs| rs.iter().map(|x| tok(x.as_ref())).collect())
+        .collect();
     let mut v = Vocab::default();
-    let hi: Vec<Vec<u32>> = h.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
-    let ri: Vec<Vec<Vec<u32>>> = r.iter().map(|rs| rs.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect()).collect();
+    let hi: Vec<Vec<u32>> = h
+        .iter()
+        .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+        .collect();
+    let ri: Vec<Vec<Vec<u32>>> = r
+        .iter()
+        .map(|rs| {
+            rs.iter()
+                .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                .collect()
+        })
+        .collect();
     let (mut edits, mut ref_len) = (0.0f64, 0.0f64);
     for (h, rs) in hi.iter().zip(&ri) {
-        edits += rs.iter().map(|r| evalsuite_core::ter::ter_edits(h, r)).min().unwrap() as f64;
+        edits += rs
+            .iter()
+            .map(|r| evalsuite_core::ter::ter_edits(h, r))
+            .min()
+            .unwrap() as f64;
         ref_len += rs.iter().map(Vec::len).sum::<usize>() as f64 / rs.len() as f64;
     }
-    Ok(if ref_len > 0.0 { 100.0 * edits / ref_len } else if edits > 0.0 { 100.0 } else { 0.0 })
+    Ok(if ref_len > 0.0 {
+        100.0 * edits / ref_len
+    } else if edits > 0.0 {
+        100.0
+    } else {
+        0.0
+    })
 }
 
 /// Which ROUGE value to report.
@@ -388,6 +565,56 @@ pub enum Rouge {
 /// A word stemmer (for example a Porter stemmer from the `rust-stemmers` crate).
 pub type Stemmer<'a> = &'a (dyn Fn(&str) -> String + Sync);
 
+/// ROUGE-1 F-measure per example (shorthand for [`rouge`] with `Rouge::N(1)`).
+pub fn rouge_1<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+) -> Result<Vec<f64>> {
+    rouge(
+        references,
+        predictions,
+        Rouge::N(1),
+        Measure::Fmeasure,
+        None,
+    )
+}
+
+/// ROUGE-2 F-measure per example.
+pub fn rouge_2<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+) -> Result<Vec<f64>> {
+    rouge(
+        references,
+        predictions,
+        Rouge::N(2),
+        Measure::Fmeasure,
+        None,
+    )
+}
+
+/// ROUGE-L F-measure per example.
+pub fn rouge_l<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+) -> Result<Vec<f64>> {
+    rouge(references, predictions, Rouge::L, Measure::Fmeasure, None)
+}
+
+/// ROUGE-Lsum F-measure per example (summary-level LCS over newline-separated sentences).
+pub fn rouge_lsum<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+) -> Result<Vec<f64>> {
+    rouge(
+        references,
+        predictions,
+        Rouge::Lsum,
+        Measure::Fmeasure,
+        None,
+    )
+}
+
 fn rouge_tok(text: &str, stemmer: Option<Stemmer<'_>>) -> Vec<String> {
     let low = py_lower(text);
     let mut cleaned = String::with_capacity(low.len());
@@ -408,7 +635,11 @@ fn rouge_tok(text: &str, stemmer: Option<Stemmer<'_>>) -> Vec<String> {
             Some(s) if t.chars().count() > 3 => s(t),
             _ => t.to_owned(),
         })
-        .filter(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
+        .filter(|t| {
+            !t.is_empty()
+                && t.chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        })
         .collect()
 }
 
@@ -439,11 +670,26 @@ pub fn rouge<R: AsRef<str>, P: AsRef<str>>(
         let mut v = Vocab::default();
         let triples: Vec<[f64; 3]> = match variant {
             Rouge::Lsum => {
-                let sents = |s: &str| -> Vec<Vec<String>> { s.split('\n').filter(|x| !x.is_empty()).map(|x| rouge_tok(x, stemmer)).collect() };
+                let sents = |s: &str| -> Vec<Vec<String>> {
+                    s.split('\n')
+                        .filter(|x| !x.is_empty())
+                        .map(|x| rouge_tok(x, stemmer))
+                        .collect()
+                };
                 let ps = sents(p.as_ref());
                 let rsents: Vec<Vec<Vec<String>>> = rs.iter().map(|r| sents(r.as_ref())).collect();
-                let pi: Vec<Vec<u32>> = ps.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
-                let ri: Vec<Vec<Vec<u32>>> = rsents.iter().map(|ss| ss.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect()).collect();
+                let pi: Vec<Vec<u32>> = ps
+                    .iter()
+                    .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                    .collect();
+                let ri: Vec<Vec<Vec<u32>>> = rsents
+                    .iter()
+                    .map(|ss| {
+                        ss.iter()
+                            .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                            .collect()
+                    })
+                    .collect();
                 ri.iter()
                     .map(|ts| {
                         let tr: Vec<&[u32]> = ts.iter().map(Vec::as_slice).collect();
@@ -460,9 +706,13 @@ pub fn rouge<R: AsRef<str>, P: AsRef<str>>(
             }
             _ => {
                 let pt = rouge_tok(p.as_ref(), stemmer);
-                let rts: Vec<Vec<String>> = rs.iter().map(|r| rouge_tok(r.as_ref(), stemmer)).collect();
+                let rts: Vec<Vec<String>> =
+                    rs.iter().map(|r| rouge_tok(r.as_ref(), stemmer)).collect();
                 let pi = v.encode(&pt.iter().map(String::as_str).collect::<Vec<_>>());
-                let ri: Vec<Vec<u32>> = rts.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
+                let ri: Vec<Vec<u32>> = rts
+                    .iter()
+                    .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                    .collect();
                 ri.iter()
                     .map(|t| match variant {
                         Rouge::L => {
@@ -509,18 +759,35 @@ pub struct MeteorOpts<'a> {
 
 impl std::fmt::Debug for MeteorOpts<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MeteorOpts {{ stemmer: {}, alpha: {}, beta: {}, gamma: {} }}", self.stemmer.is_some(), self.alpha, self.beta, self.gamma)
+        write!(
+            f,
+            "MeteorOpts {{ stemmer: {}, alpha: {}, beta: {}, gamma: {} }}",
+            self.stemmer.is_some(),
+            self.alpha,
+            self.beta,
+            self.gamma
+        )
     }
 }
 
 impl Default for MeteorOpts<'_> {
     fn default() -> Self {
-        MeteorOpts { stemmer: None, alpha: 0.9, beta: 3.0, gamma: 0.5, tokenize: Tokenize::None }
+        MeteorOpts {
+            stemmer: None,
+            alpha: 0.9,
+            beta: 3.0,
+            gamma: 0.5,
+            tokenize: Tokenize::None,
+        }
     }
 }
 
 /// METEOR per prediction (exact and, with a stemmer, stem matches; best reference).
-pub fn meteor<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], o: &MeteorOpts<'_>) -> Result<Vec<f64>> {
+pub fn meteor<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    o: &MeteorOpts<'_>,
+) -> Result<Vec<f64>> {
     check(references, predictions)?;
     for (name, v) in [("alpha", o.alpha), ("gamma", o.gamma)] {
         if !(0.0..=1.0).contains(&v) {
@@ -534,14 +801,24 @@ pub fn meteor<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: 
         let refs: Vec<Vec<String>> = rs.iter().map(|r| low(r.as_ref())).collect();
         let mut v = Vocab::default();
         let hi = v.encode(&h.iter().map(String::as_str).collect::<Vec<_>>());
-        let ri: Vec<Vec<u32>> = refs.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
+        let ri: Vec<Vec<u32>> = refs
+            .iter()
+            .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+            .collect();
         let stems = o.stemmer.map(|st| {
-            let all: Vec<String> = h.iter().chain(refs.iter().flatten()).map(|w| st(w)).collect();
+            let all: Vec<String> = h
+                .iter()
+                .chain(refs.iter().flatten())
+                .map(|w| st(w))
+                .collect();
             let mut sv: HashMap<String, u32> = HashMap::new();
-            let ids: Vec<u32> = all.iter().map(|s| {
-                let n = sv.len() as u32;
-                *sv.entry(s.clone()).or_insert(n)
-            }).collect();
+            let ids: Vec<u32> = all
+                .iter()
+                .map(|s| {
+                    let n = sv.len() as u32;
+                    *sv.entry(s.clone()).or_insert(n)
+                })
+                .collect();
             ids
         });
         let mut best = f64::NEG_INFINITY;
@@ -556,7 +833,9 @@ pub fn meteor<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: 
                 None => None,
             };
             pos += refs[j].len();
-            best = best.max(evalsuite_core::meteor::meteor_single(&hi, r, s, o.alpha, o.beta, o.gamma));
+            best = best.max(evalsuite_core::meteor::meteor_single(
+                &hi, r, s, o.alpha, o.beta, o.gamma,
+            ));
         }
         out.push(best);
     }
@@ -564,7 +843,14 @@ pub fn meteor<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: 
 }
 
 /// CIDEr-D per prediction (document frequencies from all references; pycocoevalcap's formula).
-pub fn cider<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &[P], max_order: usize, sigma: f64, lowercase: bool, tokenize: Tokenize<'_>) -> Result<Vec<f64>> {
+pub fn cider<R: AsRef<str>, P: AsRef<str>>(
+    references: &[Vec<R>],
+    predictions: &[P],
+    max_order: usize,
+    sigma: f64,
+    lowercase: bool,
+    tokenize: Tokenize<'_>,
+) -> Result<Vec<f64>> {
     check(references, predictions)?;
     if max_order == 0 {
         return invalid("max_order must be a positive integer.");
@@ -574,15 +860,35 @@ pub fn cider<R: AsRef<str>, P: AsRef<str>>(references: &[Vec<R>], predictions: &
     }
     let words = |s: &str| tokenize.run(&if lowercase { py_lower(s) } else { s.to_owned() });
     let h: Vec<Vec<String>> = predictions.iter().map(|p| words(p.as_ref())).collect();
-    let r: Vec<Vec<Vec<String>>> = references.iter().map(|rs| rs.iter().map(|x| words(x.as_ref())).collect()).collect();
+    let r: Vec<Vec<Vec<String>>> = references
+        .iter()
+        .map(|rs| rs.iter().map(|x| words(x.as_ref())).collect())
+        .collect();
     let mut v = Vocab::default();
-    let hi: Vec<Vec<u32>> = h.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
-    let ri: Vec<Vec<Vec<u32>>> = r.iter().map(|rs| rs.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect()).collect();
+    let hi: Vec<Vec<u32>> = h
+        .iter()
+        .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+        .collect();
+    let ri: Vec<Vec<Vec<u32>>> = r
+        .iter()
+        .map(|rs| {
+            rs.iter()
+                .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                .collect()
+        })
+        .collect();
     let hs: Vec<&[u32]> = hi.iter().map(Vec::as_slice).collect();
-    let rs: Vec<Vec<&[u32]>> = ri.iter().map(|x| x.iter().map(Vec::as_slice).collect()).collect();
+    let rs: Vec<Vec<&[u32]>> = ri
+        .iter()
+        .map(|x| x.iter().map(Vec::as_slice).collect())
+        .collect();
     // Compensated summation, as Python's built-in sum() on 3.12+ (and more accurate).
     let totals = evalsuite_core::text::cider_totals(&hs, &rs, max_order, sigma, true);
-    Ok(totals.iter().zip(references).map(|(t, rs)| np_sum(t) / t.len() as f64 / rs.len() as f64 * 10.0).collect())
+    Ok(totals
+        .iter()
+        .zip(references)
+        .map(|(t, rs)| np_sum(t) / t.len() as f64 / rs.len() as f64 * 10.0)
+        .collect())
 }
 
 /// Distinct-n: unique n-grams over all n-grams in the predictions (whitespace tokens).
@@ -596,12 +902,19 @@ pub fn distinct_n<P: AsRef<str>>(predictions: &[P], n: usize, lowercase: bool) -
     let toks: Vec<Vec<String>> = predictions
         .iter()
         .map(|p| {
-            let s = if lowercase { py_lower(p.as_ref()) } else { p.as_ref().to_owned() };
+            let s = if lowercase {
+                py_lower(p.as_ref())
+            } else {
+                p.as_ref().to_owned()
+            };
             py_split(&s).into_iter().map(str::to_owned).collect()
         })
         .collect();
     let mut v = Vocab::default();
-    let ids: Vec<Vec<u32>> = toks.iter().map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>())).collect();
+    let ids: Vec<Vec<u32>> = toks
+        .iter()
+        .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+        .collect();
     let seqs: Vec<&[u32]> = ids.iter().map(Vec::as_slice).collect();
     let (unique, total) = evalsuite_core::text::distinct_ngrams(&seqs, n);
     if total == 0 {
@@ -619,7 +932,9 @@ fn logprobs(seqs: &[Vec<f64>]) -> Result<()> {
             return invalid(format!("token_logprobs[{i}] is empty."));
         }
         if s.iter().any(|&v| !v.is_finite() || v > 1e-9) {
-            return invalid(format!("token_logprobs[{i}] must contain finite natural-log probabilities (<= 0)."));
+            return invalid(format!(
+                "token_logprobs[{i}] must contain finite natural-log probabilities (<= 0)."
+            ));
         }
     }
     Ok(())
@@ -639,7 +954,10 @@ pub fn cross_entropy(token_logprobs: &[Vec<f64>], base: f64) -> Result<f64> {
 pub fn perplexity(token_logprobs: &[Vec<f64>], per_sequence: bool) -> Result<f64> {
     logprobs(token_logprobs)?;
     if per_sequence {
-        let p: Vec<f64> = token_logprobs.iter().map(|s| (-(np_sum(s) / s.len() as f64)).exp()).collect();
+        let p: Vec<f64> = token_logprobs
+            .iter()
+            .map(|s| (-(np_sum(s) / s.len() as f64)).exp())
+            .collect();
         return Ok(np_sum(&p) / p.len() as f64);
     }
     let flat: Vec<f64> = token_logprobs.concat();

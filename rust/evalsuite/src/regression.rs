@@ -24,7 +24,12 @@ fn inputs<'a>(t: &'a [f64], p: &'a [f64], w: Option<&[f64]>) -> Result<In<'a>> {
             return invalid(format!("{name} contains NaN or infinite values."));
         }
     }
-    Ok(In { t, p, w: weights(w, t.len())?, weighted: w.is_some() })
+    Ok(In {
+        t,
+        p,
+        w: weights(w, t.len())?,
+        weighted: w.is_some(),
+    })
 }
 
 impl In<'_> {
@@ -61,8 +66,18 @@ pub fn rmse(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> Result<f64> {
         return Ok(r);
     }
     let scale = e.iter().fold(0.0f64, |m, x| m.max(x.abs()));
-    let scale = if scale.is_finite() && scale > 0.0 { scale } else { 1.0 };
-    Ok(scale * i.mean(&e.iter().map(|x| (x / scale) * (x / scale)).collect::<Vec<_>>()).sqrt())
+    let scale = if scale.is_finite() && scale > 0.0 {
+        scale
+    } else {
+        1.0
+    };
+    Ok(scale
+        * i.mean(
+            &e.iter()
+                .map(|x| (x / scale) * (x / scale))
+                .collect::<Vec<_>>(),
+        )
+        .sqrt())
 }
 
 /// Coefficient of determination R² (1 for a perfect fit of a constant target, 0 for an imperfect one).
@@ -77,10 +92,16 @@ fn r2_of(i: &In<'_>) -> f64 {
     let (res, tot): (Vec<f64>, Vec<f64>) = if i.weighted {
         (
             e.iter().zip(&i.w).map(|(e, w)| w * (e * e)).collect(),
-            i.t.iter().zip(&i.w).map(|(t, w)| w * (t - m) * (t - m)).collect(),
+            i.t.iter()
+                .zip(&i.w)
+                .map(|(t, w)| w * (t - m) * (t - m))
+                .collect(),
         )
     } else {
-        (e.iter().map(|e| e * e).collect(), i.t.iter().map(|t| (t - m) * (t - m)).collect())
+        (
+            e.iter().map(|e| e * e).collect(),
+            i.t.iter().map(|t| (t - m) * (t - m)).collect(),
+        )
     };
     let (ss_res, ss_tot) = (np_sum(&res), np_sum(&tot));
     if ss_tot == 0.0 {
@@ -90,7 +111,12 @@ fn r2_of(i: &In<'_>) -> f64 {
 }
 
 /// Adjusted R² for `n_features` predictors.
-pub fn adjusted_r2(y_true: &[f64], y_pred: &[f64], n_features: usize, w: Option<&[f64]>) -> Result<f64> {
+pub fn adjusted_r2(
+    y_true: &[f64],
+    y_pred: &[f64],
+    n_features: usize,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let i = inputs(y_true, y_pred, w)?;
     let n = i.t.len();
     if n as i64 - n_features as i64 - 1 <= 0 {
@@ -107,9 +133,17 @@ pub fn mape(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> Result<f64> {
     let i = inputs(y_true, y_pred, w)?;
     let zeros = i.t.iter().filter(|&&t| t == 0.0).count();
     if zeros > 0 {
-        return undefined(format!("MAPE is undefined because y_true contains {zeros} zero value(s)."));
+        return undefined(format!(
+            "MAPE is undefined because y_true contains {zeros} zero value(s)."
+        ));
     }
-    Ok(i.mean(&i.err().iter().zip(i.t).map(|(e, t)| e.abs() / t.abs()).collect::<Vec<_>>()))
+    Ok(i.mean(
+        &i.err()
+            .iter()
+            .zip(i.t)
+            .map(|(e, t)| e.abs() / t.abs())
+            .collect::<Vec<_>>(),
+    ))
 }
 
 /// Symmetric MAPE: mean of 2|e| / (|y| + |ŷ|) (0 where both are 0).
@@ -133,9 +167,15 @@ pub fn smape(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> Result<f64> {
 
 fn log_sq(i: &In<'_>, name: &str) -> Result<Vec<f64>> {
     if i.t.iter().chain(i.p).any(|&v| v < 0.0) {
-        return undefined(format!("{name} needs non-negative y_true and y_pred (it compares log(1 + y))."));
+        return undefined(format!(
+            "{name} needs non-negative y_true and y_pred (it compares log(1 + y))."
+        ));
     }
-    Ok(i.p.iter().zip(i.t).map(|(p, t)| (p.ln_1p() - t.ln_1p()).powi(2)).collect())
+    Ok(i.p
+        .iter()
+        .zip(i.t)
+        .map(|(p, t)| (p.ln_1p() - t.ln_1p()).powi(2))
+        .collect())
 }
 
 /// Mean squared logarithmic error.
@@ -180,7 +220,11 @@ fn weighted_median(v: &[f64], w: &[f64]) -> f64 {
 pub fn median_absolute_error(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> Result<f64> {
     let i = inputs(y_true, y_pred, w)?;
     let a: Vec<f64> = i.err().iter().map(|e| e.abs()).collect();
-    Ok(if i.weighted { weighted_median(&a, &i.w) } else { median(&a) })
+    Ok(if i.weighted {
+        weighted_median(&a, &i.w)
+    } else {
+        median(&a)
+    })
 }
 
 /// Explained variance score.
@@ -188,7 +232,12 @@ pub fn explained_variance(y_true: &[f64], y_pred: &[f64], w: Option<&[f64]>) -> 
     let i = inputs(y_true, y_pred, w)?;
     let resid: Vec<f64> = i.t.iter().zip(i.p).map(|(t, p)| t - p).collect();
     let mr = i.mean(&resid);
-    let var_res = i.mean(&resid.iter().map(|r| (r - mr) * (r - mr)).collect::<Vec<_>>());
+    let var_res = i.mean(
+        &resid
+            .iter()
+            .map(|r| (r - mr) * (r - mr))
+            .collect::<Vec<_>>(),
+    );
     let mt = i.mean(i.t);
     let var_true = i.mean(&i.t.iter().map(|t| (t - mt) * (t - mt)).collect::<Vec<_>>());
     if var_true == 0.0 {
@@ -215,10 +264,14 @@ pub fn quantile_loss(y_true: &[f64], y_pred: &[f64], alpha: f64, w: Option<&[f64
         return invalid("alpha must be strictly between 0 and 1.");
     }
     let i = inputs(y_true, y_pred, w)?;
-    let loss: Vec<f64> = i.t.iter().zip(i.p).map(|(t, p)| {
-        let d = t - p;
-        (alpha * d).max((alpha - 1.0) * d)
-    }).collect();
+    let loss: Vec<f64> =
+        i.t.iter()
+            .zip(i.p)
+            .map(|(t, p)| {
+                let d = t - p;
+                (alpha * d).max((alpha - 1.0) * d)
+            })
+            .collect();
     Ok(i.mean(&loss))
 }
 
@@ -228,24 +281,39 @@ pub fn huber_loss(y_true: &[f64], y_pred: &[f64], delta: f64, w: Option<&[f64]>)
         return invalid("delta must be positive.");
     }
     let i = inputs(y_true, y_pred, w)?;
-    let loss: Vec<f64> = i.err().iter().map(|e| {
-        let a = e.abs();
-        if a <= delta {
-            0.5 * a * a
-        } else {
-            delta * (a - 0.5 * delta)
-        }
-    }).collect();
+    let loss: Vec<f64> = i
+        .err()
+        .iter()
+        .map(|e| {
+            let a = e.abs();
+            if a <= delta {
+                0.5 * a * a
+            } else {
+                delta * (a - 0.5 * delta)
+            }
+        })
+        .collect();
     Ok(i.mean(&loss))
 }
 
 fn relative(i: &In<'_>, power: i32, name: &str) -> Result<f64> {
     let m = i.mean(i.t);
-    let num: Vec<f64> = i.err().iter().zip(&i.w).map(|(e, w)| w * e.abs().powi(power)).collect();
-    let den: Vec<f64> = i.t.iter().zip(&i.w).map(|(t, w)| w * (t - m).abs().powi(power)).collect();
+    let num: Vec<f64> = i
+        .err()
+        .iter()
+        .zip(&i.w)
+        .map(|(e, w)| w * e.abs().powi(power))
+        .collect();
+    let den: Vec<f64> =
+        i.t.iter()
+            .zip(&i.w)
+            .map(|(t, w)| w * (t - m).abs().powi(power))
+            .collect();
     let d = np_sum(&den);
     if d == 0.0 {
-        return undefined(format!("{name} is undefined when y_true is constant (zero baseline error)."));
+        return undefined(format!(
+            "{name} is undefined when y_true is constant (zero baseline error)."
+        ));
     }
     Ok(np_sum(&num) / d)
 }
@@ -278,7 +346,9 @@ pub mod multioutput {
         if rows.iter().any(|r| r.len() != k) || k == 0 {
             return invalid("Every row must have the same, non-zero number of outputs.");
         }
-        Ok((0..k).map(|j| rows.iter().map(|r| r[j]).collect()).collect())
+        Ok((0..k)
+            .map(|j| rows.iter().map(|r| r[j]).collect())
+            .collect())
     }
 
     fn apply(
@@ -291,13 +361,19 @@ pub mod multioutput {
         if ct.len() != cp.len() {
             return invalid("y_true and y_pred must have the same number of outputs.");
         }
-        let per: Vec<f64> = ct.iter().zip(&cp).map(|(a, b)| f(a, b)).collect::<Result<_>>()?;
+        let per: Vec<f64> = ct
+            .iter()
+            .zip(&cp)
+            .map(|(a, b)| f(a, b))
+            .collect::<Result<_>>()?;
         match how {
             Multioutput::RawValues => Ok(Score::PerClass(per)),
             Multioutput::UniformAverage => Ok(Score::Scalar(np_sum(&per) / per.len() as f64)),
             Multioutput::Weights(w) => {
                 if w.len() != per.len() || w.iter().any(|&x| x < 0.0) || np_sum(w) == 0.0 {
-                    return invalid("multioutput weights must be non-negative, one per output, not all zero.");
+                    return invalid(
+                        "multioutput weights must be non-negative, one per output, not all zero.",
+                    );
                 }
                 Ok(Score::Scalar(weighted_mean(&per, w)))
             }
@@ -312,5 +388,19 @@ pub mod multioutput {
             }
         )*};
     }
-    multi!(mae, mse, rmse, r2, mape, smape, msle, rmsle, median_absolute_error, explained_variance, mean_bias_error, rae, rse);
+    multi!(
+        mae,
+        mse,
+        rmse,
+        r2,
+        mape,
+        smape,
+        msle,
+        rmsle,
+        median_absolute_error,
+        explained_variance,
+        mean_bias_error,
+        rae,
+        rse
+    );
 }

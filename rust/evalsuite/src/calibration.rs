@@ -10,15 +10,26 @@ use crate::special::chi2_sf;
 
 const EPS: f64 = 1e-15;
 
-fn target<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<(Vec<f64>, Vec<f64>)> {
+fn target<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<(Vec<f64>, Vec<f64>)> {
     let ctx = Ctx::new(y_true, None, None, w)?;
     if ctx.kind != Kind::Binary {
-        return unsupported("Calibration measures here are for binary outcomes; use one-vs-rest per class.");
+        return unsupported(
+            "Calibration measures here are for binary outcomes; use one-vs-rest per class.",
+        );
     }
     check_probs(y_prob, ctx.n(), "y_prob")?;
     let y = match ctx.positive(pos_label)? {
         None => vec![0.0; ctx.n()],
-        Some(i) => ctx.true_idx.iter().map(|&t| f64::from(u8::from(t == i))).collect(),
+        Some(i) => ctx
+            .true_idx
+            .iter()
+            .map(|&t| f64::from(u8::from(t == i)))
+            .collect(),
     };
     Ok((y, ctx.w))
 }
@@ -33,7 +44,9 @@ pub fn maximum_calibration_error<L: Label>(
     w: Option<&[f64]>,
 ) -> Result<f64> {
     let (t, p, _) = binary::calibration_curve(y_true, y_prob, n_bins, strategy, pos_label, w)?;
-    Ok(t.iter().zip(&p).fold(0.0f64, |m, (a, b)| m.max((a - b).abs())))
+    Ok(t.iter()
+        .zip(&p)
+        .fold(0.0f64, |m, (a, b)| m.max((a - b).abs())))
 }
 
 fn logit(p: f64) -> f64 {
@@ -50,7 +63,11 @@ pub fn logistic_fit(y: &[f64], x: &[f64], w: &[f64], offset: bool) -> Result<Vec
         let mut grad = [0.0f64; 2];
         let mut hess = [[0.0f64; 2]; 2];
         for i in 0..y.len() {
-            let eta = if offset { beta[0] + x[i] } else { beta[0] + beta[1] * x[i] };
+            let eta = if offset {
+                beta[0] + x[i]
+            } else {
+                beta[0] + beta[1] * x[i]
+            };
             let mu = 1.0 / (1.0 + (-eta.clamp(-700.0, 700.0)).exp());
             let row = [1.0, x[i]];
             let r = w[i] * (y[i] - mu);
@@ -72,7 +89,10 @@ pub fn logistic_fit(y: &[f64], x: &[f64], w: &[f64], offset: bool) -> Result<Vec
             if det == 0.0 || !det.is_finite() {
                 return undefined("The logistic recalibration model is singular (perfect separation or constant risk).");
             }
-            vec![(hess[1][1] * grad[0] - hess[0][1] * grad[1]) / det, (hess[0][0] * grad[1] - hess[1][0] * grad[0]) / det]
+            vec![
+                (hess[1][1] * grad[0] - hess[0][1] * grad[1]) / det,
+                (hess[0][0] * grad[1] - hess[1][0] * grad[0]) / det,
+            ]
         };
         for (b, s) in beta.iter_mut().zip(&step) {
             *b += s;
@@ -94,7 +114,12 @@ fn need_both(y: &[f64], what: &str) -> Result<()> {
 }
 
 /// Calibration slope: b in logit P(y) = a + b·logit(p) (ideal 1). Returns (slope, intercept).
-pub fn calibration_slope<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<(f64, f64)> {
+pub fn calibration_slope<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<(f64, f64)> {
     let (y, w) = target(y_true, y_prob, pos_label, w)?;
     need_both(&y, "The calibration slope")?;
     let x: Vec<f64> = y_prob.iter().map(|&p| logit(p)).collect();
@@ -103,7 +128,12 @@ pub fn calibration_slope<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Opti
 }
 
 /// Calibration-in-the-large: a in logit P(y) = a + logit(p) (ideal 0).
-pub fn calibration_intercept<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, w: Option<&[f64]>) -> Result<f64> {
+pub fn calibration_intercept<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    pos_label: Option<&L>,
+    w: Option<&[f64]>,
+) -> Result<f64> {
     let (y, w) = target(y_true, y_prob, pos_label, w)?;
     need_both(&y, "The calibration intercept")?;
     let x: Vec<f64> = y_prob.iter().map(|&p| logit(p)).collect();
@@ -124,22 +154,33 @@ pub(crate) fn array_split<T: Copy>(v: &[T], k: usize) -> Vec<Vec<T>> {
 }
 
 /// Hosmer–Lemeshow goodness-of-fit test over `n_groups` risk groups: (statistic, p-value on n_groups − 2 df).
-pub fn hosmer_lemeshow<L: Label>(y_true: &[L], y_prob: &[f64], n_groups: usize, pos_label: Option<&L>) -> Result<(f64, f64)> {
+pub fn hosmer_lemeshow<L: Label>(
+    y_true: &[L],
+    y_prob: &[f64],
+    n_groups: usize,
+    pos_label: Option<&L>,
+) -> Result<(f64, f64)> {
     let (y, _) = target(y_true, y_prob, pos_label, None)?;
     if n_groups < 3 {
         return invalid("n_groups must be an integer of at least 3.");
     }
     if y.len() < n_groups {
-        return invalid(format!("Need at least n_groups={n_groups} observations; got {}.", y.len()));
+        return invalid(format!(
+            "Need at least n_groups={n_groups} observations; got {}.",
+            y.len()
+        ));
     }
-    let order = evalsuite_core::curve::descending_order(&y_prob.iter().map(|p| -p).collect::<Vec<_>>());
+    let order =
+        evalsuite_core::curve::descending_order(&y_prob.iter().map(|p| -p).collect::<Vec<_>>());
     let mut stat = Vec::with_capacity(n_groups);
     for g in array_split(&order, n_groups) {
         let o: f64 = crate::util::np_sum(&g.iter().map(|&i| y[i]).collect::<Vec<_>>());
         let e: f64 = crate::util::np_sum(&g.iter().map(|&i| y_prob[i]).collect::<Vec<_>>());
         let var = e * (1.0 - e / g.len() as f64);
         if var <= 0.0 {
-            return undefined("A risk group has expected count 0 or equal to its size; use fewer groups.");
+            return undefined(
+                "A risk group has expected count 0 or equal to its size; use fewer groups.",
+            );
         }
         stat.push((o - e) * (o - e) / var);
     }

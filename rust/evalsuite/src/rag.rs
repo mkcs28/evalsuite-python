@@ -19,12 +19,17 @@ fn finish(per: Vec<f64>, name: &str) -> Result<QueryScores> {
     if ok.is_empty() {
         return invalid(format!("{name} is undefined for every query."));
     }
-    Ok(QueryScores { mean: np_sum(&ok) / ok.len() as f64, per_query: per })
+    Ok(QueryScores {
+        mean: np_sum(&ok) / ok.len() as f64,
+        per_query: per,
+    })
 }
 
 fn rows(x: &[Vec<bool>], name: &str) -> Result<()> {
     if x.is_empty() {
-        return invalid(format!("{name} must be a non-empty list with one list of booleans per query."));
+        return invalid(format!(
+            "{name} must be a non-empty list with one list of booleans per query."
+        ));
     }
     Ok(())
 }
@@ -65,13 +70,19 @@ pub fn context_precision(chunk_relevance: &[Vec<bool>]) -> Result<QueryScores> {
 /// undefined and skipped).
 pub fn context_recall(claim_attributed: &[Vec<bool>]) -> Result<QueryScores> {
     rows(claim_attributed, "claim_attributed")?;
-    finish(claim_attributed.iter().map(|r| share(r)).collect(), "Context recall")
+    finish(
+        claim_attributed.iter().map(|r| share(r)).collect(),
+        "Context recall",
+    )
 }
 
 /// Share of retrieved units (sentences or chunks) relevant to the query.
 pub fn context_relevance(unit_relevance: &[Vec<bool>]) -> Result<QueryScores> {
     rows(unit_relevance, "unit_relevance")?;
-    finish(unit_relevance.iter().map(|r| share(r)).collect(), "Context relevance")
+    finish(
+        unit_relevance.iter().map(|r| share(r)).collect(),
+        "Context relevance",
+    )
 }
 
 /// Latency summary (mean, p50/p90/p95/p99, max and the rest); latencies must be finite and ≥ 0.
@@ -91,7 +102,13 @@ pub fn task_success_rate(success: &[bool]) -> Result<Rate> {
 }
 
 /// The default pipeline stages for [`failure_attribution`].
-pub const STAGES: [&str; 5] = ["retrieval", "generation", "evidence", "orchestration", "other"];
+pub const STAGES: [&str; 5] = [
+    "retrieval",
+    "generation",
+    "evidence",
+    "orchestration",
+    "other",
+];
 
 /// Share of failures per stage (aligned with `stage_names`). `stages[i]` is the stage blamed for request i;
 /// `None`, `"none"`, `"success"` and `""` mark successes. Labels are compared trimmed and lowercased.
@@ -102,14 +119,22 @@ pub fn failure_attribution(stages: &[Option<&str>], stage_names: &[&str]) -> Res
         .map(|s| s.trim().to_lowercase())
         .filter(|s| !matches!(s.as_str(), "none" | "success" | ""))
         .collect();
-    let mut unknown: Vec<&String> = failed.iter().filter(|s| !stage_names.contains(&s.as_str())).collect();
+    let mut unknown: Vec<&String> = failed
+        .iter()
+        .filter(|s| !stage_names.contains(&s.as_str()))
+        .collect();
     if !unknown.is_empty() {
         unknown.sort();
         unknown.dedup();
-        return invalid(format!("Unknown stage(s) {unknown:?}; expected one of {stage_names:?}."));
+        return invalid(format!(
+            "Unknown stage(s) {unknown:?}; expected one of {stage_names:?}."
+        ));
     }
     if failed.is_empty() {
         return invalid("There are no failures to attribute.");
     }
-    Ok(stage_names.iter().map(|n| failed.iter().filter(|s| s == n).count() as f64 / failed.len() as f64).collect())
+    Ok(stage_names
+        .iter()
+        .map(|n| failed.iter().filter(|s| s == n).count() as f64 / failed.len() as f64)
+        .collect())
 }

@@ -2,7 +2,10 @@ mod common;
 
 use common::*;
 use evalsuite::classification::Score;
-use evalsuite::regression::{self as r, multioutput::{self as m, Multioutput}};
+use evalsuite::regression::{
+    self as r,
+    multioutput::{self as m, Multioutput},
+};
 
 #[test]
 fn regression_matches_python() {

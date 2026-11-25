@@ -26,7 +26,9 @@ pub fn outcome(s: &str) -> Result<f64> {
         "win" | "w" | "a" | "1" => Ok(1.0),
         "loss" | "lose" | "l" | "b" | "0" => Ok(0.0),
         "tie" | "draw" | "t" | "0.5" => Ok(0.5),
-        _ => invalid(format!("Outcome must be 'win', 'loss', 'tie' (or 1, 0, 0.5); got {s:?}.")),
+        _ => invalid(format!(
+            "Outcome must be 'win', 'loss', 'tie' (or 1, 0, 0.5); got {s:?}."
+        )),
     }
 }
 
@@ -34,7 +36,9 @@ fn check_outcome(o: f64) -> Result<f64> {
     if o == 0.0 || o == 0.5 || o == 1.0 {
         Ok(o)
     } else {
-        invalid(format!("Outcome must be 'win', 'loss', 'tie' (or 1, 0, 0.5); got {o}."))
+        invalid(format!(
+            "Outcome must be 'win', 'loss', 'tie' (or 1, 0, 0.5); got {o}."
+        ))
     }
 }
 
@@ -71,7 +75,10 @@ pub struct WinRate {
 
 /// Share of pairwise comparisons won.
 pub fn win_rate(outcomes: &[f64], ties: Ties) -> Result<WinRate> {
-    let mut v = outcomes.iter().map(|&o| check_outcome(o)).collect::<Result<Vec<f64>>>()?;
+    let mut v = outcomes
+        .iter()
+        .map(|&o| check_outcome(o))
+        .collect::<Result<Vec<f64>>>()?;
     if v.is_empty() {
         return invalid("outcomes is empty.");
     }
@@ -83,7 +90,13 @@ pub fn win_rate(outcomes: &[f64], ties: Ties) -> Result<WinRate> {
     }
     let wins = np_sum(&v);
     let (ci_low, ci_high) = wilson(wins, v.len() as f64);
-    Ok(WinRate { value: wins / v.len() as f64, n: v.len(), n_ties: v.iter().filter(|&&x| x == 0.5).count(), ci_low, ci_high })
+    Ok(WinRate {
+        value: wins / v.len() as f64,
+        n: v.len(),
+        n_ties: v.iter().filter(|&&x| x == 0.5).count(),
+        ci_low,
+        ci_high,
+    })
 }
 
 /// One rating per model, in first-seen order.
@@ -93,7 +106,9 @@ pub struct Ratings<M> {
     pub values: Vec<f64>,
 }
 
-fn comparisons<M: Eq + Hash + Clone + std::fmt::Debug>(c: &[(M, M, f64)]) -> Result<(Vec<M>, Vec<(usize, usize, f64)>)> {
+fn comparisons<M: Eq + Hash + Clone + std::fmt::Debug>(
+    c: &[(M, M, f64)],
+) -> Result<(Vec<M>, Vec<(usize, usize, f64)>)> {
     if c.is_empty() {
         return invalid("comparisons is empty.");
     }
@@ -130,7 +145,12 @@ pub enum BtScale {
 
 /// Bradley–Terry maximum-likelihood strengths (MM algorithm, Hunter 2004) from `(model_a, model_b, outcome
 /// for a)` comparisons. The comparison graph must be connected and no model may win or lose every comparison.
-pub fn bradley_terry<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M, M, f64)], scale: BtScale, max_iter: usize, tol: f64) -> Result<Ratings<M>> {
+pub fn bradley_terry<M: Eq + Hash + Clone + std::fmt::Debug>(
+    comparisons_: &[(M, M, f64)],
+    scale: BtScale,
+    max_iter: usize,
+    tol: f64,
+) -> Result<Ratings<M>> {
     let (names, rows) = comparisons(comparisons_)?;
     let m = names.len();
     let mut wins = vec![0.0; m * m];
@@ -138,10 +158,16 @@ pub fn bradley_terry<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M,
         wins[a * m + b] += o;
         wins[b * m + a] += 1.0 - o;
     }
-    let games: Vec<f64> = (0..m * m).map(|i| wins[i] + wins[(i % m) * m + i / m]).collect();
+    let games: Vec<f64> = (0..m * m)
+        .map(|i| wins[i] + wins[(i % m) * m + i / m])
+        .collect();
     let total_w: Vec<f64> = (0..m).map(|i| np_sum(&wins[i * m..(i + 1) * m])).collect();
     let total_g: Vec<f64> = (0..m).map(|i| np_sum(&games[i * m..(i + 1) * m])).collect();
-    if total_w.iter().zip(&total_g).any(|(&w, &g)| w == 0.0 || w == g) {
+    if total_w
+        .iter()
+        .zip(&total_g)
+        .any(|(&w, &g)| w == 0.0 || w == g)
+    {
         return invalid("Every model must win and lose at least one comparison (else its strength is infinite).");
     }
     let mut seen = vec![false; m];
@@ -169,7 +195,11 @@ pub fn bradley_terry<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M,
         let logs: Vec<f64> = new.iter().map(|x| x.ln()).collect();
         let g = (np_sum(&logs) / m as f64).exp();
         new.iter_mut().for_each(|x| *x /= g);
-        let diff = new.iter().zip(&p).map(|(a, b)| (a.ln() - b.ln()).abs()).fold(0.0, f64::max);
+        let diff = new
+            .iter()
+            .zip(&p)
+            .map(|(a, b)| (a.ln() - b.ln()).abs())
+            .fold(0.0, f64::max);
         p = new;
         if diff < tol {
             break;
@@ -187,11 +217,20 @@ pub fn bradley_terry<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M,
             }
         })
         .collect();
-    Ok(Ratings { models: names, values })
+    Ok(Ratings {
+        models: names,
+        values,
+    })
 }
 
 /// Sequential Elo ratings (order-dependent): each comparison moves both ratings by `k·(outcome − expected)`.
-pub fn elo_ratings<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M, M, f64)], k: f64, initial: f64, scale: f64, base: f64) -> Result<Ratings<M>> {
+pub fn elo_ratings<M: Eq + Hash + Clone + std::fmt::Debug>(
+    comparisons_: &[(M, M, f64)],
+    k: f64,
+    initial: f64,
+    scale: f64,
+    base: f64,
+) -> Result<Ratings<M>> {
     let (names, rows) = comparisons(comparisons_)?;
     if !(k > 0.0 && scale > 0.0 && base > 1.0) {
         return invalid("k and scale must be positive and base > 1.");
@@ -202,7 +241,10 @@ pub fn elo_ratings<M: Eq + Hash + Clone + std::fmt::Debug>(comparisons_: &[(M, M
         r[a] += k * (o - ea);
         r[b] += k * ((1.0 - o) - (1.0 - ea));
     }
-    Ok(Ratings { models: names, values: r })
+    Ok(Ratings {
+        models: names,
+        values: r,
+    })
 }
 
 /// Measurement level for Krippendorff's alpha.
@@ -221,7 +263,12 @@ pub fn krippendorff_alpha(ratings: &[Vec<f64>], level: Level) -> Result<f64> {
     if ratings.len() < 2 || n_items < 1 || ratings.iter().any(|r| r.len() != n_items) {
         return invalid("ratings must be a 2-D array: one row per rater (>= 2), one column per item (NaN = missing).");
     }
-    let mut values: Vec<f64> = ratings.iter().flatten().copied().filter(|x| !x.is_nan()).collect();
+    let mut values: Vec<f64> = ratings
+        .iter()
+        .flatten()
+        .copied()
+        .filter(|x| !x.is_nan())
+        .collect();
     values.sort_by(|a, b| a.partial_cmp(b).unwrap());
     values.dedup();
     let v = values.len();
@@ -252,7 +299,9 @@ pub fn krippendorff_alpha(ratings: &[Vec<f64>], level: Level) -> Result<f64> {
             coinc[c * v + c] -= s;
         }
     }
-    let n_c: Vec<f64> = (0..v).map(|c| coinc[c * v..(c + 1) * v].iter().sum()).collect();
+    let n_c: Vec<f64> = (0..v)
+        .map(|c| coinc[c * v..(c + 1) * v].iter().sum())
+        .collect();
     let n: f64 = n_c.iter().sum();
     if n == 0.0 {
         return invalid("No item has ratings from two or more raters.");
@@ -300,7 +349,9 @@ pub fn krippendorff_alpha(ratings: &[Vec<f64>], level: Level) -> Result<f64> {
 pub fn fleiss_kappa<T: Eq + Hash>(ratings: &[Vec<T>]) -> Result<f64> {
     let n_r = ratings.first().map_or(0, Vec::len);
     if ratings.is_empty() || n_r < 2 || ratings.iter().any(|r| r.len() != n_r) {
-        return invalid("ratings must be a 2-D array: one row per item, one column per rater (>= 2).");
+        return invalid(
+            "ratings must be a 2-D array: one row per item, one column per rater (>= 2).",
+        );
     }
     let mut ids: HashMap<&T, usize> = HashMap::new();
     for x in ratings.iter().flatten() {
@@ -315,9 +366,15 @@ pub fn fleiss_kappa<T: Eq + Hash>(ratings: &[Vec<T>]) -> Result<f64> {
         }
     }
     let total = np_sum(&table);
-    let p_j: Vec<f64> = (0..k).map(|j| (0..ratings.len()).map(|i| table[i * k + j]).sum::<f64>() / total).collect();
+    let p_j: Vec<f64> = (0..k)
+        .map(|j| (0..ratings.len()).map(|i| table[i * k + j]).sum::<f64>() / total)
+        .collect();
     let nr = n_r as f64;
-    let p_i: Vec<f64> = (0..ratings.len()).map(|i| (table[i * k..(i + 1) * k].iter().map(|x| x * x).sum::<f64>() - nr) / (nr * (nr - 1.0))).collect();
+    let p_i: Vec<f64> = (0..ratings.len())
+        .map(|i| {
+            (table[i * k..(i + 1) * k].iter().map(|x| x * x).sum::<f64>() - nr) / (nr * (nr - 1.0))
+        })
+        .collect();
     let p_bar = mean(&p_i);
     let p_e: f64 = np_sum(&p_j.iter().map(|x| x * x).collect::<Vec<_>>());
     if p_e == 1.0 {
@@ -342,7 +399,10 @@ pub fn pearson(x: &[f64], y: &[f64]) -> f64 {
 
 /// Spearman rank correlation (Pearson on mid-ranks).
 pub fn spearman(x: &[f64], y: &[f64]) -> f64 {
-    pearson(&evalsuite_core::ranks::midranks(x), &evalsuite_core::ranks::midranks(y))
+    pearson(
+        &evalsuite_core::ranks::midranks(x),
+        &evalsuite_core::ranks::midranks(y),
+    )
 }
 
 /// Judge–human agreement: the headline statistic plus raw agreement and Spearman's rho where defined.
@@ -372,26 +432,58 @@ fn need_two(n: usize) -> Result<()> {
 /// Categorical judge–human agreement (Cohen's kappa).
 pub fn judge_agreement<L: Label>(judge: &[L], human: &[L]) -> Result<Agreement> {
     pair_len(judge.len(), human.len())?;
-    let k = cohen_kappa(human, judge, KappaWeights::Unweighted, None, None, ZeroDivision::Warn)?;
+    let k = cohen_kappa(
+        human,
+        judge,
+        KappaWeights::Unweighted,
+        None,
+        None,
+        ZeroDivision::Warn,
+    )?;
     let raw = judge.iter().zip(human).filter(|(a, b)| a == b).count() as f64 / judge.len() as f64;
-    Ok(Agreement { value: k, raw_agreement: Some(raw), spearman: None, n: judge.len() })
+    Ok(Agreement {
+        value: k,
+        raw_agreement: Some(raw),
+        spearman: None,
+        n: judge.len(),
+    })
 }
 
 /// Ordinal judge–human agreement (quadratic-weighted kappa, with Spearman's rho).
 pub fn judge_agreement_ordinal(judge: &[i64], human: &[i64]) -> Result<Agreement> {
     pair_len(judge.len(), human.len())?;
     need_two(judge.len())?;
-    let k = cohen_kappa(human, judge, KappaWeights::Quadratic, None, None, ZeroDivision::Warn)?;
-    let (jf, hf): (Vec<f64>, Vec<f64>) = (judge.iter().map(|&x| x as f64).collect(), human.iter().map(|&x| x as f64).collect());
+    let k = cohen_kappa(
+        human,
+        judge,
+        KappaWeights::Quadratic,
+        None,
+        None,
+        ZeroDivision::Warn,
+    )?;
+    let (jf, hf): (Vec<f64>, Vec<f64>) = (
+        judge.iter().map(|&x| x as f64).collect(),
+        human.iter().map(|&x| x as f64).collect(),
+    );
     let raw = judge.iter().zip(human).filter(|(a, b)| a == b).count() as f64 / judge.len() as f64;
-    Ok(Agreement { value: k, raw_agreement: Some(raw), spearman: Some(spearman(&jf, &hf)), n: judge.len() })
+    Ok(Agreement {
+        value: k,
+        raw_agreement: Some(raw),
+        spearman: Some(spearman(&jf, &hf)),
+        n: judge.len(),
+    })
 }
 
 /// Continuous judge–human agreement (Pearson's r, with Spearman's rho).
 pub fn judge_agreement_continuous(judge: &[f64], human: &[f64]) -> Result<Agreement> {
     pair_len(judge.len(), human.len())?;
     need_two(judge.len())?;
-    Ok(Agreement { value: pearson(judge, human), raw_agreement: None, spearman: Some(spearman(judge, human)), n: judge.len() })
+    Ok(Agreement {
+        value: pearson(judge, human),
+        raw_agreement: None,
+        spearman: Some(spearman(judge, human)),
+        n: judge.len(),
+    })
 }
 
 /// A pairwise verdict.
@@ -425,16 +517,40 @@ pub struct PositionConsistency {
 
 /// Share of comparisons where the judge gives the same verdict with the responses swapped. `swapped[i]`
 /// refers to the swapped order (A = the response shown first in the swapped prompt).
-pub fn position_consistency(original: &[Verdict], swapped: &[Verdict]) -> Result<PositionConsistency> {
+pub fn position_consistency(
+    original: &[Verdict],
+    swapped: &[Verdict],
+) -> Result<PositionConsistency> {
     if original.is_empty() || original.len() != swapped.len() {
-        return invalid("verdicts_original and verdicts_swapped must be non-empty and the same length.");
+        return invalid(
+            "verdicts_original and verdicts_swapped must be non-empty and the same length.",
+        );
     }
     let same = original.iter().zip(swapped).filter(|(a, b)| a == b).count();
     let inc = original.len() - same;
-    let first = original.iter().zip(swapped).filter(|p| *p == (&Verdict::A, &Verdict::B)).count();
-    let second = original.iter().zip(swapped).filter(|p| *p == (&Verdict::B, &Verdict::A)).count();
-    let r = |x: usize| if inc > 0 { x as f64 / inc as f64 } else { f64::NAN };
-    Ok(PositionConsistency { value: same as f64 / original.len() as f64, n_inconsistent: inc, first_position_rate: r(first), second_position_rate: r(second) })
+    let first = original
+        .iter()
+        .zip(swapped)
+        .filter(|p| *p == (&Verdict::A, &Verdict::B))
+        .count();
+    let second = original
+        .iter()
+        .zip(swapped)
+        .filter(|p| *p == (&Verdict::B, &Verdict::A))
+        .count();
+    let r = |x: usize| {
+        if inc > 0 {
+            x as f64 / inc as f64
+        } else {
+            f64::NAN
+        }
+    };
+    Ok(PositionConsistency {
+        value: same as f64 / original.len() as f64,
+        n_inconsistent: inc,
+        first_position_rate: r(first),
+        second_position_rate: r(second),
+    })
 }
 
 fn binom_two_sided_half(k: usize, n: usize) -> f64 {
@@ -447,7 +563,11 @@ fn binom_two_sided_half(k: usize, n: usize) -> f64 {
 
 /// Longer-response win rate among decisive comparisons of responses of different length, with the two-sided
 /// exact binomial p-value against 0.5.
-pub fn verbosity_bias(winners: &[Verdict], length_a: &[f64], length_b: &[f64]) -> Result<(f64, usize, f64)> {
+pub fn verbosity_bias(
+    winners: &[Verdict],
+    length_a: &[f64],
+    length_b: &[f64],
+) -> Result<(f64, usize, f64)> {
     if winners.is_empty() || length_a.len() != winners.len() || length_b.len() != winners.len() {
         return invalid("winners, length_a and length_b must be non-empty and the same length.");
     }
@@ -461,7 +581,11 @@ pub fn verbosity_bias(winners: &[Verdict], length_a: &[f64], length_b: &[f64]) -
         return invalid("No decisive comparison between responses of different length.");
     }
     let k = flags.iter().filter(|&&f| f).count();
-    Ok((k as f64 / flags.len() as f64, flags.len(), binom_two_sided_half(k, flags.len())))
+    Ok((
+        k as f64 / flags.len() as f64,
+        flags.len(),
+        binom_two_sided_half(k, flags.len()),
+    ))
 }
 
 /// Self-preference bias: judge rate − human rate of preferring the judge's own model's response.
@@ -475,17 +599,39 @@ pub struct SelfPreference {
 }
 
 /// Self-preference bias of a judge against human verdicts on the same comparisons.
-pub fn self_preference_bias(judge_prefers_own: &[bool], human_prefers_own: &[bool]) -> Result<SelfPreference> {
+pub fn self_preference_bias(
+    judge_prefers_own: &[bool],
+    human_prefers_own: &[bool],
+) -> Result<SelfPreference> {
     if judge_prefers_own.is_empty() || judge_prefers_own.len() != human_prefers_own.len() {
-        return invalid("judge_prefers_own and human_prefers_own must be non-empty and the same length.");
+        return invalid(
+            "judge_prefers_own and human_prefers_own must be non-empty and the same length.",
+        );
     }
     let n = judge_prefers_own.len() as f64;
     let jr = judge_prefers_own.iter().filter(|&&x| x).count() as f64 / n;
     let hr = human_prefers_own.iter().filter(|&&x| x).count() as f64 / n;
-    let b = judge_prefers_own.iter().zip(human_prefers_own).filter(|(j, h)| **j && !**h).count();
-    let c = judge_prefers_own.iter().zip(human_prefers_own).filter(|(j, h)| !**j && **h).count();
-    let p = if b + c > 0 { binom_two_sided_half(b, b + c) } else { 1.0 };
-    Ok(SelfPreference { value: jr - hr, judge_rate: jr, human_rate: hr, p_value: p })
+    let b = judge_prefers_own
+        .iter()
+        .zip(human_prefers_own)
+        .filter(|(j, h)| **j && !**h)
+        .count();
+    let c = judge_prefers_own
+        .iter()
+        .zip(human_prefers_own)
+        .filter(|(j, h)| !**j && **h)
+        .count();
+    let p = if b + c > 0 {
+        binom_two_sided_half(b, b + c)
+    } else {
+        1.0
+    };
+    Ok(SelfPreference {
+        value: jr - hr,
+        judge_rate: jr,
+        human_rate: hr,
+        p_value: p,
+    })
 }
 
 /// Rubric scores normalised to [0, 1]: overall mean and per-criterion means.
@@ -500,17 +646,35 @@ pub struct Rubric {
 pub fn rubric_score(scores: &[Vec<f64>], scale: (f64, f64)) -> Result<Rubric> {
     let c = scores.first().map_or(0, Vec::len);
     if c == 0 || scores.iter().any(|r| r.len() != c) {
-        return invalid("scores must be a 2-D array: one row per response, one column per criterion.");
+        return invalid(
+            "scores must be a 2-D array: one row per response, one column per criterion.",
+        );
     }
     let (lo, hi) = scale;
     if hi <= lo {
         return invalid("scale must be (min, max) with max > min.");
     }
-    if scores.iter().flatten().any(|&x| x.is_nan() || x < lo || x > hi) {
-        return invalid(format!("scores must lie within the scale {scale:?} without missing values."));
+    if scores
+        .iter()
+        .flatten()
+        .any(|&x| x.is_nan() || x < lo || x > hi)
+    {
+        return invalid(format!(
+            "scores must lie within the scale {scale:?} without missing values."
+        ));
     }
-    let norm: Vec<f64> = scores.iter().flatten().map(|x| (x - lo) / (hi - lo)).collect();
-    let per_criterion = (0..c).map(|j| mean(&norm.iter().skip(j).step_by(c).copied().collect::<Vec<_>>())).collect();
+    let norm: Vec<f64> = scores
+        .iter()
+        .flatten()
+        .map(|x| (x - lo) / (hi - lo))
+        .collect();
+    let per_criterion = (0..c)
+        .map(|j| mean(&norm.iter().skip(j).step_by(c).copied().collect::<Vec<_>>()))
+        .collect();
     let per_response = norm.chunks(c).map(mean).collect();
-    Ok(Rubric { value: mean(&norm), per_criterion, per_response })
+    Ok(Rubric {
+        value: mean(&norm),
+        per_criterion,
+        per_response,
+    })
 }

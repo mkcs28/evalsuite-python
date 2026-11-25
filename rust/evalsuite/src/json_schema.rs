@@ -15,11 +15,48 @@ use crate::error::{invalid, Result};
 
 /// The keywords the validator understands.
 pub const SUPPORTED_KEYWORDS: &[&str] = &[
-    "$comment", "$defs", "$id", "$ref", "$schema", "additionalProperties", "allOf", "anyOf", "const", "contains",
-    "default", "definitions", "deprecated", "description", "enum", "examples", "exclusiveMaximum", "exclusiveMinimum",
-    "format", "items", "maxItems", "maxLength", "maxProperties", "maximum", "minItems", "minLength", "minProperties",
-    "minimum", "multipleOf", "not", "oneOf", "pattern", "patternProperties", "prefixItems", "properties",
-    "propertyNames", "readOnly", "required", "title", "type", "uniqueItems", "writeOnly",
+    "$comment",
+    "$defs",
+    "$id",
+    "$ref",
+    "$schema",
+    "additionalProperties",
+    "allOf",
+    "anyOf",
+    "const",
+    "contains",
+    "default",
+    "definitions",
+    "deprecated",
+    "description",
+    "enum",
+    "examples",
+    "exclusiveMaximum",
+    "exclusiveMinimum",
+    "format",
+    "items",
+    "maxItems",
+    "maxLength",
+    "maxProperties",
+    "maximum",
+    "minItems",
+    "minLength",
+    "minProperties",
+    "minimum",
+    "multipleOf",
+    "not",
+    "oneOf",
+    "pattern",
+    "patternProperties",
+    "prefixItems",
+    "properties",
+    "propertyNames",
+    "readOnly",
+    "required",
+    "title",
+    "type",
+    "uniqueItems",
+    "writeOnly",
 ];
 
 /// JSON type name of a value; integral floats count as `"integer"`.
@@ -44,8 +81,14 @@ pub fn json_type(v: &Value) -> &'static str {
 pub fn json_equal(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(x), Value::Number(y)) => num_eq(x, y),
-        (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| json_equal(p, q)),
-        (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| json_equal(v, w))),
+        (Value::Array(x), Value::Array(y)) => {
+            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| json_equal(p, q))
+        }
+        (Value::Object(x), Value::Object(y)) => {
+            x.len() == y.len()
+                && x.iter()
+                    .all(|(k, v)| y.get(k).is_some_and(|w| json_equal(v, w)))
+        }
         _ => a == b,
     }
 }
@@ -58,9 +101,17 @@ pub fn py_equal(a: &Value, b: &Value) -> bool {
         _ => None,
     };
     match (a, b) {
-        (Value::Bool(_), Value::Number(_)) | (Value::Number(_), Value::Bool(_)) => as_num(a) == as_num(b),
-        (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_equal(p, q)),
-        (Value::Object(x), Value::Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| py_equal(v, w))),
+        (Value::Bool(_), Value::Number(_)) | (Value::Number(_), Value::Bool(_)) => {
+            as_num(a) == as_num(b)
+        }
+        (Value::Array(x), Value::Array(y)) => {
+            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_equal(p, q))
+        }
+        (Value::Object(x), Value::Object(y)) => {
+            x.len() == y.len()
+                && x.iter()
+                    .all(|(k, v)| y.get(k).is_some_and(|w| py_equal(v, w)))
+        }
         _ => json_equal(a, b),
     }
 }
@@ -115,7 +166,9 @@ fn write_canonical(v: &Value, s: &mut String) {
 
 fn resolve<'a>(r: &str, root: &'a Value) -> Result<&'a Value> {
     let Some(rest) = r.strip_prefix('#') else {
-        return invalid(format!("Only local $ref (starting with '#') is supported; got {r:?}."));
+        return invalid(format!(
+            "Only local $ref (starting with '#') is supported; got {r:?}."
+        ));
     };
     let mut node = root;
     for part in rest.split('/').filter(|p| !p.is_empty()) {
@@ -150,7 +203,13 @@ fn truthy(v: Option<&Value>) -> bool {
     }
 }
 
-fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) -> Result<Vec<String>> {
+fn errors(
+    inst: &Value,
+    schema: &Value,
+    root: &Value,
+    path: &str,
+    depth: usize,
+) -> Result<Vec<String>> {
     if depth > 100 {
         return invalid("Schema recursion is too deep (cyclic $ref?).");
     }
@@ -158,17 +217,28 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
         Value::Bool(true) => return Ok(vec![]),
         Value::Bool(false) => return Ok(vec![format!("{path}: no value is allowed here")]),
         Value::Object(o) => o,
-        _ => return invalid(format!("Invalid schema at {path}: expected an object or boolean.")),
+        _ => {
+            return invalid(format!(
+                "Invalid schema at {path}: expected an object or boolean."
+            ))
+        }
     };
-    let mut unknown: Vec<&String> = s.keys().filter(|k| !SUPPORTED_KEYWORDS.contains(&k.as_str())).collect();
+    let mut unknown: Vec<&String> = s
+        .keys()
+        .filter(|k| !SUPPORTED_KEYWORDS.contains(&k.as_str()))
+        .collect();
     if !unknown.is_empty() {
         unknown.sort();
-        return invalid(format!("Unsupported JSON Schema keyword(s) {unknown:?} at {path}."));
+        return invalid(format!(
+            "Unsupported JSON Schema keyword(s) {unknown:?} at {path}."
+        ));
     }
     let sub = |i: &Value, sc: &Value, p: &str| errors(i, sc, root, p, depth + 1);
     let mut errs = Vec::new();
     if let Some(r) = s.get("$ref") {
-        let r = r.as_str().ok_or_else(|| crate::Error::InvalidInput("$ref must be a string.".into()))?;
+        let r = r
+            .as_str()
+            .ok_or_else(|| crate::Error::InvalidInput("$ref must be a string.".into()))?;
         errs.extend(sub(inst, resolve(r, root)?, path)?);
     }
     let t = json_type(inst);
@@ -178,7 +248,10 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
             Value::String(x) => vec![x.as_str()],
             _ => return invalid(format!("Invalid 'type' at {path}.")),
         };
-        if !allowed.iter().any(|&a| a == t || (a == "number" && t == "integer")) {
+        if !allowed
+            .iter()
+            .any(|&a| a == t || (a == "number" && t == "integer"))
+        {
             errs.push(format!("{path}: expected {}, got {t}", allowed.join("/")));
             return Ok(errs);
         }
@@ -252,11 +325,16 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
                 errs.push(format!("{path}: more than {m} items"));
             }
         }
-        if truthy(s.get("uniqueItems")) && (0..items.len()).any(|i| (0..i).any(|j| json_equal(&items[i], &items[j]))) {
+        if truthy(s.get("uniqueItems"))
+            && (0..items.len()).any(|i| (0..i).any(|j| json_equal(&items[i], &items[j])))
+        {
             errs.push(format!("{path}: items are not unique"));
         }
         let empty = Vec::new();
-        let prefix = s.get("prefixItems").and_then(Value::as_array).unwrap_or(&empty);
+        let prefix = s
+            .get("prefixItems")
+            .and_then(Value::as_array)
+            .unwrap_or(&empty);
         for (i, (item, sc)) in items.iter().zip(prefix).enumerate() {
             errs.extend(sub(item, sc, &format!("{path}[{i}]"))?);
         }
@@ -280,7 +358,10 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
     }
     if let Value::Object(obj) = inst {
         let empty = Map::new();
-        let props = s.get("properties").and_then(Value::as_object).unwrap_or(&empty);
+        let props = s
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap_or(&empty);
         if let Some(Value::Array(req)) = s.get("required") {
             for k in req.iter().filter_map(Value::as_str) {
                 if !obj.contains_key(k) {
@@ -299,7 +380,10 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
                 errs.push(format!("{path}: more than {m} properties"));
             }
         }
-        let pattern_props = s.get("patternProperties").and_then(Value::as_object).unwrap_or(&empty);
+        let pattern_props = s
+            .get("patternProperties")
+            .and_then(Value::as_object)
+            .unwrap_or(&empty);
         for (k, v) in obj {
             let mut matched = false;
             if let Some(sc) = props.get(k) {
@@ -318,7 +402,11 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
                 }
             }
             if let Some(sc) = s.get("propertyNames") {
-                errs.extend(sub(&Value::String(k.clone()), sc, &format!("{path} (name {k:?})"))?);
+                errs.extend(sub(
+                    &Value::String(k.clone()),
+                    sc,
+                    &format!("{path} (name {k:?})"),
+                )?);
             }
         }
     }
@@ -345,7 +433,9 @@ fn errors(inst: &Value, schema: &Value, root: &Value, path: &str, depth: usize) 
             n_ok += usize::from(sub(inst, sc, path)?.is_empty());
         }
         if n_ok != 1 {
-            errs.push(format!("{path}: matches {n_ok} of oneOf (exactly one required)"));
+            errs.push(format!(
+                "{path}: matches {n_ok} of oneOf (exactly one required)"
+            ));
         }
     }
     if let Some(sc) = s.get("not") {

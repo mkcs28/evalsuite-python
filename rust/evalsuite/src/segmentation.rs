@@ -71,7 +71,15 @@ pub struct Opts {
 
 impl Default for Opts {
     fn default() -> Self {
-        Opts { num_classes: None, labels: None, ignore_index: None, average: Average::Macro, aggregate: Aggregate::Dataset, include_background: true, empty: None }
+        Opts {
+            num_classes: None,
+            labels: None,
+            ignore_index: None,
+            average: Average::Macro,
+            aggregate: Aggregate::Dataset,
+            include_background: true,
+            empty: None,
+        }
     }
 }
 
@@ -82,18 +90,38 @@ fn pairs<'a>(t: &'a [Mask], p: &'a [Mask]) -> Result<()> {
         return invalid("y_true contains no images.");
     }
     if t.len() != p.len() {
-        return invalid(format!("y_true has {} images but y_pred has {}.", t.len(), p.len()));
+        return invalid(format!(
+            "y_true has {} images but y_pred has {}.",
+            t.len(),
+            p.len()
+        ));
     }
     for (i, (a, b)) in t.iter().zip(p).enumerate() {
         if a.shape != b.shape {
-            return invalid(format!("Image {i}: y_true has shape {:?} but y_pred has shape {:?}.", a.shape, b.shape));
+            return invalid(format!(
+                "Image {i}: y_true has shape {:?} but y_pred has shape {:?}.",
+                a.shape, b.shape
+            ));
         }
     }
     Ok(())
 }
 
-fn classes(t: &[Mask], p: &[Mask], num_classes: Option<usize>, labels: Option<&[i64]>, ignore: Option<i64>, background: bool) -> Result<Vec<i64>> {
-    let valid = |m: &Mask| m.labels.iter().copied().filter(move |&v| Some(v) != ignore).collect::<Vec<_>>();
+fn classes(
+    t: &[Mask],
+    p: &[Mask],
+    num_classes: Option<usize>,
+    labels: Option<&[i64]>,
+    ignore: Option<i64>,
+    background: bool,
+) -> Result<Vec<i64>> {
+    let valid = |m: &Mask| {
+        m.labels
+            .iter()
+            .copied()
+            .filter(move |&v| Some(v) != ignore)
+            .collect::<Vec<_>>()
+    };
     let mut cls: Vec<i64> = match labels {
         Some(l) => {
             let mut u = l.to_vec();
@@ -162,7 +190,11 @@ fn counts(t: &[Mask], p: &[Mask], cls: &[i64], ignore: Option<i64>) -> Vec<Vec<(
 }
 
 fn score(tp: f64, fp: f64, fn_: f64, dice: bool) -> f64 {
-    let (num, den) = if dice { (2.0 * tp, 2.0 * tp + fp + fn_) } else { (tp, tp + fp + fn_) };
+    let (num, den) = if dice {
+        (2.0 * tp, 2.0 * tp + fp + fn_)
+    } else {
+        (tp, tp + fp + fn_)
+    };
     if den > 0.0 {
         num / den
     } else {
@@ -179,7 +211,12 @@ fn nanmean(v: &[f64]) -> f64 {
     }
 }
 
-fn reduce(mut per_class: Vec<f64>, support: &[f64], average: Average, empty: Option<f64>) -> Result<Score> {
+fn reduce(
+    mut per_class: Vec<f64>,
+    support: &[f64],
+    average: Average,
+    empty: Option<f64>,
+) -> Result<Score> {
     if let Some(e) = empty {
         if !(0.0..=1.0).contains(&e) {
             return invalid("empty must be None or a value in [0, 1] (usually 1.0).");
@@ -194,12 +231,17 @@ fn reduce(mut per_class: Vec<f64>, support: &[f64], average: Average, empty: Opt
         Average::None => Score::PerClass(per_class),
         Average::Macro => Score::Scalar(nanmean(&per_class)),
         Average::Weighted => {
-            let ok: Vec<usize> = (0..per_class.len()).filter(|&i| !per_class[i].is_nan()).collect();
+            let ok: Vec<usize> = (0..per_class.len())
+                .filter(|&i| !per_class[i].is_nan())
+                .collect();
             let w: Vec<f64> = ok.iter().map(|&i| support[i]).collect();
             if np_sum(&w) == 0.0 {
                 Score::Scalar(f64::NAN)
             } else {
-                Score::Scalar(crate::util::weighted_mean(&ok.iter().map(|&i| per_class[i]).collect::<Vec<_>>(), &w))
+                Score::Scalar(crate::util::weighted_mean(
+                    &ok.iter().map(|&i| per_class[i]).collect::<Vec<_>>(),
+                    &w,
+                ))
             }
         }
         Average::Micro => unreachable!("handled by the caller"),
@@ -208,17 +250,35 @@ fn reduce(mut per_class: Vec<f64>, support: &[f64], average: Average, empty: Opt
 
 fn overlap(t: &[Mask], p: &[Mask], o: &Opts, dice: bool) -> Result<Score> {
     pairs(t, p)?;
-    let cls = classes(t, p, o.num_classes, o.labels.as_deref(), o.ignore_index, o.include_background)?;
+    let cls = classes(
+        t,
+        p,
+        o.num_classes,
+        o.labels.as_deref(),
+        o.ignore_index,
+        o.include_background,
+    )?;
     let c = counts(t, p, &cls, o.ignore_index);
     let k = cls.len();
-    let sum_img = |f: fn(&(f64, f64, f64)) -> f64| -> Vec<f64> { (0..k).map(|j| c.iter().map(|img| f(&img[j])).sum()).collect() };
+    let sum_img = |f: fn(&(f64, f64, f64)) -> f64| -> Vec<f64> {
+        (0..k)
+            .map(|j| c.iter().map(|img| f(&img[j])).sum())
+            .collect()
+    };
     let (tp, fp, fn_) = (sum_img(|x| x.0), sum_img(|x| x.1), sum_img(|x| x.2));
     if o.average == Average::Micro {
         return Ok(Score::Scalar(match o.aggregate {
             Aggregate::Dataset => score(np_sum(&tp), np_sum(&fp), np_sum(&fn_), dice),
             Aggregate::Image => nanmean(
                 &c.iter()
-                    .map(|img| score(img.iter().map(|x| x.0).sum(), img.iter().map(|x| x.1).sum(), img.iter().map(|x| x.2).sum(), dice))
+                    .map(|img| {
+                        score(
+                            img.iter().map(|x| x.0).sum(),
+                            img.iter().map(|x| x.1).sum(),
+                            img.iter().map(|x| x.2).sum(),
+                            dice,
+                        )
+                    })
                     .collect::<Vec<_>>(),
             ),
         }));
@@ -257,8 +317,19 @@ pub fn iou(y_true: &[Mask], y_pred: &[Mask], o: &Opts) -> Result<Score> {
 }
 
 /// Mean IoU over classes (dataset aggregation).
-pub fn miou(y_true: &[Mask], y_pred: &[Mask], num_classes: Option<usize>, ignore_index: Option<i64>, include_background: bool) -> Result<f64> {
-    let o = Opts { num_classes, ignore_index, include_background, ..Default::default() };
+pub fn miou(
+    y_true: &[Mask],
+    y_pred: &[Mask],
+    num_classes: Option<usize>,
+    ignore_index: Option<i64>,
+    include_background: bool,
+) -> Result<f64> {
+    let o = Opts {
+        num_classes,
+        ignore_index,
+        include_background,
+        ..Default::default()
+    };
     Ok(iou(y_true, y_pred, &o)?.value().unwrap())
 }
 
@@ -281,7 +352,12 @@ pub fn pixel_accuracy(y_true: &[Mask], y_pred: &[Mask], ignore_index: Option<i64
 }
 
 /// Mean over classes present in the truth of the per-class pixel recall.
-pub fn mean_pixel_accuracy(y_true: &[Mask], y_pred: &[Mask], num_classes: Option<usize>, ignore_index: Option<i64>) -> Result<f64> {
+pub fn mean_pixel_accuracy(
+    y_true: &[Mask],
+    y_pred: &[Mask],
+    num_classes: Option<usize>,
+    ignore_index: Option<i64>,
+) -> Result<f64> {
     pairs(y_true, y_pred)?;
     let cls = classes(y_true, y_pred, num_classes, None, ignore_index, true)?;
     let c = counts(y_true, y_pred, &cls, ignore_index);
@@ -317,21 +393,42 @@ fn erode_cube(mask: &[bool], shape: &[usize], d: usize) -> Vec<bool> {
 }
 
 /// Boundary IoU (Cheng et al. 2021) per class, with band width d = max(1, round(dilation_ratio × diagonal)).
-pub fn boundary_iou(y_true: &[Mask], y_pred: &[Mask], dilation_ratio: f64, o: &Opts) -> Result<Score> {
+pub fn boundary_iou(
+    y_true: &[Mask],
+    y_pred: &[Mask],
+    dilation_ratio: f64,
+    o: &Opts,
+) -> Result<Score> {
     if !(dilation_ratio > 0.0 && dilation_ratio < 1.0) {
         return invalid("dilation_ratio must be between 0 and 1 (0.02 is the paper's default).");
     }
     pairs(y_true, y_pred)?;
-    let cls = classes(y_true, y_pred, o.num_classes, o.labels.as_deref(), o.ignore_index, o.include_background)?;
+    let cls = classes(
+        y_true,
+        y_pred,
+        o.num_classes,
+        o.labels.as_deref(),
+        o.ignore_index,
+        o.include_background,
+    )?;
     let mut inter = vec![0.0f64; cls.len()];
     let mut union = vec![0.0f64; cls.len()];
     for (a, b) in y_true.iter().zip(y_pred) {
         let diag = (a.shape.iter().map(|&s| (s * s) as f64).sum::<f64>()).sqrt();
         let d = ((dilation_ratio * diag).round_ties_even() as usize).max(1);
-        let valid: Vec<bool> = a.labels.iter().map(|&x| Some(x) != o.ignore_index).collect();
+        let valid: Vec<bool> = a
+            .labels
+            .iter()
+            .map(|&x| Some(x) != o.ignore_index)
+            .collect();
         for (j, &c) in cls.iter().enumerate() {
             let band = |m: &Mask| -> Vec<bool> {
-                let bin: Vec<bool> = m.labels.iter().zip(&valid).map(|(&x, &v)| x == c && v).collect();
+                let bin: Vec<bool> = m
+                    .labels
+                    .iter()
+                    .zip(&valid)
+                    .map(|(&x, &v)| x == c && v)
+                    .collect();
                 if !bin.iter().any(|&x| x) {
                     return bin;
                 }
@@ -346,7 +443,11 @@ pub fn boundary_iou(y_true: &[Mask], y_pred: &[Mask], dilation_ratio: f64, o: &O
     if o.average == Average::Micro {
         return Ok(Score::Scalar(np_sum(&inter) / np_sum(&union)));
     }
-    let per_class: Vec<f64> = inter.iter().zip(&union).map(|(i, u)| if *u > 0.0 { i / u } else { f64::NAN }).collect();
+    let per_class: Vec<f64> = inter
+        .iter()
+        .zip(&union)
+        .map(|(i, u)| if *u > 0.0 { i / u } else { f64::NAN })
+        .collect();
     reduce(per_class, &union, o.average, o.empty)
 }
 
@@ -365,13 +466,32 @@ pub struct SurfaceOpts {
 
 impl Default for SurfaceOpts {
     fn default() -> Self {
-        SurfaceOpts { spacing: None, num_classes: None, labels: None, ignore_index: None, include_background: false, macro_average: true }
+        SurfaceOpts {
+            spacing: None,
+            num_classes: None,
+            labels: None,
+            ignore_index: None,
+            include_background: false,
+            macro_average: true,
+        }
     }
 }
 
-fn surface_metric(t: &[Mask], p: &[Mask], o: &SurfaceOpts, f: &dyn Fn(&[f64], &[f64]) -> f64) -> Result<Score> {
+fn surface_metric(
+    t: &[Mask],
+    p: &[Mask],
+    o: &SurfaceOpts,
+    f: &dyn Fn(&[f64], &[f64]) -> f64,
+) -> Result<Score> {
     pairs(t, p)?;
-    let cls = classes(t, p, o.num_classes, o.labels.as_deref(), o.ignore_index, o.include_background)?;
+    let cls = classes(
+        t,
+        p,
+        o.num_classes,
+        o.labels.as_deref(),
+        o.ignore_index,
+        o.include_background,
+    )?;
     let mut values = vec![vec![f64::NAN; cls.len()]; t.len()];
     for (i, (a, b)) in t.iter().zip(p).enumerate() {
         let nd = a.shape.len();
@@ -382,13 +502,21 @@ fn surface_metric(t: &[Mask], p: &[Mask], o: &SurfaceOpts, f: &dyn Fn(&[f64], &[
             None => vec![1.0; nd],
             Some(s) => {
                 if s.len() != nd || s.iter().any(|&x| !(x > 0.0 && x.is_finite())) {
-                    return invalid(format!("spacing must have {nd} positive values (one per image axis)."));
+                    return invalid(format!(
+                        "spacing must have {nd} positive values (one per image axis)."
+                    ));
                 }
                 s.clone()
             }
         };
         for (j, &c) in cls.iter().enumerate() {
-            let bin = |m: &Mask| -> Vec<bool> { m.labels.iter().zip(&a.labels).map(|(&x, &v)| x == c && Some(v) != o.ignore_index).collect() };
+            let bin = |m: &Mask| -> Vec<bool> {
+                m.labels
+                    .iter()
+                    .zip(&a.labels)
+                    .map(|(&x, &v)| x == c && Some(v) != o.ignore_index)
+                    .collect()
+            };
             let (ta, pb) = (bin(a), bin(b));
             let (ha, hb) = (ta.iter().any(|&x| x), pb.iter().any(|&x| x));
             if !ha && !hb {
@@ -405,7 +533,9 @@ fn surface_metric(t: &[Mask], p: &[Mask], o: &SurfaceOpts, f: &dyn Fn(&[f64], &[
             values[i][j] = f(&dab, &dba);
         }
     }
-    let per_class: Vec<f64> = (0..cls.len()).map(|j| nanmean(&values.iter().map(|r| r[j]).collect::<Vec<_>>())).collect();
+    let per_class: Vec<f64> = (0..cls.len())
+        .map(|j| nanmean(&values.iter().map(|r| r[j]).collect::<Vec<_>>()))
+        .collect();
     if !o.macro_average {
         return Ok(Score::PerClass(per_class));
     }
@@ -414,7 +544,12 @@ fn surface_metric(t: &[Mask], p: &[Mask], o: &SurfaceOpts, f: &dyn Fn(&[f64], &[
 
 /// Hausdorff distance between the class boundaries (`percentile = 95` gives HD95), per class; infinite when
 /// the class occurs in only one of the two masks.
-pub fn hausdorff_distance(y_true: &[Mask], y_pred: &[Mask], percentile_q: f64, o: &SurfaceOpts) -> Result<Score> {
+pub fn hausdorff_distance(
+    y_true: &[Mask],
+    y_pred: &[Mask],
+    percentile_q: f64,
+    o: &SurfaceOpts,
+) -> Result<Score> {
     if !(percentile_q > 0.0 && percentile_q <= 100.0) {
         return invalid("percentile must be in (0, 100].");
     }
@@ -428,6 +563,12 @@ pub fn hausdorff_distance(y_true: &[Mask], y_pred: &[Mask], percentile_q: f64, o
 }
 
 /// Average symmetric surface distance, per class.
-pub fn average_surface_distance(y_true: &[Mask], y_pred: &[Mask], o: &SurfaceOpts) -> Result<Score> {
-    surface_metric(y_true, y_pred, o, &|a, b| (np_sum(a) + np_sum(b)) / (a.len() + b.len()) as f64)
+pub fn average_surface_distance(
+    y_true: &[Mask],
+    y_pred: &[Mask],
+    o: &SurfaceOpts,
+) -> Result<Score> {
+    surface_metric(y_true, y_pred, o, &|a, b| {
+        (np_sum(a) + np_sum(b)) / (a.len() + b.len()) as f64
+    })
 }

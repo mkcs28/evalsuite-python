@@ -10,7 +10,10 @@ fn inputs(correct: &[bool], confidence: &[f64]) -> Result<()> {
         return invalid("correct is empty. Provide at least one example.");
     }
     same_len(correct.len(), confidence.len(), "correct and confidence")?;
-    if confidence.iter().any(|p| !p.is_finite() || !(0.0..=1.0).contains(p)) {
+    if confidence
+        .iter()
+        .any(|p| !p.is_finite() || !(0.0..=1.0).contains(p))
+    {
         return invalid("confidence must contain finite values in [0, 1].");
     }
     Ok(())
@@ -22,7 +25,10 @@ fn by_confidence(p: &[f64]) -> Vec<usize> {
 }
 
 /// Risk–coverage curve: (coverage, risk, confidence threshold) at each distinct confidence, most confident first.
-pub fn risk_coverage_curve(correct: &[bool], confidence: &[f64]) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+pub fn risk_coverage_curve(
+    correct: &[bool],
+    confidence: &[f64],
+) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>)> {
     inputs(correct, confidence)?;
     let order = by_confidence(confidence);
     let n = correct.len();
@@ -42,14 +48,22 @@ pub fn risk_coverage_curve(correct: &[bool], confidence: &[f64]) -> Result<(Vec<
 }
 
 /// Adaptive (equal-mass) calibration error over `n_bins` bins.
-pub fn adaptive_calibration_error(correct: &[bool], confidence: &[f64], n_bins: usize) -> Result<f64> {
+pub fn adaptive_calibration_error(
+    correct: &[bool],
+    confidence: &[f64],
+    n_bins: usize,
+) -> Result<f64> {
     inputs(correct, confidence)?;
     if n_bins < 1 {
         return invalid("n_bins must be a positive integer.");
     }
     let r = n_bins.min(correct.len());
     let mut order: Vec<usize> = (0..confidence.len()).collect();
-    order.sort_by(|&a, &b| confidence[a].partial_cmp(&confidence[b]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&a, &b| {
+        confidence[a]
+            .partial_cmp(&confidence[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let gaps: Vec<f64> = array_split(&order, r)
         .iter()
         .map(|g| {
@@ -85,7 +99,9 @@ pub fn aurc(correct: &[bool], confidence: &[f64]) -> Result<(f64, f64)> {
     }
     let value = np_sum(&curve) / n as f64;
     let errors = correct.iter().filter(|c| !**c).count();
-    let opt: Vec<f64> = (1..=n).map(|k| (k as f64 - (n - errors) as f64).max(0.0) / k as f64).collect();
+    let opt: Vec<f64> = (1..=n)
+        .map(|k| (k as f64 - (n - errors) as f64).max(0.0) / k as f64)
+        .collect();
     let opt = np_sum(&opt) / n as f64;
     Ok((value, value - opt))
 }
@@ -106,7 +122,9 @@ pub fn coverage_at_risk(correct: &[bool], confidence: &[f64], risk: f64) -> Resu
         return invalid("risk must be in [0, 1).");
     }
     let (cov, r, _) = risk_coverage_curve(correct, confidence)?;
-    Ok(r.iter().rposition(|&x| x <= risk + 1e-12).map_or(0.0, |i| cov[i]))
+    Ok(r.iter()
+        .rposition(|&x| x <= risk + 1e-12)
+        .map_or(0.0, |i| cov[i]))
 }
 
 /// AUROC of confidence for separating correct from incorrect answers.
@@ -117,7 +135,14 @@ pub fn confidence_accuracy_correlation(correct: &[bool], confidence: &[f64]) -> 
         return invalid("Need both correct and incorrect answers.");
     }
     let ranks = evalsuite_core::ranks::midranks(confidence);
-    let s: f64 = np_sum(&ranks.iter().zip(correct).filter(|(_, c)| **c).map(|(r, _)| *r).collect::<Vec<_>>());
+    let s: f64 = np_sum(
+        &ranks
+            .iter()
+            .zip(correct)
+            .filter(|(_, c)| **c)
+            .map(|(r, _)| *r)
+            .collect::<Vec<_>>(),
+    );
     let n1f = n1 as f64;
     Ok((s - n1f * (n1f + 1.0) / 2.0) / (n1f * (correct.len() - n1) as f64))
 }

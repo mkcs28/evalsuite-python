@@ -98,7 +98,13 @@ pub struct Opts<L> {
 
 impl<L> Default for Opts<L> {
     fn default() -> Self {
-        Opts { average: Average::Auto, labels: None, pos_label: None, sample_weight: None, zero_division: ZeroDivision::Warn }
+        Opts {
+            average: Average::Auto,
+            labels: None,
+            pos_label: None,
+            sample_weight: None,
+            zero_division: ZeroDivision::Warn,
+        }
     }
 }
 
@@ -139,7 +145,6 @@ pub(crate) struct Ctx<L> {
     pub true_idx: Vec<usize>,
     pub pred_idx: Option<Vec<usize>>,
     pub w: Vec<f64>,
-    pub weighted: bool,
 }
 
 pub(crate) struct Counts {
@@ -151,7 +156,12 @@ pub(crate) struct Counts {
 }
 
 impl<L: Label> Ctx<L> {
-    pub fn new(y_true: &[L], y_pred: Option<&[L]>, labels: Option<&[L]>, w: Option<&[f64]>) -> Result<Self> {
+    pub fn new(
+        y_true: &[L],
+        y_pred: Option<&[L]>,
+        labels: Option<&[L]>,
+        w: Option<&[f64]>,
+    ) -> Result<Self> {
         let n = y_true.len();
         if n == 0 {
             return invalid("y_true is empty. Provide at least one example.");
@@ -186,13 +196,29 @@ impl<L: Label> Ctx<L> {
                 }
                 l.to_vec()
             }
-            None => y_true.iter().chain(y_pred.unwrap_or(&[])).cloned().collect::<BTreeSet<_>>().into_iter().collect(),
+            None => y_true
+                .iter()
+                .chain(y_pred.unwrap_or(&[]))
+                .cloned()
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
         };
-        let kind = if n_true_unique <= 2 && labels.len() <= 2 { Kind::Binary } else { Kind::Multiclass };
+        let kind = if n_true_unique <= 2 && labels.len() <= 2 {
+            Kind::Binary
+        } else {
+            Kind::Multiclass
+        };
         let index: HashMap<&L, usize> = labels.iter().enumerate().map(|(i, l)| (l, i)).collect();
         let true_idx = y_true.iter().map(|l| index[l]).collect();
         let pred_idx = y_pred.map(|p| p.iter().map(|l| index[l]).collect());
-        Ok(Ctx { kind, labels: labels.clone(), true_idx, pred_idx, w: weights(w, n)?, weighted: w.is_some() })
+        Ok(Ctx {
+            kind,
+            labels: labels.clone(),
+            true_idx,
+            pred_idx,
+            w: weights(w, n)?,
+        })
     }
 
     pub fn n(&self) -> usize {
@@ -221,7 +247,13 @@ impl<L: Label> Ctx<L> {
         let k = self.labels.len();
         let cm = self.confusion()?;
         let total = np_sum(&cm);
-        let mut c = Counts { tp: vec![0.0; k], fp: vec![0.0; k], fn_: vec![0.0; k], tn: vec![0.0; k], support: vec![0.0; k] };
+        let mut c = Counts {
+            tp: vec![0.0; k],
+            fp: vec![0.0; k],
+            fn_: vec![0.0; k],
+            tn: vec![0.0; k],
+            support: vec![0.0; k],
+        };
         for j in 0..k {
             let tp = cm[j * k + j];
             let col: f64 = (0..k).map(|i| cm[i * k + j]).sum();
@@ -255,7 +287,10 @@ impl<L: Label> Ctx<L> {
         if self.labels.len() <= 1 {
             return Ok(None);
         }
-        invalid(format!("pos_label={pos:?} is not one of the labels {:?}.", self.labels))
+        invalid(format!(
+            "pos_label={pos:?} is not one of the labels {:?}.",
+            self.labels
+        ))
     }
 
     pub fn resolve_average(&self, a: Average) -> Result<Average> {
@@ -300,9 +335,17 @@ pub(crate) fn combine(
             Some(i) => Score::Scalar(f(c.tp[i], c.fp[i], c.fn_[i], c.tn[i], zd)),
             None => Score::Scalar(f(0.0, 0.0, 0.0, total_weight, zd)),
         },
-        Average::Micro => Score::Scalar(f(np_sum(&c.tp), np_sum(&c.fp), np_sum(&c.fn_), np_sum(&c.tn), zd)),
+        Average::Micro => Score::Scalar(f(
+            np_sum(&c.tp),
+            np_sum(&c.fp),
+            np_sum(&c.fn_),
+            np_sum(&c.tn),
+            zd,
+        )),
         _ => {
-            let per: Vec<f64> = (0..c.tp.len()).map(|j| f(c.tp[j], c.fp[j], c.fn_[j], c.tn[j], zd)).collect();
+            let per: Vec<f64> = (0..c.tp.len())
+                .map(|j| f(c.tp[j], c.fp[j], c.fn_[j], c.tn[j], zd))
+                .collect();
             match avg {
                 Average::None => Score::PerClass(per),
                 Average::Macro => Score::Scalar(np_sum(&per) / per.len() as f64),
@@ -316,11 +359,27 @@ pub(crate) fn combine(
 }
 
 fn averaged<L: Label>(y_true: &[L], y_pred: &[L], o: &Opts<L>, f: &CountFn) -> Result<Score> {
-    let ctx = Ctx::new(y_true, Some(y_pred), o.labels.as_deref(), o.sample_weight.as_deref())?;
+    let ctx = Ctx::new(
+        y_true,
+        Some(y_pred),
+        o.labels.as_deref(),
+        o.sample_weight.as_deref(),
+    )?;
     let avg = ctx.resolve_average(o.average)?;
-    let positive = if avg == Average::Binary { Some(ctx.positive(o.pos_label.as_ref())?) } else { None };
+    let positive = if avg == Average::Binary {
+        Some(ctx.positive(o.pos_label.as_ref())?)
+    } else {
+        None
+    };
     let c = ctx.counts()?;
-    Ok(combine(avg, &c, f, o.zero_division, positive, np_sum(&ctx.w)))
+    Ok(combine(
+        avg,
+        &c,
+        f,
+        o.zero_division,
+        positive,
+        np_sum(&ctx.w),
+    ))
 }
 
 pub(crate) fn f_precision(tp: f64, fp: f64, _: f64, _: f64, z: ZeroDivision) -> f64 {
@@ -344,10 +403,19 @@ pub(crate) fn f_fbeta(beta: f64) -> impl Fn(f64, f64, f64, f64, ZeroDivision) ->
 }
 
 /// Proportion of correct predictions.
-pub fn accuracy<L: Label>(y_true: &[L], y_pred: &[L], sample_weight: Option<&[f64]>) -> Result<f64> {
+pub fn accuracy<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    sample_weight: Option<&[f64]>,
+) -> Result<f64> {
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     let p = ctx.pred()?;
-    let correct: Vec<f64> = ctx.true_idx.iter().zip(p).map(|(a, b)| f64::from(u8::from(a == b))).collect();
+    let correct: Vec<f64> = ctx
+        .true_idx
+        .iter()
+        .zip(p)
+        .map(|(a, b)| f64::from(u8::from(a == b)))
+        .collect();
     Ok(weighted_mean(&correct, &ctx.w))
 }
 
@@ -390,26 +458,47 @@ pub fn jaccard<L: Label>(y_true: &[L], y_pred: &[L], o: &Opts<L>) -> Result<Scor
 }
 
 /// Balanced accuracy (mean recall over the classes present in `y_true`); `adjusted` rescales chance to 0.
-pub fn balanced_accuracy<L: Label>(y_true: &[L], y_pred: &[L], adjusted: bool, sample_weight: Option<&[f64]>) -> Result<f64> {
+pub fn balanced_accuracy<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    adjusted: bool,
+    sample_weight: Option<&[f64]>,
+) -> Result<f64> {
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     let c = ctx.counts()?;
-    let r: Vec<f64> = (0..c.tp.len()).filter(|&j| c.support[j] > 0.0).map(|j| c.tp[j] / c.support[j]).collect();
+    let r: Vec<f64> = (0..c.tp.len())
+        .filter(|&j| c.support[j] > 0.0)
+        .map(|j| c.tp[j] / c.support[j])
+        .collect();
     let mut score = np_sum(&r) / r.len() as f64;
     if adjusted {
         let k = r.len();
         let chance = 1.0 / k as f64;
-        score = if k > 1 { (score - chance) / (1.0 - chance) } else { 0.0 };
+        score = if k > 1 {
+            (score - chance) / (1.0 - chance)
+        } else {
+            0.0
+        };
     }
     Ok(score)
 }
 
 /// Matthews correlation coefficient (Gorodkin's multiclass form).
-pub fn mcc<L: Label>(y_true: &[L], y_pred: &[L], sample_weight: Option<&[f64]>, zero_division: ZeroDivision) -> Result<f64> {
+pub fn mcc<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    sample_weight: Option<&[f64]>,
+    zero_division: ZeroDivision,
+) -> Result<f64> {
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     let cm = ctx.confusion()?;
     let k = ctx.labels.len();
-    let t: Vec<f64> = (0..k).map(|i| (0..k).map(|j| cm[i * k + j]).sum()).collect();
-    let p: Vec<f64> = (0..k).map(|j| (0..k).map(|i| cm[i * k + j]).sum()).collect();
+    let t: Vec<f64> = (0..k)
+        .map(|i| (0..k).map(|j| cm[i * k + j]).sum())
+        .collect();
+    let p: Vec<f64> = (0..k)
+        .map(|j| (0..k).map(|i| cm[i * k + j]).sum())
+        .collect();
     let c: f64 = (0..k).map(|i| cm[i * k + i]).sum();
     let s = np_sum(&cm);
     let dot = |a: &[f64], b: &[f64]| a.iter().zip(b).map(|(x, y)| x * y).sum::<f64>();
@@ -440,8 +529,12 @@ pub fn cohen_kappa<L: Label>(
     let cm = ctx.confusion()?;
     let k = ctx.labels.len();
     let total = np_sum(&cm);
-    let rows: Vec<f64> = (0..k).map(|i| (0..k).map(|j| cm[i * k + j]).sum()).collect();
-    let cols: Vec<f64> = (0..k).map(|j| (0..k).map(|i| cm[i * k + j]).sum()).collect();
+    let rows: Vec<f64> = (0..k)
+        .map(|i| (0..k).map(|j| cm[i * k + j]).sum())
+        .collect();
+    let cols: Vec<f64> = (0..k)
+        .map(|j| (0..k).map(|i| cm[i * k + j]).sum())
+        .collect();
     let wt = |i: usize, j: usize| -> f64 {
         let d = (i as f64 - j as f64).abs();
         match weights {
@@ -462,10 +555,19 @@ pub fn cohen_kappa<L: Label>(
 }
 
 /// Hamming loss (share of wrong labels).
-pub fn hamming_loss<L: Label>(y_true: &[L], y_pred: &[L], sample_weight: Option<&[f64]>) -> Result<f64> {
+pub fn hamming_loss<L: Label>(
+    y_true: &[L],
+    y_pred: &[L],
+    sample_weight: Option<&[f64]>,
+) -> Result<f64> {
     let ctx = Ctx::new(y_true, Some(y_pred), None, sample_weight)?;
     let p = ctx.pred()?;
-    let wrong: Vec<f64> = ctx.true_idx.iter().zip(p).map(|(a, b)| f64::from(u8::from(a != b))).collect();
+    let wrong: Vec<f64> = ctx
+        .true_idx
+        .iter()
+        .zip(p)
+        .map(|(a, b)| f64::from(u8::from(a != b)))
+        .collect();
     Ok(weighted_mean(&wrong, &ctx.w))
 }
 
@@ -491,7 +593,9 @@ pub fn confusion_matrix<L: Label>(
     let cm = ctx.confusion()?;
     let mut out: Vec<Vec<f64>> = (0..k).map(|i| cm[i * k..(i + 1) * k].to_vec()).collect();
     let total = np_sum(&cm);
-    let cols: Vec<f64> = (0..k).map(|j| (0..k).map(|i| cm[i * k + j]).sum()).collect();
+    let cols: Vec<f64> = (0..k)
+        .map(|j| (0..k).map(|i| cm[i * k + j]).sum())
+        .collect();
     for (i, row) in out.iter_mut().enumerate() {
         let rs: f64 = cm[i * k..(i + 1) * k].iter().sum();
         for (j, v) in row.iter_mut().enumerate() {
@@ -542,14 +646,19 @@ pub(crate) fn auc_or_err(y: &[f64], s: &[f64], w: &[f64]) -> Result<f64> {
 pub(crate) fn ap_or_err(y: &[f64], s: &[f64], w: &[f64]) -> Result<f64> {
     let (_, ap, tp, _) = evalsuite_core::curve::curve_scores(y, s, w);
     if tp == 0.0 {
-        return undefined("Average precision is undefined because y_true contains no positive observations.");
+        return undefined(
+            "Average precision is undefined because y_true contains no positive observations.",
+        );
     }
     Ok(ap)
 }
 
 pub(crate) fn check_probs(p: &[f64], n: usize, name: &str) -> Result<()> {
     if p.len() != n {
-        return invalid(format!("{name} must contain one row per observation. Received {} for {n} observations.", p.len()));
+        return invalid(format!(
+            "{name} must contain one row per observation. Received {} for {n} observations.",
+            p.len()
+        ));
     }
     if p.iter().any(|v| !v.is_finite()) {
         return invalid(format!("{name} contains NaN or infinite values."));
@@ -564,7 +673,10 @@ pub(crate) fn check_probs(p: &[f64], n: usize, name: &str) -> Result<()> {
 
 pub(crate) fn check_rows(p: &[Vec<f64>], n: usize, k: usize, sum_to_one: bool) -> Result<()> {
     if p.len() != n {
-        return invalid(format!("y_prob must contain one row per observation. Received {} for {n} observations.", p.len()));
+        return invalid(format!(
+            "y_prob must contain one row per observation. Received {} for {n} observations.",
+            p.len()
+        ));
     }
     for row in p {
         if row.len() != k {
@@ -585,7 +697,12 @@ pub(crate) fn check_rows(p: &[Vec<f64>], n: usize, k: usize, sum_to_one: bool) -
 pub mod binary {
     use super::*;
 
-    fn target<L: Label>(y_true: &[L], pos_label: Option<&L>, w: Option<&[f64]>, p: &[f64]) -> Result<(Vec<f64>, Vec<f64>)> {
+    fn target<L: Label>(
+        y_true: &[L],
+        pos_label: Option<&L>,
+        w: Option<&[f64]>,
+        p: &[f64],
+    ) -> Result<(Vec<f64>, Vec<f64>)> {
         let ctx = Ctx::new(y_true, None, None, w)?;
         if ctx.kind != Kind::Binary {
             return unsupported("This metric needs a binary target; use the multiclass version.");
@@ -593,19 +710,33 @@ pub mod binary {
         check_probs(p, ctx.n(), "y_prob")?;
         let y = match ctx.positive(pos_label)? {
             None => vec![0.0; ctx.n()],
-            Some(i) => ctx.true_idx.iter().map(|&t| f64::from(u8::from(t == i))).collect(),
+            Some(i) => ctx
+                .true_idx
+                .iter()
+                .map(|&t| f64::from(u8::from(t == i)))
+                .collect(),
         };
         Ok((y, ctx.w))
     }
 
     /// ROC AUC of binary scores.
-    pub fn roc_auc<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, sample_weight: Option<&[f64]>) -> Result<f64> {
+    pub fn roc_auc<L: Label>(
+        y_true: &[L],
+        y_prob: &[f64],
+        pos_label: Option<&L>,
+        sample_weight: Option<&[f64]>,
+    ) -> Result<f64> {
         let (y, w) = target(y_true, pos_label, sample_weight, y_prob)?;
         auc_or_err(&y, y_prob, &w)
     }
 
     /// Average precision (step-wise PR AUC) of binary scores.
-    pub fn average_precision<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, sample_weight: Option<&[f64]>) -> Result<f64> {
+    pub fn average_precision<L: Label>(
+        y_true: &[L],
+        y_prob: &[f64],
+        pos_label: Option<&L>,
+        sample_weight: Option<&[f64]>,
+    ) -> Result<f64> {
         let (y, w) = target(y_true, pos_label, sample_weight, y_prob)?;
         ap_or_err(&y, y_prob, &w)
     }
@@ -622,7 +753,9 @@ pub mod binary {
         let (tpl, fpl) = (*tps.last().unwrap(), *fps.last().unwrap());
         if tpl == 0.0 || fpl == 0.0 {
             let missing = if tpl == 0.0 { "positive" } else { "negative" };
-            return undefined(format!("The ROC curve is undefined because y_true contains no {missing} observations."));
+            return undefined(format!(
+                "The ROC curve is undefined because y_true contains no {missing} observations."
+            ));
         }
         let mut fpr = vec![0.0];
         fpr.extend(fps.iter().map(|f| f / fpl));
@@ -644,9 +777,16 @@ pub mod binary {
         let (fps, tps, thr) = binary_curve(&y, y_prob, &w);
         let tpl = *tps.last().unwrap();
         if tpl == 0.0 {
-            return undefined("The PR curve is undefined because y_true contains no positive observations.");
+            return undefined(
+                "The PR curve is undefined because y_true contains no positive observations.",
+            );
         }
-        let mut prec: Vec<f64> = tps.iter().zip(&fps).map(|(t, f)| t / (t + f)).rev().collect();
+        let mut prec: Vec<f64> = tps
+            .iter()
+            .zip(&fps)
+            .map(|(t, f)| t / (t + f))
+            .rev()
+            .collect();
         let mut rec: Vec<f64> = tps.iter().map(|t| t / tpl).rev().collect();
         prec.push(1.0);
         rec.push(0.0);
@@ -654,7 +794,12 @@ pub mod binary {
     }
 
     /// Log loss (cross-entropy) of binary probabilities, clipped to [ε, 1 − ε].
-    pub fn log_loss<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, sample_weight: Option<&[f64]>) -> Result<f64> {
+    pub fn log_loss<L: Label>(
+        y_true: &[L],
+        y_prob: &[f64],
+        pos_label: Option<&L>,
+        sample_weight: Option<&[f64]>,
+    ) -> Result<f64> {
         let (y, w) = target(y_true, pos_label, sample_weight, y_prob)?;
         let eps = f64::EPSILON;
         let losses: Vec<f64> = y
@@ -669,9 +814,18 @@ pub mod binary {
     }
 
     /// Brier score of binary probabilities.
-    pub fn brier_score<L: Label>(y_true: &[L], y_prob: &[f64], pos_label: Option<&L>, sample_weight: Option<&[f64]>) -> Result<f64> {
+    pub fn brier_score<L: Label>(
+        y_true: &[L],
+        y_prob: &[f64],
+        pos_label: Option<&L>,
+        sample_weight: Option<&[f64]>,
+    ) -> Result<f64> {
         let (y, w) = target(y_true, pos_label, sample_weight, y_prob)?;
-        let err: Vec<f64> = y.iter().zip(y_prob).map(|(t, p)| (p - t) * (p - t)).collect();
+        let err: Vec<f64> = y
+            .iter()
+            .zip(y_prob)
+            .map(|(t, p)| (p - t) * (p - t))
+            .collect();
         Ok(weighted_mean(&err, &w))
     }
 
@@ -699,10 +853,14 @@ pub mod binary {
             Strategy::Uniform => crate::util::linspace(0.0, 1.0, n_bins + 1),
             Strategy::Quantile => {
                 let s = crate::util::sorted(y_prob);
-                crate::util::linspace(0.0, 1.0, n_bins + 1).iter().map(|&q| crate::util::quantile(&s, q)).collect()
+                crate::util::linspace(0.0, 1.0, n_bins + 1)
+                    .iter()
+                    .map(|&q| crate::util::quantile(&s, q))
+                    .collect()
             }
         };
-        let [bw, bt, bp] = evalsuite_core::groups::calibration_bins(&y, y_prob, &w, &edges[1..edges.len() - 1]);
+        let [bw, bt, bp] =
+            evalsuite_core::groups::calibration_bins(&y, y_prob, &w, &edges[1..edges.len() - 1]);
         let keep: Vec<usize> = (0..bw.len()).filter(|&b| bw[b] > 0.0).collect();
         Ok((
             keep.iter().map(|&b| bt[b] / bw[b]).collect(),
@@ -720,7 +878,8 @@ pub mod binary {
         pos_label: Option<&L>,
         sample_weight: Option<&[f64]>,
     ) -> Result<f64> {
-        let (t, p, w) = calibration_curve(y_true, y_prob, n_bins, strategy, pos_label, sample_weight)?;
+        let (t, p, w) =
+            calibration_curve(y_true, y_prob, n_bins, strategy, pos_label, sample_weight)?;
         let terms: Vec<f64> = (0..t.len()).map(|i| w[i] * (t[i] - p[i]).abs()).collect();
         Ok(np_sum(&terms) / np_sum(&w))
     }
@@ -736,18 +895,32 @@ pub enum MultiClass {
     Ovo,
 }
 
-fn multiclass_ctx<L: Label>(y_true: &[L], p: &[Vec<f64>], labels: Option<&[L]>, w: Option<&[f64]>) -> Result<Ctx<L>> {
+fn multiclass_ctx<L: Label>(
+    y_true: &[L],
+    p: &[Vec<f64>],
+    labels: Option<&[L]>,
+    w: Option<&[f64]>,
+) -> Result<Ctx<L>> {
     let ctx = Ctx::new(y_true, None, labels, w)?;
     check_rows(p, ctx.n(), ctx.labels.len(), ctx.kind == Kind::Multiclass)?;
     Ok(ctx)
 }
 
-fn one_vs_rest<L: Label>(ctx: &Ctx<L>, p: &[Vec<f64>], avg: Average, f: fn(&[f64], &[f64], &[f64]) -> Result<f64>) -> Result<Score> {
+fn one_vs_rest<L: Label>(
+    ctx: &Ctx<L>,
+    p: &[Vec<f64>],
+    avg: Average,
+    f: fn(&[f64], &[f64], &[f64]) -> Result<f64>,
+) -> Result<Score> {
     let k = ctx.labels.len();
     let mut scores = Vec::with_capacity(k);
     let mut support = Vec::with_capacity(k);
     for j in 0..k {
-        let y: Vec<f64> = ctx.true_idx.iter().map(|&t| f64::from(u8::from(t == j))).collect();
+        let y: Vec<f64> = ctx
+            .true_idx
+            .iter()
+            .map(|&t| f64::from(u8::from(t == j)))
+            .collect();
         let s: Vec<f64> = p.iter().map(|r| r[j]).collect();
         scores.push(f(&y, &s, &ctx.w)?);
         support.push(y.iter().zip(&ctx.w).map(|(a, b)| a * b).sum::<f64>());
@@ -779,8 +952,13 @@ pub fn roc_auc<L: Label>(
         let mut pairs = Vec::new();
         for a in 0..k {
             for b in a + 1..k {
-                let idx: Vec<usize> = (0..ctx.n()).filter(|&i| ctx.true_idx[i] == a || ctx.true_idx[i] == b).collect();
-                let ya: Vec<f64> = idx.iter().map(|&i| f64::from(u8::from(ctx.true_idx[i] == a))).collect();
+                let idx: Vec<usize> = (0..ctx.n())
+                    .filter(|&i| ctx.true_idx[i] == a || ctx.true_idx[i] == b)
+                    .collect();
+                let ya: Vec<f64> = idx
+                    .iter()
+                    .map(|&i| f64::from(u8::from(ctx.true_idx[i] == a)))
+                    .collect();
                 let yb: Vec<f64> = ya.iter().map(|v| 1.0 - v).collect();
                 let w: Vec<f64> = idx.iter().map(|&i| ctx.w[i]).collect();
                 let pa: Vec<f64> = idx.iter().map(|&i| y_prob[i][a]).collect();
@@ -791,10 +969,14 @@ pub fn roc_auc<L: Label>(
         return Ok(Score::Scalar(np_sum(&pairs) / pairs.len() as f64));
     }
     if avg == Average::Micro {
-        return unsupported("average=Micro is not defined for multiclass ROC AUC; use Macro, Weighted or None.");
+        return unsupported(
+            "average=Micro is not defined for multiclass ROC AUC; use Macro, Weighted or None.",
+        );
     }
     if ctx.kind == Kind::Binary {
-        return unsupported("Use classification::binary::roc_auc with P(positive) for binary targets.");
+        return unsupported(
+            "Use classification::binary::roc_auc with P(positive) for binary targets.",
+        );
     }
     one_vs_rest(&ctx, y_prob, avg, auc_or_err)
 }
@@ -825,21 +1007,41 @@ pub fn average_precision<L: Label>(
 }
 
 /// Multiclass log loss (probabilities clipped to [ε, 1 − ε]).
-pub fn log_loss<L: Label>(y_true: &[L], y_prob: &[Vec<f64>], labels: Option<&[L]>, sample_weight: Option<&[f64]>) -> Result<f64> {
+pub fn log_loss<L: Label>(
+    y_true: &[L],
+    y_prob: &[Vec<f64>],
+    labels: Option<&[L]>,
+    sample_weight: Option<&[f64]>,
+) -> Result<f64> {
     let ctx = multiclass_ctx(y_true, y_prob, labels, sample_weight)?;
     let eps = f64::EPSILON;
-    let losses: Vec<f64> = ctx.true_idx.iter().zip(y_prob).map(|(&t, r)| -r[t].clamp(eps, 1.0 - eps).ln()).collect();
+    let losses: Vec<f64> = ctx
+        .true_idx
+        .iter()
+        .zip(y_prob)
+        .map(|(&t, r)| -r[t].clamp(eps, 1.0 - eps).ln())
+        .collect();
     Ok(weighted_mean(&losses, &ctx.w))
 }
 
 /// Multiclass Brier score (squared error against the one-hot truth, summed over classes).
-pub fn brier_score<L: Label>(y_true: &[L], y_prob: &[Vec<f64>], labels: Option<&[L]>, sample_weight: Option<&[f64]>) -> Result<f64> {
+pub fn brier_score<L: Label>(
+    y_true: &[L],
+    y_prob: &[Vec<f64>],
+    labels: Option<&[L]>,
+    sample_weight: Option<&[f64]>,
+) -> Result<f64> {
     let ctx = multiclass_ctx(y_true, y_prob, labels, sample_weight)?;
     let err: Vec<f64> = ctx
         .true_idx
         .iter()
         .zip(y_prob)
-        .map(|(&t, r)| r.iter().enumerate().map(|(j, &p)| (p - f64::from(u8::from(j == t))).powi(2)).sum())
+        .map(|(&t, r)| {
+            r.iter()
+                .enumerate()
+                .map(|(j, &p)| (p - f64::from(u8::from(j == t))).powi(2))
+                .sum()
+        })
         .collect();
     Ok(weighted_mean(&err, &ctx.w))
 }
@@ -854,11 +1056,15 @@ pub fn top_k_accuracy<L: Label>(
 ) -> Result<f64> {
     let ctx = multiclass_ctx(y_true, y_prob, labels, sample_weight)?;
     if ctx.kind != Kind::Multiclass {
-        return unsupported("top_k_accuracy needs a multiclass target with one probability column per class.");
+        return unsupported(
+            "top_k_accuracy needs a multiclass target with one probability column per class.",
+        );
     }
     let n_classes = ctx.labels.len();
     if !(1..=n_classes).contains(&k) {
-        return invalid(format!("k must be an integer between 1 and the number of classes ({n_classes})."));
+        return invalid(format!(
+            "k must be an integer between 1 and the number of classes ({n_classes})."
+        ));
     }
     let hit: Vec<f64> = ctx
         .true_idx
@@ -880,15 +1086,24 @@ pub mod multilabel {
         crate::util::same_len(t.len(), p.len(), "y_true and y_pred")?;
         let k = t[0].len();
         if t.iter().chain(p).any(|r| r.len() != k) {
-            return invalid("Every row of a multilabel indicator matrix must have one column per label.");
+            return invalid(
+                "Every row of a multilabel indicator matrix must have one column per label.",
+            );
         }
         Ok(k)
     }
 
     fn counts(t: &[Vec<bool>], p: &[Vec<bool>], w: &[f64], k: usize) -> Counts {
-        let mut c = Counts { tp: vec![0.0; k], fp: vec![0.0; k], fn_: vec![0.0; k], tn: vec![0.0; k], support: vec![0.0; k] };
+        let mut c = Counts {
+            tp: vec![0.0; k],
+            fp: vec![0.0; k],
+            fn_: vec![0.0; k],
+            tn: vec![0.0; k],
+            support: vec![0.0; k],
+        };
         for j in 0..k {
-            let (mut tp, mut fp, mut fn_, mut tn) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+            let (mut tp, mut fp, mut fn_, mut tn) =
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new());
             for i in 0..t.len() {
                 let (a, b) = (t[i][j], p[i][j]);
                 tp.push(f64::from(u8::from(a && b)) * w[i]);
@@ -905,7 +1120,14 @@ pub mod multilabel {
         c
     }
 
-    fn averaged(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision, f: &CountFn) -> Result<Score> {
+    fn averaged(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+        f: &CountFn,
+    ) -> Result<Score> {
         let k = check(t, p)?;
         let w = weights(w, t.len())?;
         let avg = resolve_average(Kind::Multilabel, average, k)?;
@@ -931,25 +1153,68 @@ pub mod multilabel {
         Ok(combine(avg, &counts(t, p, &w, k), f, zd, None, np_sum(&w)))
     }
 
-    pub fn precision(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn precision(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_precision)
     }
-    pub fn recall(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn recall(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_recall)
     }
-    pub fn f1(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn f1(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_fbeta(1.0))
     }
-    pub fn fbeta(t: &[Vec<bool>], p: &[Vec<bool>], beta: f64, average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn fbeta(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        beta: f64,
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_fbeta(beta))
     }
-    pub fn jaccard(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn jaccard(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_jaccard)
     }
-    pub fn specificity(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn specificity(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_specificity)
     }
-    pub fn npv(t: &[Vec<bool>], p: &[Vec<bool>], average: Average, w: Option<&[f64]>, zd: ZeroDivision) -> Result<Score> {
+    pub fn npv(
+        t: &[Vec<bool>],
+        p: &[Vec<bool>],
+        average: Average,
+        w: Option<&[f64]>,
+        zd: ZeroDivision,
+    ) -> Result<Score> {
         averaged(t, p, average, w, zd, &f_npv)
     }
 
@@ -957,7 +1222,11 @@ pub mod multilabel {
     pub fn accuracy(t: &[Vec<bool>], p: &[Vec<bool>], w: Option<&[f64]>) -> Result<f64> {
         check(t, p)?;
         let w = weights(w, t.len())?;
-        let c: Vec<f64> = t.iter().zip(p).map(|(a, b)| f64::from(u8::from(a == b))).collect();
+        let c: Vec<f64> = t
+            .iter()
+            .zip(p)
+            .map(|(a, b)| f64::from(u8::from(a == b)))
+            .collect();
         Ok(weighted_mean(&c, &w))
     }
 
@@ -965,11 +1234,21 @@ pub mod multilabel {
     pub fn hamming_loss(t: &[Vec<bool>], p: &[Vec<bool>], w: Option<&[f64]>) -> Result<f64> {
         let k = check(t, p)?;
         let w = weights(w, t.len())?;
-        let wrong: Vec<f64> = t.iter().zip(p).map(|(a, b)| a.iter().zip(b).filter(|(x, y)| x != y).count() as f64 / k as f64).collect();
+        let wrong: Vec<f64> = t
+            .iter()
+            .zip(p)
+            .map(|(a, b)| a.iter().zip(b).filter(|(x, y)| x != y).count() as f64 / k as f64)
+            .collect();
         Ok(weighted_mean(&wrong, &w))
     }
 
-    fn per_label(t: &[Vec<bool>], prob: &[Vec<f64>], average: Average, w: Option<&[f64]>, f: fn(&[f64], &[f64], &[f64]) -> Result<f64>) -> Result<Score> {
+    fn per_label(
+        t: &[Vec<bool>],
+        prob: &[Vec<f64>],
+        average: Average,
+        w: Option<&[f64]>,
+        f: fn(&[f64], &[f64], &[f64]) -> Result<f64>,
+    ) -> Result<Score> {
         if t.is_empty() {
             return invalid("y_true is empty. Provide at least one example.");
         }
@@ -977,7 +1256,9 @@ pub mod multilabel {
         check_rows(prob, t.len(), k, false)?;
         let w = weights(w, t.len())?;
         let avg = resolve_average(Kind::Multilabel, average, k)?;
-        let y: Vec<Vec<f64>> = (0..k).map(|j| t.iter().map(|r| f64::from(u8::from(r[j]))).collect()).collect();
+        let y: Vec<Vec<f64>> = (0..k)
+            .map(|j| t.iter().map(|r| f64::from(u8::from(r[j]))).collect())
+            .collect();
         if avg == Average::Micro {
             let (mut yy, mut ss, mut ww) = (Vec::new(), Vec::new(), Vec::new());
             for i in 0..t.len() {
@@ -1005,12 +1286,22 @@ pub mod multilabel {
     }
 
     /// Per-label ROC AUC of independent label probabilities.
-    pub fn roc_auc(t: &[Vec<bool>], prob: &[Vec<f64>], average: Average, w: Option<&[f64]>) -> Result<Score> {
+    pub fn roc_auc(
+        t: &[Vec<bool>],
+        prob: &[Vec<f64>],
+        average: Average,
+        w: Option<&[f64]>,
+    ) -> Result<Score> {
         per_label(t, prob, average, w, auc_or_err)
     }
 
     /// Per-label average precision.
-    pub fn average_precision(t: &[Vec<bool>], prob: &[Vec<f64>], average: Average, w: Option<&[f64]>) -> Result<Score> {
+    pub fn average_precision(
+        t: &[Vec<bool>],
+        prob: &[Vec<f64>],
+        average: Average,
+        w: Option<&[f64]>,
+    ) -> Result<Score> {
         per_label(t, prob, average, w, ap_or_err)
     }
 }

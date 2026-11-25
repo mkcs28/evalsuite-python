@@ -5,7 +5,11 @@ use evalsuite::spice::spice;
 use serde_json::Value;
 
 fn tuples(v: &Value) -> Vec<Vec<Vec<String>>> {
-    v.as_array().unwrap().iter().map(|img| img.as_array().unwrap().iter().map(common::strs).collect()).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|img| img.as_array().unwrap().iter().map(common::strs).collect())
+        .collect()
 }
 
 fn syn(w: &str) -> Vec<String> {
@@ -20,7 +24,8 @@ fn syn(w: &str) -> Vec<String> {
 #[test]
 fn spice_parity() {
     let (n, _) = check("spice", 1e-12, |f, a| {
-        let s: Option<&dyn Fn(&str) -> Vec<String>> = if a["syn"] == true { Some(&syn) } else { None };
+        let s: Option<evalsuite::spice::Synonyms> =
+            if a["syn"] == true { Some(&syn) } else { None };
         match spice(&tuples(&a["refs"]), &tuples(&a["cands"]), s) {
             Err(e) => Got::Err(e.to_string()),
             Ok(r) => match f {
