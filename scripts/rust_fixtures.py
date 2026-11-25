@@ -624,6 +624,43 @@ def structured(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- QA and reasoning ----------------------------------------------------------------------------------
+_ANS = ["Paris", "paris.", "The Eiffel Tower", "eiffel  tower!", "an apple", "Apple", "", "Ünïcode Straße", "ünïcode strasse",
+        "42", "forty two", "the the", "A", "B) b", "Café-au-lait", "café au lait", "1,000", "1000"]
+_REASON = ["So the answer is #### 1,234.00", "We get 3 apples and then $12.50 total", "\\boxed{\\frac{1}{2}} done", "\\fbox{ 7 }",
+           "Answer: (C)", "I think B, not A.", "options A) and (D)", "nothing here", "line one\n\nfinal line  \n", "#### ",
+           "The result is -7.0", "x\r\ny z", "ABC is (E)", "E.", "x \\boxed{a{b}c} y \\boxed{d", "answer:J", "-$3,000.000"]
+
+
+@group("qa")
+def qa(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in _ANS + _REASON:
+        out.append(case("normalize_answer", lambda t=t: [ord(c) for c in es.normalize_answer(t)], text=t))
+    for _ in range(80):
+        n = int(rng.integers(1, 6))
+        preds = [_ANS[int(i)] for i in rng.integers(0, len(_ANS), n)]
+        refs = [[_ANS[int(i)] for i in rng.integers(0, len(_ANS), int(rng.integers(1, 3)))] for _ in range(n)]
+        for norm in (True, False):
+            out.append(case("exact_match", lambda r=refs, p=preds, nm=norm: es.exact_match(r, p, normalize=nm, average=None), references=refs, predictions=preds, normalize=norm))
+            out.append(case("token_f1", lambda r=refs, p=preds, nm=norm: es.token_f1(r, p, normalize=nm, average=None), references=refs, predictions=preds, normalize=norm))
+            samples = [[_ANS[int(i)] for i in rng.integers(0, len(_ANS), int(rng.integers(1, 6)))] for _ in range(n)]
+            out.append(case("majority_vote_accuracy", lambda r=refs, s=samples, nm=norm: es.majority_vote_accuracy(r, s, normalize=nm, average=None), references=refs, samples=samples, normalize=norm))
+        ns = rng.integers(1, 40, n).tolist()
+        cs = [int(rng.integers(0, x + 1)) for x in ns]
+        for k in (1, 5, 10):
+            out.append(case("pass_at_k", lambda ns=ns, cs=cs, k=k: es.pass_at_k(ns, cs, k=k, average=None), n_samples=ns, n_correct=cs, k=k))
+        for style in ("gsm8k", "boxed", "choice", "last_line"):
+            golds = [_REASON[int(i)] if rng.random() < 0.5 else ["1234", "12.50", "-7", "C", "\\boxed{7}", "E", "final line"][int(rng.integers(0, 7))] for i in rng.integers(0, len(_REASON), n)]
+            outs = [_REASON[int(i)] for i in rng.integers(0, len(_REASON), n)]
+            out.append(case("benchmark_accuracy", lambda g=golds, o=outs, s=style: es.benchmark_accuracy(g, o, style=s, average=None), references=golds, outputs=outs, style=style))
+    from evalsuite.text.reasoning import extract_answer
+    for t in _REASON + _ANS:
+        for style in ("gsm8k", "boxed", "choice", "last_line"):
+            out.append(case("extract_answer", lambda t=t, s=style: (lambda a: [-1] if a is None else [ord(c) for c in a])(extract_answer(t, style=s)), text=t, style=style))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

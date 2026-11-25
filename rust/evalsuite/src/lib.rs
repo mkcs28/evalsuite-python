@@ -28,6 +28,7 @@ pub mod error;
 pub mod generation;
 pub mod json_schema;
 pub mod labels;
+pub mod qa;
 pub mod regression;
 pub mod retrieval;
 pub mod segmentation;

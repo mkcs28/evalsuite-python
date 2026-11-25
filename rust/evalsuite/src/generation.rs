@@ -129,7 +129,7 @@ impl Tokenize<'_> {
     }
 }
 
-fn check<R: AsRef<str>, P: AsRef<str>>(refs: &[Vec<R>], preds: &[P]) -> Result<()> {
+pub(crate) fn check<R: AsRef<str>, P: AsRef<str>>(refs: &[Vec<R>], preds: &[P]) -> Result<()> {
     if preds.is_empty() {
         return invalid("predictions is empty. Provide at least one example.");
     }
