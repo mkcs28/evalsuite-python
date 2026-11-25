@@ -1,0 +1,3 @@
+useDynLib(evalsuite, .registration = TRUE)
+export(es_metric, es_metrics, es_version)
+importFrom(jsonlite, toJSON, fromJSON)

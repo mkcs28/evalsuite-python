@@ -29,6 +29,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod agents;
+pub mod bridge;
 pub mod calibration;
 pub mod classification;
 pub mod clinical;

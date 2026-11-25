@@ -1,0 +1,11 @@
+# Builds the static EvalSuite C library from the Rust workspace (or uses EVALSUITE_RUST_DIR) and links it.
+RUST_DIR = $(or $(EVALSUITE_RUST_DIR),../../../rust)
+PKG_CPPFLAGS = -I$(RUST_DIR)/evalsuite-capi/include
+PKG_LIBS = $(RUST_DIR)/target/release/libevalsuite_c.a -lpthread -ldl -lm
+
+$(SHLIB): rustlib
+
+rustlib:
+	cd $(RUST_DIR) && cargo build --release -p evalsuite-capi
+
+.PHONY: rustlib

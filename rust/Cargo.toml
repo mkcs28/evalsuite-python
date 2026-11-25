@@ -1,5 +1,5 @@
 [workspace]
-members = ["evalsuite-core", "evalsuite", "evalsuite-cli", "evalsuite-py"]
+members = ["evalsuite-core", "evalsuite", "evalsuite-cli", "evalsuite-py", "evalsuite-wasm", "evalsuite-capi"]
 resolver = "2"
 
 [workspace.package]
