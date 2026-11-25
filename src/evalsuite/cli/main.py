@@ -311,6 +311,33 @@ def cmd_text(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_leaderboard(args: argparse.Namespace) -> int:
+    import evalsuite as es
+
+    runs = (
+        {k: v[0] for k, v in pairs(args.run, "--run").items()}
+        if args.run
+        else {os.path.splitext(os.path.basename(f))[0]: f for f in args.files}
+    )
+    if not runs:
+        raise CLIError("Give each model's outputs: files (named after the file) or --run NAME=FILE.")
+    corpus = None
+    if args.train_corpus:
+        with open(args.train_corpus, encoding="utf-8") as fh:
+            corpus = fh.read().split("\n\n")
+    lb = es.leaderboard(
+        runs,
+        scorer=args.scorer,
+        references=args.references,
+        level=args.level,
+        alpha=args.alpha,
+        train_corpus=corpus,
+        random_state=args.seed,
+    )
+    emit(lb, args)
+    return 0
+
+
 def _missing(v: Any) -> bool:
     return v is None or (isinstance(v, float) and v != v) or (isinstance(v, str) and not v.strip())
 
@@ -544,6 +571,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--normalize", choices=("true", "pred", "all"), help="confusion matrix normalisation")
     p.add_argument("--output", "-o", required=True, help="image file (.png, .pdf, .svg)")
     p.set_defaults(func=cmd_plot)
+
+    p = sub.add_parser(
+        "leaderboard",
+        help="rank LLMs from their JSONL outputs with confidence intervals, paired tests and data checks",
+    )
+    p.add_argument("files", nargs="*", help="one JSONL / JSON file per model (the model is named after the file)")
+    p.add_argument("--run", action="append", help="NAME=FILE (repeat; instead of positional files)")
+    p.add_argument("--references", help="JSONL with id and reference (when the runs do not carry them)")
+    p.add_argument(
+        "--scorer",
+        default="exact_match",
+        choices=["exact_match", "contains", "gsm8k", "boxed", "choice", "last_line", "numeric"],
+        help="how predictions are scored against references (records with 'correct' or 'score' are used as given)",
+    )
+    p.add_argument("--level", type=float, default=0.95, help="confidence level (default 0.95)")
+    p.add_argument("--alpha", type=float, default=0.05, help="significance level for rank groups (default 0.05)")
+    p.add_argument(
+        "--train-corpus", help="text file of training documents (blank-line separated) to check contamination"
+    )
+    p.add_argument("--seed", type=int, default=0, help="random seed for bootstrap intervals (default 0)")
+    add_output(p, digits=3)
+    p.set_defaults(func=cmd_leaderboard)
 
     p = sub.add_parser("metrics", help="list available metrics")
     p.add_argument("--category", choices=("classification", "regression", "clinical", "calibration"))

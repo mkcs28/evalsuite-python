@@ -63,6 +63,7 @@ from .core.exceptions import (
 )
 from .core.registry import MetricInfo, list_metrics, metric_info
 from .core.result import EvaluationResult, MetricResult
+from .harness import Leaderboard, leaderboard
 from .llmsys import *  # noqa: F403  (v0.5.0 LLM-systems functions, listed in llmsys.__all__)
 from .llmsys import __all__ as _llmsys_all
 from .regression import (
@@ -230,6 +231,8 @@ __all__ = [
     "cohen_kappa",
     "confusion_matrix",
     "evaluate",
+    "leaderboard",
+    "Leaderboard",
     "explained_variance",
     "f1",
     "fbeta",
