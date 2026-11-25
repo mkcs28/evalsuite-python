@@ -24,6 +24,7 @@ pub mod calibration;
 pub mod classification;
 pub mod clinical;
 pub mod detection;
+pub mod efficiency;
 pub mod error;
 pub mod factuality;
 pub mod generation;

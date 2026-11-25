@@ -819,6 +819,59 @@ def spice_group(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- efficiency ----------------------------------------------------------------------------------------
+def _p(key: str) -> Callable[[Any], Any]:
+    def get(r: Any) -> Any:
+        if key == "value":
+            return r.value
+        node = r.params
+        for part in key.split("/"):
+            node = node[part]
+        return node
+    return get
+
+
+@group("efficiency")
+def efficiency(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for _ in range(80):
+        n = int(rng.integers(1, 30))
+        st = np.sort(rng.random(n) * 10).round(3)
+        ft = (st + rng.exponential(0.3, n)).round(3)
+        et = (ft + rng.exponential(2, n)).round(3)
+        if rng.random() < 0.05:
+            et[0] = st[0] - 1
+        toks = rng.integers(0, 50, n).astype(float)
+        A = dict(st=st.tolist(), ft=ft.tolist(), et=et.tolist(), toks=toks.tolist())
+        for key in ("value", "p50", "p99", "std"):
+            out.append(case("time_to_first_token." + key, lambda key=key: _p(key)(es.time_to_first_token(st, ft)), **A))
+            out.append(case("time_per_output_token." + key, lambda key=key: _p(key)(es.time_per_output_token(ft, et, toks)), **A))
+        for q in (50, 95, 99.9, 0, 100):
+            out.append(case("latency_percentiles", lambda q=q: es.latency_percentiles(et - st, percentile=q), **A, q=q))
+        for key in ("value", "per_request_tokens_per_second", "window_s"):
+            out.append(case("throughput." + key, lambda key=key: _p(key)(es.throughput(toks, st, et)), **A))
+        inp = rng.integers(0, 500, n).astype(float)
+        cached = np.floor(inp * rng.random(n))
+        A2 = dict(inp=inp.tolist(), toks=toks.tolist(), cached=cached.tolist())
+        for key in ("value", "input/p90", "total_output"):
+            out.append(case("token_usage." + key.replace("/", "_"), lambda key=key: _p(key)(es.token_usage(inp, toks)), **A2))
+        for key in ("value", "total_cost", "cost_per_1k_tokens"):
+            out.append(case("inference_cost." + key, lambda key=key: _p(key)(es.inference_cost(inp, toks, input_price=3.0, output_price=15.0, cached_tokens=cached, cached_price=0.3)), **A2))
+            out.append(case("inference_cost.nocache." + key, lambda key=key: _p(key)(es.inference_cost(inp, toks, input_price=3.0, output_price=15.0)), **A2))
+        gpu, mem = rng.random(n).round(3).tolist(), (rng.random(n) * 80).round(2).tolist()
+        out.append(case("resource_utilization", lambda g=gpu, m=mem: es.resource_utilization({"gpu_util": g, "GPU_Memory": m}), gpu=gpu, mem=mem))
+        out.append(case("resource_utilization.p95", lambda g=gpu, m=mem: es.resource_utilization({"gpu_util": g, "GPU_Memory": m}).params["series"]["gpu_util"]["p95"], gpu=gpu, mem=mem))
+        pw = (rng.random(n) * 300).round(1).tolist()
+        nr = int(rng.integers(1, 20))
+        out.append(case("energy_per_request", lambda pw=pw, nr=nr: es.energy_per_request(pw, interval_s=0.5, n_requests=nr), power=pw, n=nr))
+        out.append(case("requests_per_second", lambda: es.requests_per_second(et), **A))
+        out.append(case("requests_per_second.start", lambda: es.requests_per_second(et, start_time=0.0), **A))
+        ok = [bool(x) for x in rng.random(n) < 0.97]
+        for key in ("value", "error_budget_remaining", "ci_low"):
+            out.append(case("availability." + key, lambda ok=ok, key=key: _p(key)(es.availability(ok, slo=0.99)), ok=ok))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
