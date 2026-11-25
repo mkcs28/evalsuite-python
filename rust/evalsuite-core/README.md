@@ -5,6 +5,7 @@ BLEU/chrF/ROUGE n-gram statistics, longest common subsequence, METEOR alignment,
 bootstrap resample counting. Every kernel is tested to give exactly the result of EvalSuite's reference Python
 implementation (and, through it, of sacreBLEU, rouge-score, NLTK and pycocotools).
 
-Most users want the Python package: `pip install evalsuite-python`.
+Most users want the Python package (`pip install evalsuite-python`) or the pure-Rust metrics crate
+[`evalsuite`](https://crates.io/crates/evalsuite), which builds on these kernels.
 
 Licensed under either of MIT or Apache-2.0, at your option.

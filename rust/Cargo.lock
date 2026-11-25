@@ -65,7 +65,7 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "evalsuite"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "evalsuite-core",
  "fancy-regex",
@@ -78,14 +78,14 @@ dependencies = [
 
 [[package]]
 name = "evalsuite-core"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "evalsuite-py"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "evalsuite-core",
  "pyo3",

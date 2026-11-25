@@ -1,0 +1,74 @@
+# Publish the Rust crates to crates.io: evalsuite-core first, then evalsuite (which depends on it).
+#
+# Runs when a version tag is pushed (git tag v0.8.0 && git push origin v0.8.0, or a release created in the GitHub
+# UI with a new tag), or by hand (Actions -> Crates -> Run workflow). Needs a crates.io API token with the
+# "publish-new" and "publish-update" scopes stored as the repository secret CARGO_REGISTRY_TOKEN (Settings ->
+# Secrets and variables -> Actions). The job uses the "crates-io" environment, so you can require an approval
+# before anything is uploaded (Settings -> Environments -> crates-io -> Required reviewers).
+#
+# A crate version that is already on crates.io is skipped, so re-running the workflow is safe.
+name: Crates
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crates-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+      - name: Tag matches the crate version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          crate_version=$(python3 -c "import re;print(re.search(r'^version = \"(.+)\"', open('rust/Cargo.toml').read(), re.M).group(1))")
+          if [ "v$crate_version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match rust/Cargo.toml version $crate_version."
+            exit 1
+          fi
+      - run: cargo fmt --manifest-path rust/Cargo.toml --all --check
+      - run: cargo clippy --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite --all-targets -- -D warnings
+      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite --release
+      - name: Package (what crates.io will receive)
+        run: |
+          cargo package --manifest-path rust/Cargo.toml -p evalsuite-core
+          cargo package --manifest-path rust/Cargo.toml -p evalsuite --list
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/evalsuite
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Publish evalsuite-core, then evalsuite
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::error::The CARGO_REGISTRY_TOKEN secret is not set."
+            exit 1
+          fi
+          version=$(python3 -c "import re;print(re.search(r'^version = \"(.+)\"', open('rust/Cargo.toml').read(), re.M).group(1))")
+          for crate in evalsuite-core evalsuite; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -A "evalsuite-release (github.com/mkcs28/evalsuite-python)" \
+              "https://crates.io/api/v1/crates/$crate/$version")
+            if [ "$status" = "200" ]; then
+              echo "$crate $version is already on crates.io; skipping."
+              continue
+            fi
+            cargo publish --manifest-path rust/Cargo.toml -p "$crate"
+          done

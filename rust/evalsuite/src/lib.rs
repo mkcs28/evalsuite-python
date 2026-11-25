@@ -2,7 +2,7 @@
 //!
 //! Evaluation metrics and statistics for machine learning, NLP, computer vision, clinical prediction models
 //! and LLM systems, in pure Rust. This is the Rust edition of the
-//! [EvalSuite](https://pypi.org/project/evalsuite/) Python package: the same definitions, checked against the
+//! [EvalSuite](https://pypi.org/project/evalsuite-python/) Python package: the same definitions, checked against the
 //! Python implementation (which itself is checked against scikit-learn, SciPy, statsmodels, sacreBLEU,
 //! pycocotools and the other reference libraries).
 //!
@@ -16,6 +16,7 @@
 //! let rmse = regression::rmse(&[3.0, -0.5, 2.0, 7.0], &[2.5, 0.0, 2.0, 8.0], None).unwrap();
 //! assert!((rmse - 0.6123724356957945).abs() < 1e-15);
 //! ```
+#![cfg_attr(doctest, doc = include_str!("../README.md"))]
 #![forbid(unsafe_code)]
 // Reference constants are kept with the digits of their published sources; index loops mirror the
 // reference formulas.
