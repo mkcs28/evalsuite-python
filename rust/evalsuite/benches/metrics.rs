@@ -81,7 +81,7 @@ fn statistics(c: &mut Criterion) {
         ..Default::default()
     };
     g.bench_function("bootstrap_ci_mae/10000x2000", |b| {
-        b.iter(|| stats::bootstrap_ci(x.len(), &mae, &opts))
+        b.iter(|| stats::bootstrap_ci(x.len(), mae, &opts))
     });
     g.bench_function("mann_whitney/10000", |b| {
         b.iter(|| {
