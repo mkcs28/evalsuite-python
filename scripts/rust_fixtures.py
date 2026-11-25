@@ -914,6 +914,50 @@ def longcontext(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- multilingual --------------------------------------------------------------------------------------
+@group("multilingual")
+def multilingual(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    langs = ["en", "fr", "de", "sw", "zh"]
+    for _ in range(100):
+        n = int(rng.integers(2, 30))
+        t = [langs[int(i)] for i in rng.integers(0, 5, n)]
+        p = [x if rng.random() < 0.7 else langs[int(rng.integers(0, 5))] for x in t]
+        for key in ("value", "macro_f1"):
+            out.append(case("language_id_accuracy." + key, lambda key=key: _p(key)(es.language_id_accuracy(t, p)), t=t, p=p))
+        out.append(case("language_id_accuracy.recall", lambda: list(es.language_id_accuracy(t, p).params["recall"].values()), t=t, p=p))
+        d = int(rng.integers(2, 6))
+        S = rng.normal(size=(n, d))
+        T = (S + rng.normal(scale=float(rng.choice([0.3, 1.5])), size=(n, d))).round(3).tolist()
+        S = S.round(3).tolist()
+        for sc, k in (("cosine", 4), ("margin", 4), ("margin", 2)):
+            for key in ("value", "source_to_target", "mean_pair_cosine"):
+                out.append(case(f"bitext_mining_accuracy.{sc}{k}.{key}", lambda sc=sc, k=k, key=key: _p(key)(es.bitext_mining_accuracy(S, T, scoring=sc, k=k)), S=S, T=T, k=k))
+        m = int(rng.integers(2, 5))
+        sbl = {langs[j]: rng.random(int(rng.integers(1, 6))).round(3).tolist() for j in range(m)}
+        if rng.random() < 0.1:
+            sbl = {k: [-abs(x) for x in v] for k, v in sbl.items()}
+        for key in ("value", "max_gap", "std"):
+            out.append(case("language_parity." + key, lambda sbl=sbl, key=key: _p(key)(es.language_parity(sbl)), sbl=[[k, v] for k, v in sbl.items()]))
+        mc, cc = [bool(x) for x in rng.integers(0, 2, n)], [bool(x) for x in rng.integers(0, 2, n)]
+        for key in ("value", "absolute_drop", "flip_rate"):
+            out.append(case("code_switching_robustness." + key, lambda key=key: _p(key)(es.code_switching_robustness(mc, cc)), m=mc, c=cc))
+        sc_ = rng.integers(0, 101, n).astype(float).tolist()
+        ra = [f"r{int(i)}" for i in rng.integers(0, 4, n)]
+        sy = [f"s{int(i)}" for i in rng.integers(0, 3, n)]
+        out.append(case("direct_assessment", lambda: es.direct_assessment(sc_, ra, systems=sy), s=sc_, r=ra, y=sy))
+        out.append(case("direct_assessment.by_system_z", lambda: list(es.direct_assessment(sc_, ra, systems=sy).params["by_system_z"].values()), s=sc_, r=ra, y=sy))
+        rt = rng.integers(1, 6, n).astype(float).tolist()
+        out.append(case("cultural_appropriateness", lambda: es.cultural_appropriateness(rt, regions=sy), r=rt, g=sy))
+        out.append(case("cultural_appropriateness.region_gap", lambda: es.cultural_appropriateness(rt, regions=sy).params["region_gap"], r=rt, g=sy))
+        for key in ("value", "ci_low"):
+            out.append(case("language_consistency." + key, lambda key=key: _p(key)(es.language_consistency(t, p)), t=t, p=p))
+        ans = [{langs[j]: ["Paris", "paris ", " PARIS", "Lyon"][int(rng.integers(0, 4))] for j in range(int(rng.integers(2, 5)))} for _ in range(n)]
+        for key in ("value", "pairwise_agreement"):
+            out.append(case("cross_lingual_consistency." + key, lambda ans=ans, key=key: _p(key)(es.cross_lingual_consistency(ans)), ans=[list(a.values()) for a in ans]))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

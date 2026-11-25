@@ -112,3 +112,20 @@ pub(crate) fn same(a: usize, b: usize, na: &str, nb: &str) -> Result<()> {
     }
     Ok(())
 }
+
+/// Mean of `values` per group label, sorted by label.
+pub fn by_group<S: AsRef<str>>(values: &[f64], groups: &[S], name: &str) -> Result<Vec<(String, f64)>> {
+    if groups.len() != values.len() {
+        return invalid(format!("{name} must have one label per example ({}); got {}.", values.len(), groups.len()));
+    }
+    let mut labels: Vec<&str> = groups.iter().map(AsRef::as_ref).collect();
+    labels.sort_unstable();
+    labels.dedup();
+    Ok(labels
+        .into_iter()
+        .map(|l| {
+            let v: Vec<f64> = values.iter().zip(groups).filter(|(_, g)| g.as_ref() == l).map(|(v, _)| *v).collect();
+            (l.to_owned(), np_sum(&v) / v.len() as f64)
+        })
+        .collect())
+}
