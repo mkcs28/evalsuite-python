@@ -1,7 +1,8 @@
 # Build the WebAssembly package (rust/evalsuite-wasm) with wasm-pack, test it under Node, and publish it to npm as
-# `evalsuite` when a version tag is pushed. Needs an npm automation token stored as the repository secret
-# NPM_TOKEN; the job uses the "npm" environment so an approval can be required. An already-published version is
-# skipped. The same build (target "web") is uploaded as an artifact for the website's playground.
+# `evalsuite` when a version tag is pushed. Publishing uses npm trusted publishing (OIDC): no token is stored.
+# One-time setup on npmjs.com: package "evalsuite" -> Settings -> Trusted publishing -> GitHub Actions, with
+# owner mkcs28, repository evalsuite-python, workflow npm.yml and environment npm. The job uses the "npm"
+# environment so an approval can be required. An already-published version is skipped. The same build (target "web") is uploaded as an artifact for the website's playground.
 name: npm
 
 on:
@@ -44,6 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
@@ -57,11 +61,10 @@ jobs:
           wasm-pack build --release --target nodejs --out-dir pkg-node --out-name evalsuite
           wasm-pack build --release --target web --out-dir pkg-web --out-name evalsuite
           node scripts/package.cjs
+      - run: npm install -g npm@latest # trusted publishing needs npm 11.5.1 or later
       - name: Publish (skipped if this version exists)
         working-directory: rust/evalsuite-wasm/npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           v=$(node -p "require('./package.json').version")
           if npm view "evalsuite@$v" version >/dev/null 2>&1; then echo "evalsuite@$v already published"; exit 0; fi
-          npm publish --access public
+          npm publish --access public --provenance
