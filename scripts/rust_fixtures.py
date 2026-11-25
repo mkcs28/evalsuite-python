@@ -276,6 +276,31 @@ def uncertainty(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+@group("retrieval")
+def retrieval(rng: np.random.Generator) -> list[dict[str, Any]]:
+    out = []
+    for t in range(40):
+        nq = int(rng.integers(1, 40))
+        retrieved, relevant = [], []
+        for _ in range(nq):
+            retrieved.append([int(x) for x in rng.permutation(60)[: int(rng.integers(0, 25))]])
+            ids = [int(x) for x in rng.choice(60, int(rng.integers(1, 8)), replace=False)]
+            relevant.append({i: float(rng.choice([1, 2, 3, 0.5])) for i in ids} if t % 2 else ids)
+        rel_json = [{str(k): v for k, v in r.items()} if isinstance(r, dict) else {str(k): 1.0 for k in r} for r in relevant]
+        for k in (1, 5, 10):
+            for name in ("precision_at_k", "recall_at_k", "hit_rate_at_k"):
+                fn = getattr(es, name)
+                out.append(case(name, lambda fn=fn, k=k: fn(relevant, retrieved, k=k, average=None), relevant=rel_json, retrieved=retrieved, k=k))
+        for k in (None, 3, 10):
+            out.append(case("mrr", lambda k=k: es.mrr(relevant, retrieved, k=k, average=None), relevant=rel_json, retrieved=retrieved, k=k))
+            out.append(case("mean_average_precision_at_k", lambda k=k: es.mean_average_precision_at_k(relevant, retrieved, k=k, average=None),
+                            relevant=rel_json, retrieved=retrieved, k=k))
+            for gains in ("linear", "exponential"):
+                out.append(case("ndcg_at_k", lambda k=k, gains=gains: es.ndcg_at_k(relevant, retrieved, k=k, gains=gains, average=None),
+                                relevant=rel_json, retrieved=retrieved, k=k, gains=gains))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)
