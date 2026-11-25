@@ -466,36 +466,53 @@ pub fn chrf<R: AsRef<str>, P: AsRef<str>>(
         };
         line.chars().map(u32::from).collect()
     };
-    let mut total = vec![0.0f64; 3 * order];
+    // Sentence statistics in parallel; totals accumulated in sentence order (bit-identical to a serial loop).
+    use rayon::prelude::*;
+    let preds: Vec<&str> = predictions.iter().map(AsRef::as_ref).collect();
+    let refs: Vec<Vec<&str>> = references
+        .iter()
+        .map(|rs| rs.iter().map(AsRef::as_ref).collect())
+        .collect();
+    let mut starts = Vec::with_capacity(predictions.len());
     let mut k = predictions.len();
-    for (i, (p, rs)) in predictions.iter().zip(references).enumerate() {
-        let hc = chars_of(p.as_ref());
-        let h = evalsuite_core::text::ChrfText {
-            chars: &hc,
-            words: &ids[i],
-        };
-        let rcs: Vec<Vec<u32>> = rs.iter().map(|r| chars_of(r.as_ref())).collect();
-        let rws: Vec<usize> = (k..k + rs.len()).collect();
+    for rs in references {
+        starts.push(k);
         k += rs.len();
-        let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs
-            .iter()
-            .zip(&rws)
-            .map(|(c, &w)| evalsuite_core::text::ChrfText {
-                chars: c,
-                words: &ids[w],
-            })
-            .collect();
-        if let Some(best) = evalsuite_core::text::chrf_segment(
-            &h,
-            &rt,
-            o.char_order,
-            o.word_order,
-            o.beta,
-            o.eps_smoothing,
-        ) {
-            for (t, b) in total.iter_mut().zip(best) {
-                *t += b;
-            }
+    }
+    let best: Vec<Option<Vec<f64>>> = (0..predictions.len())
+        .into_par_iter()
+        .with_min_len(16)
+        .map(|i| {
+            let (p, rs) = (preds[i], &refs[i]);
+            let hc = chars_of(p);
+            let h = evalsuite_core::text::ChrfText {
+                chars: &hc,
+                words: &ids[i],
+            };
+            let rcs: Vec<Vec<u32>> = rs.iter().map(|r| chars_of(r)).collect();
+            let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs
+                .iter()
+                .enumerate()
+                .map(|(j, c)| evalsuite_core::text::ChrfText {
+                    chars: c,
+                    words: &ids[starts[i] + j],
+                })
+                .collect();
+            evalsuite_core::text::chrf_segment(
+                &h,
+                &rt,
+                o.char_order,
+                o.word_order,
+                o.beta,
+                o.eps_smoothing,
+            )
+            .map(|b| b.to_vec())
+        })
+        .collect();
+    let mut total = vec![0.0f64; 3 * order];
+    for b in best.into_iter().flatten() {
+        for (t, x) in total.iter_mut().zip(b) {
+            *t += x;
         }
     }
     Ok(evalsuite_core::text::chrf_f(
@@ -540,13 +557,22 @@ pub fn ter<R: AsRef<str>, P: AsRef<str>>(
                 .collect()
         })
         .collect();
+    // Sentences are independent: edit counts in parallel, sums in order (integer edits are exact).
+    use rayon::prelude::*;
+    let per: Vec<i64> = hi
+        .par_iter()
+        .zip(ri.par_iter())
+        .with_min_len(8)
+        .map(|(h, rs)| {
+            rs.iter()
+                .map(|r| evalsuite_core::ter::ter_edits(h, r))
+                .min()
+                .unwrap()
+        })
+        .collect();
     let (mut edits, mut ref_len) = (0.0f64, 0.0f64);
-    for (h, rs) in hi.iter().zip(&ri) {
-        edits += rs
-            .iter()
-            .map(|r| evalsuite_core::ter::ter_edits(h, r))
-            .min()
-            .unwrap() as f64;
+    for (e, rs) in per.iter().zip(&ri) {
+        edits += *e as f64;
         ref_len += rs.iter().map(Vec::len).sum::<usize>() as f64 / rs.len() as f64;
     }
     Ok(if ref_len > 0.0 {
