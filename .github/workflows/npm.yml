@@ -1,0 +1,67 @@
+# Build the WebAssembly package (rust/evalsuite-wasm) with wasm-pack, test it under Node, and publish it to npm as
+# `evalsuite` when a version tag is pushed. Needs an npm automation token stored as the repository secret
+# NPM_TOKEN; the job uses the "npm" environment so an approval can be required. An already-published version is
+# skipped. The same build (target "web") is uploaded as an artifact for the website's playground.
+name: npm
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown && rustup default stable
+      - run: cargo install wasm-pack --locked
+      - name: Build (Node and web targets)
+        working-directory: rust/evalsuite-wasm
+        run: |
+          wasm-pack build --release --target nodejs --out-dir pkg-node --out-name evalsuite
+          wasm-pack build --release --target web --out-dir pkg-web --out-name evalsuite
+      - name: Smoke test under Node
+        working-directory: rust/evalsuite-wasm
+        run: node test/smoke.cjs
+      - name: Package metadata
+        working-directory: rust/evalsuite-wasm
+        run: node scripts/package.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evalsuite-wasm
+          path: rust/evalsuite-wasm/pkg-web
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown && rustup default stable
+      - run: cargo install wasm-pack --locked
+      - working-directory: rust/evalsuite-wasm
+        run: |
+          wasm-pack build --release --target nodejs --out-dir pkg-node --out-name evalsuite
+          wasm-pack build --release --target web --out-dir pkg-web --out-name evalsuite
+          node scripts/package.cjs
+      - name: Publish (skipped if this version exists)
+        working-directory: rust/evalsuite-wasm/npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "evalsuite@$v" version >/dev/null 2>&1; then echo "evalsuite@$v already published"; exit 0; fi
+          npm publish --access public

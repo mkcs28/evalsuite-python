@@ -29,6 +29,7 @@
 #![warn(missing_debug_implementations)]
 
 pub mod agents;
+pub mod bridge;
 pub mod calibration;
 pub mod classification;
 pub mod clinical;
@@ -42,6 +43,7 @@ pub mod json_schema;
 pub mod judge;
 pub mod labels;
 pub mod longcontext;
+pub mod monitor;
 pub mod multilingual;
 #[cfg(feature = "python")]
 pub(crate) mod pyast;

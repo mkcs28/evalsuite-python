@@ -95,6 +95,31 @@ pub fn quantile(sorted: &[f64], q: f64) -> f64 {
     }
 }
 
+/// `np.percentile(x, q)` (linear) by selection instead of a full sort: O(n), same result as
+/// `percentile(&sorted(x), q)` for NaN-free input.
+pub fn percentile_unsorted(x: &[f64], q: f64) -> f64 {
+    let n = x.len();
+    if n == 1 {
+        return x[0];
+    }
+    let mut v = x.to_vec();
+    let pos = q / 100.0 * (n - 1) as f64;
+    let lo = pos.floor() as usize;
+    let frac = pos - lo as f64;
+    let (_, &mut a, rest) = v.select_nth_unstable_by(lo, |p, q| p.total_cmp(q));
+    let b = if lo + 1 < n {
+        rest.iter().copied().fold(f64::INFINITY, f64::min)
+    } else {
+        a
+    };
+    let d = b - a;
+    if frac >= 0.5 {
+        b - d * (1.0 - frac)
+    } else {
+        a + d * frac
+    }
+}
+
 /// Sorted copy of `x` (NaN-free input).
 pub fn sorted(x: &[f64]) -> Vec<f64> {
     let mut v = x.to_vec();

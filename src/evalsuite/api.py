@@ -138,8 +138,15 @@ def evaluate(
     pos_label: Any = None,
     sample_weight: Optional[ArrayLike] = None,
     zero_division: ZeroDivision = "warn",
+    ci: Any = "analytic",
+    level: float = 0.95,
+    baseline_pred: Optional[ArrayLike] = None,
+    baseline_prob: Optional[ArrayLike] = None,
+    n_resamples: int = 1000,
+    random_state: Optional[int] = 0,
 ) -> EvaluationResult:
-    """Evaluate predictions with a standard set of metrics (or the ``metrics`` you name).
+    """Evaluate predictions with a standard set of metrics (or the ``metrics`` you name), with confidence
+    intervals and, given a baseline, paired significance tests against it.
 
     The task is inferred when omitted: probabilities or integer/string labels mean classification, non-integer
     numbers mean regression. Inputs are validated once and shared intermediate results (the confusion matrix)
@@ -149,6 +156,15 @@ def evaluate(
     >>> r = es.evaluate([0, 1, 1, 0], [0, 1, 0, 0])
     >>> round(r["accuracy"], 2)
     0.75
+
+    Intervals (``level``, 95% by default) are in each metric's ``params`` (``ci_low``, ``ci_high``,
+    ``ci_method``) and in every summary and export. ``ci="analytic"`` (default, no extra cost) gives closed-form
+    intervals where a standard one exists: Wilson for accuracy / precision / recall / specificity / NPV, DeLong
+    for binary ROC AUC, Student-t for mean losses (Brier, log loss, MAE, MSE, RMSE, mean bias).
+    ``ci="bootstrap"`` gives paired percentile-bootstrap intervals for every metric (``n_resamples``, seeded by
+    ``random_state``); ``ci=False`` turns them off. ``baseline_pred`` / ``baseline_prob`` (e.g. the current model)
+    add the difference, its interval and a paired test per metric (McNemar for accuracy, DeLong for ROC AUC,
+    paired bootstrap otherwise; Holm-adjusted), as ``baseline_*`` params and ``result.comparison``.
     """
     if isinstance(y_true, (list, tuple)) and y_true and isinstance(y_true[0], dict):
         raise UnsupportedTaskError(
@@ -162,14 +178,30 @@ def evaluate(
         )
     task = task or _infer_task(y_true, y_prob)
     if task == "classification":
-        return _evaluate_classification(
+        result = _evaluate_classification(
             y_true, y_pred, y_prob, metrics, average, labels, pos_label, sample_weight, zero_division
         )
-    if task == "regression":
+    elif task == "regression":
         if y_pred is None:
             raise InputValidationError("Regression evaluation needs y_pred.")
-        return _evaluate_regression(y_true, y_pred, metrics, sample_weight)
-    raise UnsupportedTaskError("task must be 'classification' or 'regression' in EvalSuite 0.1.")
+        result = _evaluate_regression(y_true, y_pred, metrics, sample_weight)
+    else:
+        raise UnsupportedTaskError("task must be 'classification' or 'regression' in EvalSuite 0.1.")
+    from ._evalci import attach
+
+    return attach(
+        result,
+        y_true,
+        y_pred,
+        y_prob,
+        ci=ci,
+        level=level,
+        baseline_pred=baseline_pred,
+        baseline_prob=baseline_prob,
+        n_resamples=n_resamples,
+        random_state=random_state,
+        sample_weight=sample_weight,
+    )
 
 
 def _metadata(**extra: Any) -> dict[str, Any]:

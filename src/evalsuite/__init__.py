@@ -15,6 +15,7 @@ from .calibration import (
     hosmer_lemeshow,
     maximum_calibration_error,
 )
+from .cards import ReportCard, report_card
 from .classification import (
     accuracy,
     average_precision,
@@ -63,8 +64,10 @@ from .core.exceptions import (
 )
 from .core.registry import MetricInfo, list_metrics, metric_info
 from .core.result import EvaluationResult, MetricResult
+from .harness import Leaderboard, leaderboard
 from .llmsys import *  # noqa: F403  (v0.5.0 LLM-systems functions, listed in llmsys.__all__)
 from .llmsys import __all__ as _llmsys_all
+from .monitor import Alert, Monitor, ks_drift, population_stability_index
 from .regression import (
     adjusted_r2,
     explained_variance,
@@ -196,6 +199,8 @@ __all__ = [
     "ClassificationReport",
     "stats",
     "roc_auc_ci",
+    "report_card",
+    "ReportCard",
     "proportion_ci",
     "paired_bootstrap_test",
     "mcnemar_test",
@@ -230,6 +235,12 @@ __all__ = [
     "cohen_kappa",
     "confusion_matrix",
     "evaluate",
+    "leaderboard",
+    "Monitor",
+    "Alert",
+    "population_stability_index",
+    "ks_drift",
+    "Leaderboard",
     "explained_variance",
     "f1",
     "fbeta",

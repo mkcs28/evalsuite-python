@@ -75,30 +75,37 @@ pub fn tokenize_13a(line: &str) -> Vec<String> {
             .replace("&lt;", "<")
             .replace("&gt;", ">");
     }
-    let s = format!(" {s} ");
-    // 1. pad punctuation (apostrophe, comma, period and dash excluded)
-    let mut a = String::with_capacity(s.len() * 2);
+    // 1. pad punctuation (apostrophe, comma, period and dash excluded), with the leading/trailing space.
+    let mut a: Vec<char> = Vec::with_capacity(s.len() * 2 + 2);
+    a.push(' ');
     for c in s.chars() {
         if is_13a_punct(c) {
-            a.push(' ');
-            a.push(c);
-            a.push(' ');
+            a.extend([' ', c, ' ']);
         } else {
             a.push(c);
         }
     }
-    // 2–4: two-character rules applied left to right without overlap, as `re.sub`.
-    let rule = |text: &str,
-                first: &dyn Fn(char) -> bool,
-                second: &dyn Fn(char) -> bool,
-                out: &dyn Fn(char, char) -> String|
-     -> String {
-        let cs: Vec<char> = text.chars().collect();
-        let mut o = String::with_capacity(text.len() + 16);
+    a.push(' ');
+    // 2–4: two-character rules applied left to right without overlap, as `re.sub`; `pre` / `mid` / `post`
+    // say where the inserted spaces go.
+    fn rule(
+        cs: &[char],
+        first: impl Fn(char) -> bool,
+        second: impl Fn(char) -> bool,
+        pre: bool,
+        post: bool,
+    ) -> Vec<char> {
+        let mut o = Vec::with_capacity(cs.len() + 16);
         let mut i = 0;
         while i < cs.len() {
             if i + 1 < cs.len() && first(cs[i]) && second(cs[i + 1]) {
-                o.push_str(&out(cs[i], cs[i + 1]));
+                if pre {
+                    o.push(' ');
+                }
+                o.extend([cs[i], ' ', cs[i + 1]]);
+                if post {
+                    o.push(' ');
+                }
                 i += 2;
             } else {
                 o.push(cs[i]);
@@ -106,12 +113,14 @@ pub fn tokenize_13a(line: &str) -> Vec<String> {
             }
         }
         o
-    };
+    }
     let digit = |c: char| c.is_ascii_digit();
     let dotcomma = |c: char| c == '.' || c == ',';
-    let b = rule(&a, &|c| !digit(c), &dotcomma, &|x, y| format!("{x} {y} "));
-    let c = rule(&b, &dotcomma, &|c| !digit(c), &|x, y| format!(" {x} {y}"));
-    let d = rule(&c, &digit, &|c| c == '-', &|x, y| format!("{x} {y} "));
+    let b = rule(&a, |c| !digit(c), dotcomma, false, true);
+    let c = rule(&b, dotcomma, |c| !digit(c), true, false);
+    let d: String = rule(&c, digit, |c| c == '-', false, true)
+        .into_iter()
+        .collect();
     py_split(&d).into_iter().map(str::to_owned).collect()
 }
 
@@ -457,36 +466,53 @@ pub fn chrf<R: AsRef<str>, P: AsRef<str>>(
         };
         line.chars().map(u32::from).collect()
     };
-    let mut total = vec![0.0f64; 3 * order];
+    // Sentence statistics in parallel; totals accumulated in sentence order (bit-identical to a serial loop).
+    use rayon::prelude::*;
+    let preds: Vec<&str> = predictions.iter().map(AsRef::as_ref).collect();
+    let refs: Vec<Vec<&str>> = references
+        .iter()
+        .map(|rs| rs.iter().map(AsRef::as_ref).collect())
+        .collect();
+    let mut starts = Vec::with_capacity(predictions.len());
     let mut k = predictions.len();
-    for (i, (p, rs)) in predictions.iter().zip(references).enumerate() {
-        let hc = chars_of(p.as_ref());
-        let h = evalsuite_core::text::ChrfText {
-            chars: &hc,
-            words: &ids[i],
-        };
-        let rcs: Vec<Vec<u32>> = rs.iter().map(|r| chars_of(r.as_ref())).collect();
-        let rws: Vec<usize> = (k..k + rs.len()).collect();
+    for rs in references {
+        starts.push(k);
         k += rs.len();
-        let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs
-            .iter()
-            .zip(&rws)
-            .map(|(c, &w)| evalsuite_core::text::ChrfText {
-                chars: c,
-                words: &ids[w],
-            })
-            .collect();
-        if let Some(best) = evalsuite_core::text::chrf_segment(
-            &h,
-            &rt,
-            o.char_order,
-            o.word_order,
-            o.beta,
-            o.eps_smoothing,
-        ) {
-            for (t, b) in total.iter_mut().zip(best) {
-                *t += b;
-            }
+    }
+    let best: Vec<Option<Vec<f64>>> = (0..predictions.len())
+        .into_par_iter()
+        .with_min_len(16)
+        .map(|i| {
+            let (p, rs) = (preds[i], &refs[i]);
+            let hc = chars_of(p);
+            let h = evalsuite_core::text::ChrfText {
+                chars: &hc,
+                words: &ids[i],
+            };
+            let rcs: Vec<Vec<u32>> = rs.iter().map(|r| chars_of(r)).collect();
+            let rt: Vec<evalsuite_core::text::ChrfText<'_>> = rcs
+                .iter()
+                .enumerate()
+                .map(|(j, c)| evalsuite_core::text::ChrfText {
+                    chars: c,
+                    words: &ids[starts[i] + j],
+                })
+                .collect();
+            evalsuite_core::text::chrf_segment(
+                &h,
+                &rt,
+                o.char_order,
+                o.word_order,
+                o.beta,
+                o.eps_smoothing,
+            )
+            .map(|b| b.to_vec())
+        })
+        .collect();
+    let mut total = vec![0.0f64; 3 * order];
+    for b in best.into_iter().flatten() {
+        for (t, x) in total.iter_mut().zip(b) {
+            *t += x;
         }
     }
     Ok(evalsuite_core::text::chrf_f(
@@ -531,13 +557,22 @@ pub fn ter<R: AsRef<str>, P: AsRef<str>>(
                 .collect()
         })
         .collect();
+    // Sentences are independent: edit counts in parallel, sums in order (integer edits are exact).
+    use rayon::prelude::*;
+    let per: Vec<i64> = hi
+        .par_iter()
+        .zip(ri.par_iter())
+        .with_min_len(8)
+        .map(|(h, rs)| {
+            rs.iter()
+                .map(|r| evalsuite_core::ter::ter_edits(h, r))
+                .min()
+                .unwrap()
+        })
+        .collect();
     let (mut edits, mut ref_len) = (0.0f64, 0.0f64);
-    for (h, rs) in hi.iter().zip(&ri) {
-        edits += rs
-            .iter()
-            .map(|r| evalsuite_core::ter::ter_edits(h, r))
-            .min()
-            .unwrap() as f64;
+    for (e, rs) in per.iter().zip(&ri) {
+        edits += *e as f64;
         ref_len += rs.iter().map(Vec::len).sum::<usize>() as f64 / rs.len() as f64;
     }
     Ok(if ref_len > 0.0 {
