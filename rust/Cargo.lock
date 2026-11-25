@@ -319,7 +319,7 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "evalsuite"
-version = "0.8.0"
+version = "0.8.5"
 dependencies = [
  "criterion",
  "evalsuite-core",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "evalsuite-cli"
-version = "0.8.0"
+version = "0.8.5"
 dependencies = [
  "clap",
  "csv",
@@ -344,14 +344,14 @@ dependencies = [
 
 [[package]]
 name = "evalsuite-core"
-version = "0.8.0"
+version = "0.8.5"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "evalsuite-py"
-version = "0.8.0"
+version = "0.8.5"
 dependencies = [
  "evalsuite-core",
  "pyo3",

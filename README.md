@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (0.8.0).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
+> **Status: stable (0.8.5).** Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
 > **0.6 adds a compiled Rust core**: same API and identical results, with text metrics, COCO evaluation and
 > bootstrap resampling several times faster and multithreaded (prebuilt wheels for Linux, macOS and Windows).
 > **0.7.0** moves ROC AUC / average precision (and so `evaluate()`), the LLM-systems consistency metrics,
@@ -18,7 +18,8 @@ evaluation into one consistent, validated, documented framework.
 > **0.7.1** adds bootstrapped ROC AUC / AP (4–5× faster intervals), DeLong, QA exact match / F1,
 > Hausdorff / surface distances, calibration and the WEAT permutation test.
 > **0.8.0** adds a **full Rust edition on crates.io** ([`evalsuite`](https://crates.io/crates/evalsuite)): every
-> metric except `code_complexity`, checked case by case against this package.
+> metric, checked case by case against this package. **0.8.5** completes it (code complexity, CodeBLEU), adds
+> the `evalsuite` command-line tool (`cargo install evalsuite-cli`) and runs the retrieval metrics on Rust (3×).
 > **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
 > multilingual, code generation, long context and summarization, and inference efficiency and cost.
 
@@ -49,7 +50,8 @@ the default NumPy one, so interval endpoints and p-values differ slightly (stati
 
 ### Rust
 
-The same metrics are available as a pure-Rust crate, verified against this package on 36,054 recorded cases:
+The same metrics are available as a pure-Rust crate, verified against this package on 36,514 recorded cases,
+and as a standalone command (`cargo install evalsuite-cli`):
 
 ```toml
 [dependencies]
@@ -60,8 +62,12 @@ evalsuite = "0.8"
 let acc = evalsuite::classification::accuracy(&[1, 0, 1, 1], &[1, 0, 0, 1], None).unwrap(); // 0.75
 ```
 
-See [rust/evalsuite/README.md](rust/evalsuite/README.md) for the module list and the few documented
-differences.
+```bash
+evalsuite evaluate preds.csv --y-true label --y-pred pred --y-prob score
+```
+
+See [rust/evalsuite/README.md](rust/evalsuite/README.md) for the module list, performance and the few
+documented differences, and [rust/evalsuite-cli/README.md](rust/evalsuite-cli/README.md) for the command.
 
 ## Why EvalSuite
 
@@ -450,7 +456,7 @@ fallback; `tests/test_native.py` checks that the two give identical results. See
 ## Links
 
 - PyPI: https://pypi.org/project/evalsuite-python/
-- crates.io: https://crates.io/crates/evalsuite
+- crates.io: https://crates.io/crates/evalsuite (library), https://crates.io/crates/evalsuite-cli (command)
 - Website and documentation: https://evalsuite-nine.vercel.app
 - Website source: https://github.com/mkcs28/evalsuite
 

@@ -9,6 +9,9 @@ LLM systems. It is the Rust edition of [EvalSuite](https://github.com/mkcs28/eva
 evalsuite = "0.8"
 ```
 
+For the terminal there is also the `evalsuite` command (`cargo install evalsuite-cli`): classification,
+regression, diagnostic, calibration and text metrics straight from CSV, TSV or JSON files.
+
 ```rust
 use evalsuite::{classification, regression, retrieval};
 
@@ -25,7 +28,8 @@ assert_eq!(retrieval::mrr(&relevant, &ranked, None)?.mean, 0.75);
 ```
 
 No Python, no C, no `unsafe`. Dependencies: `rayon` (parallel resampling), `libm`, `regex` / `fancy-regex`,
-`serde_json` and `roxmltree`, plus `evalsuite-core`, the kernels shared with the Python package.
+`serde_json`, `roxmltree` and `rustpython-parser` (Python source analysis for the code metrics; the default
+`python` feature), plus `evalsuite-core`, the kernels shared with the Python package.
 
 ## What is in it
 
@@ -53,16 +57,19 @@ their 95 % Wilson interval, distributions with their percentiles.
 
 Every metric is checked against the Python package: `scripts/rust_fixtures.py` runs EvalSuite on randomised
 inputs (ties, empty groups, degenerate and invalid cases included) and stores the inputs with the results, and
-the crate's tests replay all 36,054 cases. Values agree to a relative tolerance of 1e-12 for most metrics and
-1e-9 for the iterative ones, and every input the Python package rejects is rejected here too. The fixtures live
+the crate's tests replay all 36,514 cases. Values agree to a relative tolerance of 1e-12 for most metrics and
+1e-9 for the iterative ones, and every input the Python package rejects is rejected here too. Property tests check the invariants on top
+(perfect predictions, bounds, symmetry, row-order and label-name invariance, p-value calibration under the null). The fixtures live
 in the repository (not in the published crate); run `cargo test -p evalsuite --release` there.
 
 ## Differences from the Python package
 
-- **Python-only parsing.** `code_complexity` (cyclomatic complexity, maintainability index) uses CPython's own
-  `ast` and `tokenize` and is not ported. `syntax_validity_rate` takes your checker, and `codebleu` computes the
-  n-gram and keyword-weighted n-gram parts itself while the syntax and data-flow match scores come from your
-  parser.
+- **Python source analysis** (`code_complexity`, `codebleu_python`, `python_syntax_ok`) parses with
+  `rustpython-parser` and tokenizes as Python 3.12's `tokenize`, with radon's and CodeBLEU's rules; results
+  match the Python package on Python 3.12+. Syntax newer than that parser supports counts as invalid, and
+  `python_syntax_ok` covers the common compile-time errors (`return` / `yield` / `await` outside a function,
+  `break` / `continue` outside a loop, module-level `nonlocal`), not every check `compile()` makes. For other
+  languages `codebleu` takes the syntax and data-flow scores from your parser.
 - **No bundled linguistic resources.** METEOR and ROUGE take an optional stemmer function, and SPICE an
   optional synonym function, instead of NLTK's Porter stemmer and WordNet.
 - **Random streams.** Bootstrap resampling uses the same seeded generator as the Python package's
@@ -79,6 +86,34 @@ in the repository (not in the published crate); run `cargo test -p evalsuite --r
   fails with a SciPy error).
 - The `evaluate()` pipeline, report objects and the metric registry are Python features and are not part of
   the crate.
+
+## Performance
+
+Medians from `cargo bench -p evalsuite` (Criterion) against the Python package 0.8.5 with its compiled core,
+on the same workloads and machine (2 vCPUs, Linux x86_64, Python 3.13, NumPy 2.5):
+
+| Workload | Rust | Python | Speed-up |
+| --- | ---: | ---: | ---: |
+| Accuracy, 100,000 / 1,000,000 labels | 0.033 / 0.73 ms | 0.69 / 7.9 ms | 21× / 10.8× |
+| Macro F1, 5 classes, 100,000 / 1,000,000 | 1.1 / 13.5 ms | 1.5 / 9.9 ms | 1.3× / 0.7× |
+| ROC AUC, 100,000 / 1,000,000 | 6.9 / 121 ms | 9.4 / 125 ms | 1.4× / 1.0× |
+| RMSE, 1,000,000 | 4.3 ms | 6.0 ms | 1.4× |
+| R², 1,000,000 | 8.3 ms | 9.5 ms | 1.2× |
+| Median absolute error, 1,000,000 | 8.5 ms | 17.5 ms | 2.1× |
+| BCa bootstrap of MAE, 10,000 obs × 2,000 resamples | 100 ms | 362 ms | 3.6× |
+| Mann–Whitney U, 10,000 | 0.68 ms | 0.83 ms | 1.2× |
+| Welch t-test, 10,000 | 0.064 ms | 0.105 ms | 1.6× |
+| BLEU, 1,000 sentences | 11.6 ms | 7.7 ms | 0.7× |
+| chrF, 1,000 sentences | 16.0 ms | 11.4 ms | 0.7× |
+| TER, 1,000 sentences | 205 ms | 128 ms | 0.6× |
+| ROUGE-L, 1,000 sentences | 5.2 ms | 5.0 ms | 1.0× |
+| NDCG@10, 10,000 queries | 4.7 ms | 71 ms | 15.3× |
+| MRR, 10,000 queries | 4.1 ms | 42 ms | 10.4× |
+| Dice, 512 × 512 | 2.2 ms | 4.5 ms | 2.0× |
+| HD95, 512 × 512 | 3.5 ms | 2.1 ms | 0.6× |
+
+Where the Python package is faster it already runs NumPy's SIMD loops, or the same compiled kernels with a
+tokenizer written in C.
 
 ## License
 

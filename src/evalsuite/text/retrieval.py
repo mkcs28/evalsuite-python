@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from .._native import PY_SUM_COMPENSATED, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
@@ -68,7 +69,10 @@ def _finish(
 
 
 def _need_relevant(q: list[tuple[Mapping[Any, float], list[Any]]], what: str) -> None:
-    empty = [i for i, (rel, _) in enumerate(q) if not rel]
+    _raise_empty([i for i, (rel, _) in enumerate(q) if not rel], what)
+
+
+def _raise_empty(empty: list[int], what: str) -> None:
     if empty:
         raise InputValidationError(
             f"{what} is undefined for queries without relevant documents (queries {empty[:5]}); "
@@ -87,14 +91,32 @@ def _need_relevant(q: list[tuple[Mapping[Any, float], list[Any]]], what: str) ->
     input_requirements=("relevant", "retrieved"),
     references=(_REF_MANNING,),
 )
+def _native_scores(
+    kind: str, relevant: Any, retrieved: Any, k: Optional[int], what: str = "", gains: str = "linear"
+) -> Optional[list[float]]:
+    """Per-query scores from the compiled core, which validates and looks up ids with Python's own dict / set
+    semantics and repeats the arithmetic below operation by operation (bit-identical); None without the core."""
+    c = core
+    if c is None:
+        return None
+    rel, ret = _seq(relevant, "relevant"), _seq(retrieved, "retrieved")
+    err, scores, empty = c.retrieval_scores(kind, rel, ret, k, gains == "exponential", PY_SUM_COMPENSATED)
+    if err is not None:
+        raise InputValidationError(err)
+    if what:
+        _raise_empty(empty, what)
+    scores_list: list[float] = scores
+    return scores_list
+
+
 @per_item
 def precision_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optional[str] = "mean") -> MetricResult:
     """Mean Precision@k over queries."""
     k = check_positive_int(k, "k")
-    q = _queries(relevant, retrieved)
-    return _finish(
-        "precision_at_k", f"Precision@{k}", [sum(d in rel for d in run[:k]) / k for rel, run in q], k, average
-    )
+    scores = _native_scores("precision", relevant, retrieved, k)
+    if scores is None:
+        scores = [sum(d in rel for d in run[:k]) / k for rel, run in _queries(relevant, retrieved)]
+    return _finish("precision_at_k", f"Precision@{k}", scores, k, average)
 
 
 @register(
@@ -111,11 +133,12 @@ def precision_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optio
 def recall_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optional[str] = "mean") -> MetricResult:
     """Mean Recall@k over queries (every query needs at least one relevant document)."""
     k = check_positive_int(k, "k")
-    q = _queries(relevant, retrieved)
-    _need_relevant(q, "Recall@k")
-    return _finish(
-        "recall_at_k", f"Recall@{k}", [sum(d in rel for d in run[:k]) / len(rel) for rel, run in q], k, average
-    )
+    scores = _native_scores("recall", relevant, retrieved, k, "Recall@k")
+    if scores is None:
+        q = _queries(relevant, retrieved)
+        _need_relevant(q, "Recall@k")
+        scores = [sum(d in rel for d in run[:k]) / len(rel) for rel, run in q]
+    return _finish("recall_at_k", f"Recall@{k}", scores, k, average)
 
 
 @register(
@@ -132,10 +155,10 @@ def recall_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optional
 def hit_rate_at_k(relevant: Any, retrieved: Any, *, k: int = 10, average: Optional[str] = "mean") -> MetricResult:
     """Hit rate@k (success@k)."""
     k = check_positive_int(k, "k")
-    q = _queries(relevant, retrieved)
-    return _finish(
-        "hit_rate_at_k", f"Hit rate@{k}", [float(any(d in rel for d in run[:k])) for rel, run in q], k, average
-    )
+    scores = _native_scores("hit", relevant, retrieved, k)
+    if scores is None:
+        scores = [float(any(d in rel for d in run[:k])) for rel, run in _queries(relevant, retrieved)]
+    return _finish("hit_rate_at_k", f"Hit rate@{k}", scores, k, average)
 
 
 @register(
@@ -155,6 +178,9 @@ def mrr(
 ) -> MetricResult:
     """Mean reciprocal rank, optionally only within the top ``k``."""
     k = _k(k)
+    native = _native_scores("mrr", relevant, retrieved, k)
+    if native is not None:
+        return _finish("mrr", "MRR" if k is None else f"MRR@{k}", native, k, average)
     scores = []
     for rel, run in _queries(relevant, retrieved):
         rr = 0.0
@@ -184,6 +210,9 @@ def mean_average_precision_at_k(
 ) -> MetricResult:
     """MAP (``k=None``) or MAP@k: only the top ``k`` documents count, the denominator stays |relevant|."""
     k = _k(k)
+    native = _native_scores("map", relevant, retrieved, k, "Average precision")
+    if native is not None:
+        return _finish("mean_average_precision_at_k", "MAP" if k is None else f"MAP@{k}", native, k, average)
     q = _queries(relevant, retrieved)
     _need_relevant(q, "Average precision")
     scores = []
@@ -222,6 +251,9 @@ def ndcg_at_k(
     k = _k(k)
     if gains not in ("linear", "exponential"):
         raise InputValidationError("gains must be 'linear' or 'exponential'.")
+    native = _native_scores("ndcg", relevant, retrieved, k, "NDCG", gains)
+    if native is not None:
+        return _finish("ndcg_at_k", "NDCG" if k is None else f"NDCG@{k}", native, k, average, gains=gains)
     q = _queries(relevant, retrieved)
     _need_relevant(q, "NDCG")
 

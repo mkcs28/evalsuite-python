@@ -1,4 +1,5 @@
-# Publish the Rust crates to crates.io: evalsuite-core first, then evalsuite (which depends on it).
+# Publish the Rust crates to crates.io in dependency order: evalsuite-core, evalsuite, then evalsuite-cli (the
+# `evalsuite` command).
 #
 # Runs when a version tag is pushed (git tag v0.8.0 && git push origin v0.8.0, or a release created in the GitHub
 # UI with a new tag), or by hand (Actions -> Crates -> Run workflow). Needs a crates.io API token with the
@@ -37,8 +38,8 @@ jobs:
             exit 1
           fi
       - run: cargo fmt --manifest-path rust/Cargo.toml --all --check
-      - run: cargo clippy --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite --all-targets -- -D warnings
-      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite --release
+      - run: cargo clippy --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite -p evalsuite-cli --all-targets -- -D warnings
+      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core -p evalsuite -p evalsuite-cli --release
       - name: Package (what crates.io will receive)
         run: |
           cargo package --manifest-path rust/Cargo.toml -p evalsuite-core
@@ -54,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install stable --profile minimal && rustup default stable
-      - name: Publish evalsuite-core, then evalsuite
+      - name: Publish evalsuite-core, evalsuite, then evalsuite-cli
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
@@ -63,7 +64,7 @@ jobs:
             exit 1
           fi
           version=$(python3 -c "import re;print(re.search(r'^version = \"(.+)\"', open('rust/Cargo.toml').read(), re.M).group(1))")
-          for crate in evalsuite-core evalsuite; do
+          for crate in evalsuite-core evalsuite evalsuite-cli; do
             status=$(curl -s -o /dev/null -w '%{http_code}' -A "evalsuite-release (github.com/mkcs28/evalsuite-python)" \
               "https://crates.io/api/v1/crates/$crate/$version")
             if [ "$status" = "200" ]; then

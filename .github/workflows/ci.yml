@@ -24,7 +24,7 @@ jobs:
       - run: cargo fmt --manifest-path rust/Cargo.toml --all --check
       - run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core
-      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite --release
+      - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite -p evalsuite-cli --release
 
   lint:
     runs-on: ubuntu-latest

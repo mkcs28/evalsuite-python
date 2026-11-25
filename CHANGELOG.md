@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-11-25
+
+The Rust edition is complete, gains a command-line tool, and the Python retrieval metrics run on it.
+
+### Added
+- **`code_complexity`, full CodeBLEU and a Python syntax check in the crate** (`code::code_complexity`,
+  `code::codebleu_python`, `code::python_syntax_ok`, `code::strip_python_comments`): Python source is parsed
+  with `rustpython-parser` into a CPython-shaped tree and tokenized as Python 3.12's `tokenize`, with radon's
+  complexity, Halstead and raw-line rules and CodeBLEU's sub-tree and data-flow matching. Every registered metric
+  of the Python package now has a Rust counterpart.
+- **`evalsuite-cli`** (`cargo install evalsuite-cli`): the `evalsuite` command evaluates CSV, TSV, JSON and
+  JSON-lines files (`evaluate` for classification or regression, `diagnostic`, `calibration`, `text`,
+  `metrics`) as text, JSON, CSV or Markdown, with the same numbers as the Python CLI.
+- **`clinical::diagnostic_report`** in the crate: the 2×2 table and every measure with its interval.
+- **Property tests** for the crate (invariants independent of the fixtures) and **Criterion benchmarks**
+  (`cargo bench -p evalsuite`); results in BENCHMARKS.md.
+- **Python retrieval metrics on Rust**: Precision, Recall and Hit rate @k, MRR, MAP and NDCG validate and look
+  up ids with Python's own dict and set semantics from Rust and repeat the arithmetic exactly (bit-identical,
+  checked by `tests/test_native.py` on mixed id types and graded judgements): 3–3.5× faster.
+
+### Changed
+- Faster crate kernels: label encoding in one hashed pass, unweighted accuracy without encoding (11–21× the
+  Python speed), selection instead of sorting for the median (2×), parallel BLEU tokenization.
+- The crate's parity fixtures cover 36,514 cases (460 new ones for Python source analysis); `crates.yml`
+  publishes `evalsuite-core`, `evalsuite` and `evalsuite-cli` together.
+
+### Fixed
+- `proportion_ci(method="wilson")` (Python and Rust) keeps the estimate inside the interval at 0 and n
+  successes: rounding gave an upper bound of 0.9999999999999999 at n of n (Rust: a lower bound of 3e-17 at 0).
+
+### Not moved to Rust
+- Regression metrics: NumPy already handles the arrays and most of the time is input validation that stays in
+  Python, so a Rust call would gain little.
+- Judge statistics (Bradley–Terry, Krippendorff's alpha) and other NumPy-vectorised groups: their results depend
+  on NumPy's SIMD `log` / `exp` and BLAS matrix products, which Rust cannot reproduce bit for bit on every CPU,
+  and the package's rule is that native results equal the Python ones exactly.
+
 ## [0.8.0] - 2026-11-25
 
 A full Rust edition of EvalSuite: the new [`evalsuite`](https://crates.io/crates/evalsuite) crate on crates.io.
