@@ -395,8 +395,8 @@ fn bootstrap_is_reproducible_and_brackets_the_estimate() {
         seed: 42,
         ..Default::default()
     };
-    let a = stats::bootstrap_ci(x.len(), &mean, &opts).unwrap();
-    let b = stats::bootstrap_ci(x.len(), &mean, &opts).unwrap();
+    let a = stats::bootstrap_ci(x.len(), mean, &opts).unwrap();
+    let b = stats::bootstrap_ci(x.len(), mean, &opts).unwrap();
     assert_eq!(a, b);
     assert!(a.low <= a.estimate && a.estimate <= a.high);
 }
