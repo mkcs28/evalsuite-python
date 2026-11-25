@@ -1006,6 +1006,60 @@ def robustness(rng: np.random.Generator) -> list[dict[str, Any]]:
     return out
 
 
+# ---- safety --------------------------------------------------------------------------------------------
+_PII_TEXTS = ["mail a.b@example.com now", "card 4111 1111 1111 1111 ok", "card 4111 1111 1111 1112 bad", "ssn 123-45-6789",
+              "ip 192.168.0.1 and 999.1.1.1", "call +1 555-123-4567", "(020) 7946 0958", "x1234-5678", "no pii here",
+              "v 1.2.3.4.5", "tel 555 1234", "4111-1111-1111-1111 and 555-123-4567", "SECRET token abc", "٤١١١ ١١١١"]
+
+
+@group("safety")
+def safety(rng: np.random.Generator) -> list[dict[str, Any]]:
+    from evalsuite.llmsys.safety import detect_pii
+    out = []
+    for t in _PII_TEXTS:
+        out.append(case("detect_pii", lambda t=t: [ord(c) for c in "|".join(k + ":" + "\x00".join(v) for k, v in detect_pii(t).items())] or [-1], text=t))
+    for _ in range(100):
+        n = int(rng.integers(2, 30))
+        h, hp, rf, sr = ([bool(x) for x in rng.integers(0, 2, n)] for _ in range(4))
+        cats = [["violence", "self", "crime"][int(i)] for i in rng.integers(0, 3, n)]
+        for key in ("value", "ci_high"):
+            out.append(case("harmful_response_rate." + key, lambda key=key: _p(key)(es.harmful_response_rate(h, harmful_prompt=hp, categories=cats)), h=h, hp=hp, c=cats))
+        out.append(case("harmful_response_rate.by_category", lambda: list(es.harmful_response_rate(h, harmful_prompt=hp, categories=cats).params["by_category"].values()), h=h, hp=hp, c=cats))
+        for key in ("value", "precision", "f1", "overall_refusal_rate"):
+            out.append(case("refusal_rate." + key, lambda key=key: _p(key)(es.refusal_rate(rf, should_refuse=sr)), r=rf, s=sr))
+        out.append(case("over_refusal_rate", lambda: es.over_refusal_rate(rf, sr), r=rf, s=sr))
+        out.append(case("attack_success_rate.by", lambda: list(es.attack_success_rate(h, attack_types=cats).params["by_attack_type"].values()), h=h, c=cats))
+        att = [[bool(x) for x in rng.random(int(rng.integers(1, 6))) < 0.2] for _ in range(n)]
+        for k in (None, 1, 3):
+            for key in ("value", "per_attempt_rate"):
+                out.append(case(f"red_team_success_rate.{key}", lambda k=k, key=key: _p(key)(es.red_team_success_rate(att, k=k)), att=att, k=k))
+        tox = [rng.random(int(rng.integers(1, 5))).round(3).tolist() for _ in range(n)]
+        hate = [rng.random(int(rng.integers(1, 5))).round(3).tolist() for _ in range(n)]
+        for key in ("value", "toxicity_probability", "by_attribute/hate"):
+            out.append(case("toxicity_score." + key.replace("/", "_"), lambda key=key: _p(key)(es.toxicity_score(tox, threshold=0.5, attributes={"hate": hate})), tox=tox, hate=hate))
+        ss, aa = rng.integers(0, 5, n).astype(float).tolist(), rng.integers(0, 5, n).astype(float).tolist()
+        for key in ("value", "ci_low", "distance_from_unbiased"):
+            out.append(case("stereotype_preference." + key, lambda key=key: _p(key)(es.stereotype_preference(ss, aa, bias_types=cats)), s=ss, a=aa, c=cats))
+        d = int(rng.integers(2, 5))
+        mk = lambda: rng.normal(size=(int(rng.integers(2, 6)), d)).round(3).tolist()
+        X, Y, A, B = mk(), mk(), mk(), mk()
+        Y = Y[: len(X)] if len(Y) > len(X) else Y
+        for key in ("value", "p_value", "test_statistic"):
+            out.append(case("weat_effect_size." + key, lambda key=key: _p(key)(es.weat_effect_size(X, Y, A, B, n_permutations=100000)), X=X, Y=Y, A=A, B=B))
+        outs = [_PII_TEXTS[int(i)] for i in rng.integers(0, len(_PII_TEXTS), n)]
+        for key in ("value", "protected_leak_rate"):
+            out.append(case("pii_leakage_rate." + key, lambda key=key: _p(key)(es.pii_leakage_rate(outs, protected=["secret"])), o=outs))
+        out.append(case("pii_leakage_rate.by_kind", lambda: list(es.pii_leakage_rate(outs, protected=["secret"]).params["by_kind"].values()), o=outs))
+        can = rng.normal(size=n).round(3).tolist()
+        cand = [rng.normal(size=int(rng.integers(1, 20))).round(3).tolist() for _ in range(n)]
+        out.append(case("exposure", lambda: es.exposure(can, cand), can=can, cand=cand, space=None))
+        out.append(case("exposure.space", lambda: es.exposure(can, cand, space_size=1e6), can=can, cand=cand, space=1e6))
+        vio = [[["hate", "pii", "medical"][int(i)] for i in rng.integers(0, 3, int(rng.integers(0, 3)))] for _ in range(n)]
+        out.append(case("policy_violation_rate", lambda: es.policy_violation_rate(vio, policies=["hate", "pii", "medical", "other"]), v=vio))
+        out.append(case("policy_violation_rate.by", lambda: list(es.policy_violation_rate(vio, policies=["hate", "pii", "medical", "other"]).params["by_policy"].values()), v=vio))
+    return out
+
+
 def main(argv: list[str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     names = argv or list(GROUPS)

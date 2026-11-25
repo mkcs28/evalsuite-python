@@ -38,6 +38,7 @@ pub mod robustness;
 pub mod rag;
 pub mod regression;
 pub mod retrieval;
+pub mod safety;
 pub mod segmentation;
 pub mod semantic;
 pub mod special;
