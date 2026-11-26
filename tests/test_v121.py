@@ -83,3 +83,11 @@ def test_singular_counts_read_naturally():
     assert "(1 comparison," in judge.summary()
     rag = es.rag_report([{"question": "q", "answer": "x", "reference": "y", "retrieved": [], "relevant": []}])
     assert "(1 question," in rag.summary()
+
+
+def test_functions_named_like_their_module_stay_functions():
+    loaded = _modules_after(
+        "import evalsuite.rag_report, evalsuite.html_report, evalsuite as es; "
+        "assert callable(es.rag_report) and callable(es.html_report)"
+    )
+    assert "evalsuite.rag_report" in loaded

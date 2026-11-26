@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import contextlib as _contextlib
 import importlib as _importlib
+import sys as _sys
+import types as _types
 from typing import TYPE_CHECKING, Any
 
 from .version import __version__
@@ -925,6 +927,19 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     return sorted(set(globals()) | set(__all__))
+
+
+class _Package(_types.ModuleType):
+    """Keeps functions that share a name with their module (``rag_report``, ``html_report``) from being replaced
+    by the submodule when Python binds a freshly imported submodule to the package."""
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in _LAZY and isinstance(value, _types.ModuleType):
+            return  # the module stays reachable as sys.modules["evalsuite.<name>"]
+        super().__setattr__(name, value)
+
+
+_sys.modules[__name__].__class__ = _Package
 
 
 # A cached, once-a-day notice; the PyPI lookup runs in a background thread (see evalsuite._update). It must
