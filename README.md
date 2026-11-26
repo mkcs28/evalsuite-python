@@ -549,11 +549,11 @@ metric calls. At 1,000,000 samples (pixels for segmentation; 1,000 images for de
 | text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 219.5 | 889.0 | **4.05×** |
 | text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 266.7 | 2399.8 | **9.00×** |
 
-**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`, last full run with 0.7.1): all 225
-registered metrics and statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
-independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
-comparisons agree**, and against the libraries the geometric-mean speed-up is **6.64×** (171 of 172
-measurements faster). Per-metric table in BENCHMARKS.md.
+**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`, re-run on 1.2.0): all 225 registered
+metrics and statistics functions at 10,000 and 100,000 samples. 82 are compared with a reference library, 118
+with an independent textbook formula and 25 (learned, judge-dependent, randomised, or whose reference library was
+not installed) are timed alone; **all 200 comparisons agree**, and against the libraries the geometric-mean
+speed-up is **5.50×** (164 of 164 measurements faster). Per-metric table in BENCHMARKS.md.
 
 **Nearly every workload is faster than its reference.** The text metrics (BLEU, chrF, TER, ROUGE, METEOR, CIDEr,
 CodeBLEU's n-gram terms, distinct-n), the whole COCO evaluation (IoU, score sort, matching, accumulation),
