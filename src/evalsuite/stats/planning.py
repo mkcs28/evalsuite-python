@@ -108,6 +108,8 @@ def sample_size_proportion(p: float, half_width: float, *, level: float = 0.95) 
     n = z² p (1 − p) / w²). Use p = 0.5 when nothing is known (the most conservative choice)."""
     p = _check_prob("p", p)
     w = _check_prob("half_width", half_width)
+    if w >= 0.5:
+        raise InputValidationError(f"half_width must be below 0.5 for a proportion; got {w}.")
     z = float(stats.norm.ppf(1 - (1 - _check_prob("level", level)) / 2))
     n = z * z * p * (1 - p) / (w * w)
     return SampleSize(

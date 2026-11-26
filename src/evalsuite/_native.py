@@ -16,7 +16,7 @@ if os.environ.get("EVALSUITE_PURE_PYTHON", "").strip().lower() in ("1", "true", 
     core = None
 else:
     try:
-        from . import _core as core  # type: ignore[attr-defined, no-redef]
+        from . import _core as core  # type: ignore[no-redef]
     except ImportError:  # pure-Python wheel or source checkout without a build
         core = None
 

@@ -38,10 +38,12 @@ _RATES = {
 
 
 def _counts(y: np.ndarray, p: np.ndarray) -> dict[str, int]:
-    tp = int(np.sum((y == 1) & (p == 1)))
-    fp = int(np.sum((y == 0) & (p == 1)))
-    fn = int(np.sum((y == 1) & (p == 0)))
-    tn = int(np.sum((y == 0) & (p == 0)))
+    return _from_cells(np.bincount(2 * y + p, minlength=4))
+
+
+def _from_cells(cells: np.ndarray) -> dict[str, int]:
+    """Counts from the four (truth, prediction) cells: [tn, fp, fn, tp]."""
+    tn, fp, fn, tp = (int(x) for x in cells[:4])
     return {
         "n": tp + fp + fn + tn,
         "pos": tp + fn,
@@ -181,11 +183,23 @@ def _group_labels(groups: Any, n: int, intersectional: bool) -> tuple[np.ndarray
         cols = {f"attr{j}": arr[:, j] for j in range(arr.shape[1])} if arr.ndim == 2 else {"group": arr.ravel()}
     for k, v in cols.items():
         if v.shape[0] != n:
-            raise InputValidationError(f"groups[{k!r}] must have one value per observation ({n}).")
+            raise InputValidationError(
+                f"groups[{k!r}] must have one value per observation ({n}); got {v.shape[0]}."
+            )
+        missing = [i for i, x in enumerate(v) if x is None or (isinstance(x, float) and math.isnan(x))]
+        if missing:
+            raise InputValidationError(
+                f"groups[{k!r}] has {len(missing)} missing value(s) (first at position {missing[0]}); give every "
+                "observation a group, for example an explicit 'unknown' category."
+            )
     names = list(cols)
     if len(names) == 1:
         return np.array([str(x) for x in cols[names[0]]], dtype=object), names
-    labels = np.array([" & ".join(f"{k}={cols[k][i]}" for k in names) for i in range(n)], dtype=object)
+    parts = [np.char.add(f"{k}=", np.array([str(x) for x in cols[k]])) for k in names]
+    joined = parts[0]
+    for part in parts[1:]:
+        joined = np.char.add(np.char.add(joined, " & "), part)
+    labels = joined.astype(object)
     return labels, names
 
 
@@ -325,11 +339,10 @@ def fairness_report(
     rng = np.random.default_rng(random_state)
     members = [np.flatnonzero(codes == g) for g in range(names.size)]
     boot: dict[str, list[float]] = {k: [] for k in point}
+    cell = 2 * y + p  # one (truth, prediction) cell per observation; a resample is summarised by four counts
+    cells = [cell[idx] for idx in members]
     for _ in range(n_resamples):
-        cs = []
-        for idx in members:
-            pick = idx[rng.integers(0, idx.size, idx.size)]
-            cs.append(_counts(y[pick], p[pick]))
+        cs = [_from_cells(np.bincount(c[rng.integers(0, c.size, c.size)], minlength=4)) for c in cells]
         for k, v in gaps_of(cs).items():
             boot[k].append(v)
     a = (1 - level) / 2

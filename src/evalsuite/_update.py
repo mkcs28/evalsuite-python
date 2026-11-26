@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import threading
 import time
@@ -123,6 +122,8 @@ def upgrade(*, quiet: bool = False) -> int:
 
     Returns pip's exit code. In a virtual environment, conda environment or user install, the upgrade goes
     exactly where the running ``evalsuite`` came from, because it uses this interpreter's pip."""
+    import subprocess  # only when upgrading, so importing EvalSuite stays light
+
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade", PACKAGE]
     if quiet:
         cmd.append("--quiet")

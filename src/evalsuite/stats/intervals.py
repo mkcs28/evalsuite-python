@@ -247,6 +247,178 @@ def _cluster_members(clusters: ArrayLike, n: int) -> list[NDArray[np.int64]]:
     return [m.astype(np.int64) for m in np.split(order, bounds)]
 
 
+def _leave_blocks_out(call: MetricCall, blocks: list[NDArray[Any]]) -> NDArray[np.float64]:
+    """The metric without each block of observations (jackknife), NaN where undefined; counts or the compiled
+    core when the metric allows, identical to calling it on the kept observations."""
+    if not call.compressible:
+        fast = call.leave_out_curves(blocks)
+        if fast is not None:
+            return fast
+    everything = np.arange(call.n)
+    jack = np.empty(len(blocks))
+    total = call.code_counts(everything) if call.compressible else None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for j, block in enumerate(blocks):
+            try:
+                if total is not None:
+                    counts = total - call.code_counts(block)
+                    few = np.count_nonzero(counts) < 2
+                    keep = np.setdiff1d(everything, block, assume_unique=True) if few else None
+                    jack[j] = call.from_counts(counts, keep)
+                else:
+                    jack[j] = call(np.setdiff1d(everything, block, assume_unique=True))
+            except EvalSuiteError:
+                jack[j] = np.nan
+    return jack
+
+
+def _weighted_curves(
+    is_auc: bool,
+    target: NDArray[np.float64],
+    score: NDArray[np.float64],
+    weight: Optional[NDArray[np.float64]],
+    cluster_of: NDArray[np.int64],
+    mult: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Binary ROC AUC or average precision of every cluster resample, from how often each cluster was drawn
+    (``mult``, resamples × clusters): a drawn cluster's observations count with that multiplicity, which is the
+    same as concatenating them. One sort for all resamples, then O(n) per resample. NaN where undefined."""
+    order = np.argsort(-score if not is_auc else score, kind="stable")
+    s = score[order]
+    starts = np.r_[0, np.flatnonzero(np.diff(s)) + 1]  # tie groups
+    t = target[order]
+    base = np.ones_like(t) if weight is None else weight[order]
+    pos_w, neg_w = base * t, base * (1.0 - t)
+    owner = cluster_of[order]
+    ties = starts.shape[0] < s.shape[0]
+    multf = mult.astype(np.float64)
+    out = np.empty(mult.shape[0])
+    step = max(1, int(4_000_000 // max(1, s.shape[0])))
+    for a in range(0, mult.shape[0], step):
+        f = multf[a : a + step][:, owner]  # resamples × observations
+        pos, neg = f * pos_w, f * neg_w
+        if ties:
+            pos = np.add.reduceat(pos, starts, axis=1)
+            neg = np.add.reduceat(neg, starts, axis=1)
+        p_tot, n_tot = pos.sum(axis=1), neg.sum(axis=1)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            if is_auc:
+                below = np.cumsum(neg, axis=1) - neg
+                val = (pos * (below + 0.5 * neg)).sum(axis=1) / (p_tot * n_tot)
+                val[(p_tot == 0) | (n_tot == 0)] = np.nan
+            else:
+                tp, fp = np.cumsum(pos, axis=1), np.cumsum(neg, axis=1)
+                prec = np.divide(tp, tp + fp, out=np.zeros_like(tp), where=(tp + fp) > 0)
+                val = (pos * prec).sum(axis=1) / p_tot
+                val[p_tot == 0] = np.nan
+        out[a : a + step] = val
+    return out
+
+
+def _mean_terms(call: MetricCall) -> Optional[tuple[NDArray[np.float64], NDArray[np.float64], bool]]:
+    """(per-observation terms, weights, take square root) for metrics that are a weighted mean of
+    per-observation terms (binary log loss and Brier score; MAE, MSE, RMSE and mean bias error of one output),
+    else None. Terms are computed on the full data exactly as the metric computes them on any subset."""
+    from ..classification import metrics as cm
+    from ..regression import metrics as rm
+
+    fn = call.fn
+    if call.items or call.y_true.ndim != 1 or call.second.ndim != 1:
+        return None
+    try:
+        if fn in (cm.log_loss, cm.brier_score):
+            if set(call.kwargs) - {"labels", "pos_label"}:
+                return None
+            ctx = cm._ctx(
+                call.y_true, None, y_prob=call.second, labels=call.kwargs.get("labels"), sample_weight=call.weight
+            )
+            if ctx.target_type != "binary":
+                return None
+            y = cm._binary_target(ctx, call.kwargs.get("pos_label"))
+            if fn is cm.log_loss:
+                eps = np.finfo(np.float64).eps
+                p = np.clip(ctx.y_prob, eps, 1 - eps)
+                terms = -(y * np.log(p) + (1 - y) * np.log(1 - p))
+            else:
+                terms = (ctx.y_prob - y) ** 2
+            w = np.ones(ctx.n) if ctx.weights is None else np.asarray(ctx.weights, dtype=np.float64)
+            return np.asarray(terms, dtype=np.float64), w, False
+        if fn in (rm.mae, rm.mse, rm.rmse, rm.mean_bias_error):
+            if set(call.kwargs) - {"multioutput"}:
+                return None
+            inp = rm._Inputs(call.y_true, call.second, call.weight)
+            e = inp.error[:, 0]
+            terms = np.abs(e) if fn is rm.mae else e if fn is rm.mean_bias_error else e * e
+            if not np.all(np.isfinite(terms)):
+                return None
+            return terms, inp.w, fn is rm.rmse
+    except EvalSuiteError:
+        return None
+    return None
+
+
+def cluster_distribution(
+    call: MetricCall, members: list[NDArray[np.int64]], picks: list[NDArray[Any]]
+) -> tuple[NDArray[np.float64], int]:
+    """Metric value on each cluster resample (``picks[b]`` lists the drawn clusters), NaN where undefined.
+
+    Equal to concatenating the drawn clusters' observations and calling the metric, but much faster:
+    confusion-matrix metrics add up per-cluster code counts (one small matrix product for all resamples), and
+    binary ROC AUC / average precision weight each observation by how often its cluster was drawn."""
+    n_resamples = len(picks)
+    boot = np.empty(n_resamples)
+    failed = 0
+
+    def rows(b: int) -> NDArray[np.int64]:
+        return np.concatenate([members[k] for k in picks[b]])
+
+    g = len(members)
+    cluster_of = np.empty(call.n, dtype=np.int64)
+    for k, m in enumerate(members):
+        cluster_of[m] = k
+    mult = np.zeros((n_resamples, g), dtype=np.int64)
+    for b, pick in enumerate(picks):
+        mult[b] = np.bincount(pick, minlength=g)
+    codes = call._codes
+    if codes is not None and n_resamples > 0:
+        kk = call._k * call._k
+        per = np.bincount(cluster_of * kk + codes, minlength=g * kk).reshape(g, kk)
+        totals = mult @ per
+    else:
+        totals = None
+        mean = _mean_terms(call) if n_resamples > 0 else None
+        if mean is not None:
+            terms, w, root = mean
+            num = mult @ np.bincount(cluster_of, weights=w * terms, minlength=g)
+            den = mult @ np.bincount(cluster_of, weights=w, minlength=g)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                boot = np.where(den > 0, num / den, np.nan)
+            if root:
+                boot = np.sqrt(boot)
+            return boot, int(np.isnan(boot).sum())
+        inputs = call._curve_inputs() if n_resamples > 0 else None
+        if inputs is not None:
+            from ..classification.metrics import roc_auc
+
+            _, target, score, w = inputs
+            boot = _weighted_curves(call.fn is roc_auc, target, score, w, cluster_of, mult)
+            return boot, int(np.isnan(boot).sum())
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for b in range(n_resamples):
+            try:
+                if totals is not None:
+                    counts = totals[b]
+                    boot[b] = call.from_counts(counts, rows(b) if np.count_nonzero(counts) < 2 else None)
+                else:
+                    boot[b] = call(rows(b))
+            except EvalSuiteError:
+                boot[b] = np.nan
+                failed += 1
+    return boot, failed
+
+
 def _cluster_bootstrap(
     call: MetricCall,
     name: str,
@@ -264,18 +436,7 @@ def _cluster_bootstrap(
     g = len(members)
     if g < 2:
         raise InputValidationError("A cluster bootstrap needs at least two clusters.")
-    boot = np.empty(n_resamples)
-    failed = 0
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        for b in range(n_resamples):
-            pick = rng.integers(0, g, g)
-            idx = np.concatenate([members[k] for k in pick])
-            try:
-                boot[b] = call(idx)
-            except EvalSuiteError:
-                boot[b] = np.nan
-                failed += 1
+    boot, failed = cluster_distribution(call, members, [rng.integers(0, g, g) for _ in range(n_resamples)])
     if failed > MAX_FAILED_FRACTION * n_resamples:
         raise StatisticalTestError(
             f"The metric was undefined on {failed} of {n_resamples} cluster resamples; too few clusters?"
@@ -307,15 +468,7 @@ def _cluster_bootstrap(
             else:  # leave out groups of clusters
                 parts = np.array_split(rng.permutation(g), groups)
                 blocks = [np.concatenate([members[k] for k in part]) for part in parts]
-            everything = np.arange(call.n)
-            jack = np.empty(len(blocks))
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                for j, block in enumerate(blocks):
-                    try:
-                        jack[j] = call(np.setdiff1d(everything, block, assume_unique=True))
-                    except EvalSuiteError:
-                        jack[j] = np.nan
+            jack = _leave_blocks_out(call, blocks)
             jack = jack[~np.isnan(jack)]
             diffs = jack.mean() - jack
             denom = 6.0 * np.sum(diffs**2) ** 1.5

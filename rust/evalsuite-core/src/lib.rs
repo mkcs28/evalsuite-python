@@ -16,5 +16,6 @@ pub mod qa;
 pub mod ranks;
 pub mod resample;
 pub mod surface;
+pub mod survival;
 pub mod ter;
 pub mod text;

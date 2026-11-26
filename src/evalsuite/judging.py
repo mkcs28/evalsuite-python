@@ -83,6 +83,16 @@ def _records(records: Any) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def _finite(value: Any, what: str) -> float:
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        raise InputValidationError(f"{what} must be a number; got {value!r}.") from None
+    if not math.isfinite(x):
+        raise InputValidationError(f"{what} must be finite; got {value!r}.")
+    return x
+
+
 def _wilson(k: float, n: float, level: float) -> tuple[float, float]:
     from . import proportion_ci
 
@@ -108,7 +118,8 @@ class JudgeReport:
     def summary(self, *, digits: int = 3) -> str:
         d = digits
         pct = f"{self.settings['level'] * 100:g}%"
-        lines = [f"EvalSuite judge report ({self.settings['n']} comparisons, {pct} CIs)"]
+        n = self.settings["n"]
+        lines = [f"EvalSuite judge report ({n} comparison{'s' * (n != 1)}, {pct} CIs)"]
         lines.append("  Model                 Win rate             Bradley–Terry (log strength)")
         for m in self.models:
             bt = m.get("bt")
@@ -212,13 +223,29 @@ def judge_report(
     rng = np.random.default_rng(random_state)
     boots: dict[str, list[float]] = defaultdict(list)
     if point is not None:
+        from .text.judge import _bt_fit
+
+        # Resamples as win matrices: one weighted count per resample instead of re-parsing the comparisons.
+        pos = {m: k for k, m in enumerate(names)}
+        mm = len(names)
+        ia = np.array([pos[a] for a, _, _ in comps])
+        ib = np.array([pos[b] for _, b, _ in comps])
+        oc = np.array([o for _, _, o in comps])
         arr = np.arange(n)
         for _ in range(n_resamples):
-            sample = [comps[i] for i in rng.choice(arr, n)]
-            got = bt(sample)
-            if got:
-                for key, val in got.items():
-                    boots[key].append(val)
+            idx = rng.choice(arr, n)
+            a_i, b_i, o_i = ia[idx], ib[idx], oc[idx]
+            wins = np.bincount(a_i * mm + b_i, weights=o_i, minlength=mm * mm) + np.bincount(
+                b_i * mm + a_i, weights=1.0 - o_i, minlength=mm * mm
+            )
+            present = np.flatnonzero(np.bincount(np.r_[a_i, b_i], minlength=mm))
+            sub = wins.reshape(mm, mm)[np.ix_(present, present)]
+            try:
+                logp = _bt_fit(sub)
+            except Exception:  # noqa: S112 - an undefined fit on this resample is skipped, as before
+                continue
+            for k, v in zip(present, logp.tolist()):
+                boots[names[k]].append(v)
     a_ = (1 - level) / 2
     models = []
     for m in names:
@@ -355,7 +382,7 @@ def judge_report(
             "n": len(hv),
             "flag": bool(kappa < 0.4) if math.isfinite(kappa) else False,
             "text": f"{agree / len(hv):.3f} ({lo:.3f}–{hi:.3f}) raw agreement, Cohen's kappa {kappa:.3f} "
-            f"({klo:.3f}–{khi:.3f}) on {len(hv)} comparisons",
+            f"({klo:.3f}–{khi:.3f}) on {len(hv)} comparison{'s' * (len(hv) != 1)}",
         }
     return JudgeReport(
         models=tuple(models),
@@ -445,13 +472,13 @@ def rubric_report(
         for f in ("id", "model", "criterion", "score"):
             if f not in r:
                 raise InputValidationError(f"Record {i} needs id, model, criterion and score.")
-        s = float(r["score"])
+        s = _finite(r["score"], f"Record {i} score")
         key = (r["id"], str(r["model"]), str(r["criterion"]))
         per_item[key].append(s)
         if r.get("rater") is not None:
             raters[key][str(r["rater"])] = s
         if r.get("human") is not None:
-            pairs.append((s, float(r["human"])))
+            pairs.append((s, _finite(r["human"], f"Record {i} human score")))
     for (_, model, crit), vals in per_item.items():
         groups[(model, crit)].append(float(np.mean(vals)))  # average raters within an item
     out = []
