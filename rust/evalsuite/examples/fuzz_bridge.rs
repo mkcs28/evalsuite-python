@@ -246,4 +246,7 @@ fn main() {
     for (k, v) in seen.iter().take(40) {
         println!("--- {k}\n    {v}");
     }
+    if panics > 0 {
+        std::process::exit(1);
+    }
 }

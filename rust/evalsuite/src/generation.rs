@@ -277,18 +277,23 @@ fn tokenize_13a_cached(t: &str, lower: bool) -> Vec<String> {
     use std::hash::BuildHasher;
     use std::sync::{Mutex, OnceLock};
     const SHARDS: usize = 32;
-    const PER_SHARD: usize = 8192;
-    type Shard = Mutex<HashMap<(bool, String), Vec<String>>>;
+    // At most 32 × 2048 sentences are kept (a few tens of MB for typical sentence lengths).
+    const PER_SHARD: usize = 2048;
+    // One map per casing, so a lookup borrows the sentence instead of allocating a key.
+    type Shard = Mutex<[HashMap<String, Vec<String>>; 2]>;
     static CACHE: OnceLock<(std::collections::hash_map::RandomState, Vec<Shard>)> = OnceLock::new();
     let (state, shards) = CACHE.get_or_init(|| {
         (
             std::collections::hash_map::RandomState::new(),
-            (0..SHARDS).map(|_| Mutex::new(HashMap::new())).collect(),
+            (0..SHARDS)
+                .map(|_| Mutex::new([HashMap::new(), HashMap::new()]))
+                .collect(),
         )
     });
-    let shard = &shards[(state.hash_one((lower, t)) as usize) % SHARDS];
+    let shard = &shards[(state.hash_one(t) as usize) % SHARDS];
+    let which = usize::from(lower);
     if let Ok(m) = shard.lock() {
-        if let Some(v) = m.get(&(lower, t.to_owned())) {
+        if let Some(v) = m[which].get(t) {
             return v.clone();
         }
     }
@@ -298,10 +303,10 @@ fn tokenize_13a_cached(t: &str, lower: bool) -> Vec<String> {
         tokenize_13a(py_rstrip(t))
     };
     if let Ok(mut m) = shard.lock() {
-        if m.len() >= PER_SHARD {
-            m.clear();
+        if m[which].len() >= PER_SHARD {
+            m[which].clear();
         }
-        m.insert((lower, t.to_owned()), v.clone());
+        m[which].insert(t.to_owned(), v.clone());
     }
     v
 }
