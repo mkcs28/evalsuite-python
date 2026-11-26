@@ -1,6 +1,6 @@
 Package: evalsuite
 Title: Evaluation Metrics with Confidence Intervals (EvalSuite Engine)
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: c(person("Manoj Kumar", "C S", email = "cs.manojkumar18@gmail.com", role = c("aut", "cre")),
              person("Nikhil D", "Bharadwaj", role = "aut"))
 Description: R interface to the EvalSuite Rust engine: the same classification, regression, text and drift
@@ -9,3 +9,5 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: jsonlite
 SystemRequirements: Cargo (Rust's package manager), rustc >= 1.82
+URL: https://github.com/mkcs28/evalsuite-python
+BugReports: https://github.com/mkcs28/evalsuite-python/issues

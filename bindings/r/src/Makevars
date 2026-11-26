@@ -1,11 +1,20 @@
-# Builds the static EvalSuite C library from the Rust workspace (or uses EVALSUITE_RUST_DIR) and links it.
-RUST_DIR = $(or $(EVALSUITE_RUST_DIR),../../../rust)
+# Builds the static EvalSuite C library with cargo and links it. A source tarball carries the Rust sources and
+# their vendored dependencies in src/rust (tools/vendor.sh) and builds offline; inside the repository the
+# workspace in ../../../rust is used (or EVALSUITE_RUST_DIR).
+VENDORED = $(wildcard rust/Cargo.toml)
+RUST_DIR = $(if $(VENDORED),rust,$(or $(EVALSUITE_RUST_DIR),../../../rust))
+CARGO_FLAGS = $(if $(VENDORED),--offline,)
+TARGET_DIR = $(CURDIR)/rust-target
+
 PKG_CPPFLAGS = -I$(RUST_DIR)/evalsuite-capi/include
-PKG_LIBS = $(RUST_DIR)/target/release/libevalsuite_c.a -lpthread -ldl -lm
+PKG_LIBS = $(TARGET_DIR)/release/libevalsuite_c.a -lpthread -ldl -lm
 
 $(SHLIB): rustlib
 
 rustlib:
-	cd $(RUST_DIR) && cargo build --release -p evalsuite-capi
+	cd $(RUST_DIR) && CARGO_TARGET_DIR=$(TARGET_DIR) cargo build --release -p evalsuite-capi $(CARGO_FLAGS)
 
-.PHONY: rustlib
+clean:
+	rm -rf $(TARGET_DIR)
+
+.PHONY: rustlib clean

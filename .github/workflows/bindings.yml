@@ -5,6 +5,7 @@ name: Bindings
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -29,7 +30,7 @@ jobs:
         run: |
           Rscript -e 'install.packages("jsonlite", repos = "https://cloud.r-project.org")'
           EVALSUITE_RUST_DIR=$PWD/rust R CMD INSTALL bindings/r
-          Rscript -e 'library(evalsuite); v <- es_metric("f1", y_true = c(0,1,1,0), y_pred = c(0,1,0,0)); stopifnot(abs(v - 2/3) < 1e-15); print(v)'
+          Rscript -e 'library(evalsuite); v <- es_metric("f1", y_true = c(0,1,1,0), y_pred = c(0,1,0,0)); stopifnot(abs(v - 2/3) < 1e-15); r <- es_metric("roc_auc", y_true = c(0,0,1,1,0,1), y_prob = c(0.1,0.4,0.35,0.8,0.2,0.9), ci = "analytic"); stopifnot(r$ci_method == "delong", "ndcg" %in% es_metrics()); print(r)'
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
@@ -37,4 +38,47 @@ jobs:
         env:
           EVALSUITE_LIB: ${{ github.workspace }}/rust/target/release/libevalsuite_c.so
         run: |
-          julia --project=bindings/julia -e 'using Pkg; Pkg.instantiate(); using EvalSuite; v = metric("f1"; y_true=[0,1,1,0], y_pred=[0,1,0,0]); @assert abs(v - 2/3) < 1e-15; println(v)'
+          julia --project=bindings/julia -e 'using Pkg; Pkg.instantiate(); using EvalSuite; v = metric("f1"; y_true=[0,1,1,0], y_pred=[0,1,0,0]); @assert abs(v - 2/3) < 1e-15; r = metric("roc_auc"; y_true=[0,0,1,1,0,1], y_prob=[0.1,0.4,0.35,0.8,0.2,0.9], ci="analytic"); @assert r.ci_method == "delong"; @assert "ndcg" in metrics(); println(r)'
+
+  r-package:
+    # Self-contained R source package (Rust sources and dependencies vendored): checked with R CMD check,
+    # uploaded as an artifact, attached to the GitHub release on tags, and pushed to the `r-package` branch that
+    # R-universe builds from.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: r-lib/actions/setup-r@v2
+      - run: Rscript -e 'install.packages("jsonlite", repos = "https://cloud.r-project.org")'
+      - name: Vendor Rust sources and build the source package
+        working-directory: bindings/r
+        run: |
+          tools/vendor.sh
+          cd .. && R CMD build r
+      - name: R CMD check
+        working-directory: bindings
+        run: _R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual evalsuite_*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evalsuite-r
+          path: bindings/evalsuite_*.tar.gz
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" bindings/evalsuite_*.tar.gz --clobber
+      - name: Update the r-package branch (R-universe source)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tmp=$(mktemp -d)
+          cp -R bindings/r/. "$tmp"
+          rm -rf "$tmp/tools" "$tmp/src/rust-target"
+          cd "$tmp"
+          sed -i '/^src\/rust\/$/d' .gitignore
+          git init -q -b r-package
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "evalsuite R package ${GITHUB_REF_NAME}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" r-package

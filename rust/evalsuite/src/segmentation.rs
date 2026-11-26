@@ -115,13 +115,18 @@ fn classes(
     ignore: Option<i64>,
     background: bool,
 ) -> Result<Vec<i64>> {
-    let valid = |m: &Mask| {
+    // (min, max) of the labels that are not `ignore`, in one pass and without copying the mask.
+    let range = |m: &Mask| -> Option<(i64, i64)> {
         m.labels
             .iter()
             .copied()
-            .filter(move |&v| Some(v) != ignore)
-            .collect::<Vec<_>>()
+            .filter(|&v| Some(v) != ignore)
+            .fold(None, |acc, v| match acc {
+                None => Some((v, v)),
+                Some((lo, hi)) => Some((lo.min(v), hi.max(v))),
+            })
     };
+    let ranges: Vec<Option<(i64, i64)>> = t.iter().chain(p).map(range).collect();
     let mut cls: Vec<i64> = match labels {
         Some(l) => {
             let mut u = l.to_vec();
@@ -135,7 +140,12 @@ fn classes(
         None => {
             let k = match num_classes {
                 Some(k) => k as i64,
-                None => t.iter().chain(p).flat_map(valid).max().map_or(0, |m| m + 1),
+                None => ranges
+                    .iter()
+                    .flatten()
+                    .map(|r| r.1)
+                    .max()
+                    .map_or(0, |m| m + 1),
             };
             if k < 1 {
                 return invalid("num_classes must be at least 1.");
@@ -149,13 +159,12 @@ fn classes(
             return invalid("include_background=false leaves no classes to evaluate.");
         }
     }
-    for m in t.iter().chain(p) {
-        let v = valid(m);
-        if v.iter().any(|&x| x < 0) {
+    for &(lo, hi) in ranges.iter().flatten() {
+        if lo < 0 {
             return invalid("Masks contain negative labels; use ignore_index for void pixels.");
         }
         if let (Some(k), None) = (num_classes, labels) {
-            if v.iter().any(|&x| x >= k as i64) {
+            if hi >= k as i64 {
                 return invalid(format!("Masks contain a label >= num_classes={k}."));
             }
         }
@@ -511,9 +520,11 @@ fn surface_metric(
         };
         for (j, &c) in cls.iter().enumerate() {
             let bin = |m: &Mask| -> Vec<bool> {
+                use rayon::prelude::*;
                 m.labels
-                    .iter()
-                    .zip(&a.labels)
+                    .par_iter()
+                    .zip(a.labels.par_iter())
+                    .with_min_len(1 << 14)
                     .map(|(&x, &v)| x == c && Some(v) != o.ignore_index)
                     .collect()
             };

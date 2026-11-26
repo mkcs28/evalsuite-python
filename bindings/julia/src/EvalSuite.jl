@@ -14,7 +14,7 @@ module EvalSuite
 using JSON3
 using Libdl
 
-export metric, version
+export metric, metrics, version
 
 const HANDLE = Ref{Ptr{Cvoid}}(C_NULL)
 
@@ -31,7 +31,9 @@ end
     metric(name; kwargs...)
 
 Compute an EvalSuite metric. Keywords: `y_true`, `y_pred`, `y_prob`, `average`, `sample_weight`;
-`references` / `predictions` for text metrics; `reference` / `current` for drift (`"psi"`, `"ks"`).
+`references` / `predictions` for text metrics; `relevant` / `retrieved` / `k` for retrieval; `shape` for
+segmentation masks; `reference` / `current` for drift (`"psi"`, `"ks"`). `ci = "analytic"` or `"bootstrap"`
+(with `level`, `n_resamples`, `seed`) returns a named tuple with `ci_low` / `ci_high`.
 """
 function metric(name::AbstractString; kwargs...)
     args = JSON3.write(Dict(String(k) => v for (k, v) in kwargs))
@@ -43,7 +45,17 @@ function metric(name::AbstractString; kwargs...)
     out = unsafe_string(ptr)
     ccall(sym(:evalsuite_free), Cvoid, (Ptr{UInt8},), ptr)
     res = JSON3.read(out)
-    haskey(res, :values) ? collect(res.values) : res.value
+    value = haskey(res, :values) ? collect(res.values) : res.value
+    haskey(res, :ci_low) || return value
+    (value = value, ci_low = res.ci_low, ci_high = res.ci_high, ci_level = res.ci_level, ci_method = String(res.ci_method))
+end
+
+"Metric names the engine understands."
+function metrics()
+    ptr = ccall(sym(:evalsuite_metrics), Ptr{UInt8}, ())
+    names = Vector{String}(JSON3.read(unsafe_string(ptr)))
+    ccall(sym(:evalsuite_free), Cvoid, (Ptr{UInt8},), ptr)
+    names
 end
 
 "Engine version."

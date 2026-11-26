@@ -15,11 +15,20 @@ static SEXP es_call(SEXP metric, SEXP args) {
     return out;
 }
 
+static SEXP es_metrics(void) {
+    char *r = evalsuite_metrics();
+    SEXP out = PROTECT(Rf_mkString(r ? r : "[]"));
+    evalsuite_free(r);
+    UNPROTECT(1);
+    return out;
+}
+
 static SEXP es_version(void) { return Rf_mkString(evalsuite_version()); }
 
 static const R_CallMethodDef methods[] = {
     {"C_es_call", (DL_FUNC)&es_call, 2},
     {"C_es_version", (DL_FUNC)&es_version, 0},
+    {"C_es_metrics", (DL_FUNC)&es_metrics, 0},
     {NULL, NULL, 0}};
 
 void R_init_evalsuite(DllInfo *dll) {

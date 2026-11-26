@@ -9,6 +9,7 @@ extern "C" {
 /* Computes `metric` on JSON arguments, e.g.
  *   evalsuite_call("f1", "{\"y_true\":[0,1,1,0],\"y_pred\":[0,1,0,0]}")
  * returns "{\"metric\":\"f1\",\"value\":0.6666666666666666}". Free the result with evalsuite_free.
+ * Add "ci":"analytic" or "ci":"bootstrap" (with "level", "n_resamples", "seed") for ci_low / ci_high.
  * Returns NULL on error; evalsuite_last_error() then gives the message. */
 char *evalsuite_call(const char *metric, const char *args_json);
 
@@ -17,6 +18,9 @@ const char *evalsuite_last_error(void);
 
 /* Frees a string returned by evalsuite_call. */
 void evalsuite_free(char *s);
+
+/* Metric names as a JSON array, e.g. ["accuracy","f1",...]. Free with evalsuite_free. */
+char *evalsuite_metrics(void);
 
 /* Engine version, e.g. "1.0.0". */
 const char *evalsuite_version(void);

@@ -10,7 +10,7 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (1.0.0).** **1.0** makes `evaluate()` report confidence intervals by default and test
+> **Status: stable (1.1.0).** Try it in Colab: [example notebooks](notebooks/README.md). **1.0** makes `evaluate()` report confidence intervals by default and test
 > against a baseline, and adds an LLM leaderboard harness, framework integrations (scikit-learn, Hugging Face,
 > Keras, Lightning, MLflow, W&B), monitoring with drift alerts, TRIPOD+AI / model-card report cards, and the same
 > engine for JavaScript (npm, WebAssembly), C, R and Julia.
