@@ -45,9 +45,10 @@ function metric(name::AbstractString; kwargs...)
     out = unsafe_string(ptr)
     ccall(sym(:evalsuite_free), Cvoid, (Ptr{UInt8},), ptr)
     res = JSON3.read(out)
-    value = haskey(res, :values) ? collect(res.values) : res.value
+    value = haskey(res, :values) ? map(tonum, collect(res.values)) : tonum(res.value)
     haskey(res, :ci_low) || return value
-    (value = value, ci_low = res.ci_low, ci_high = res.ci_high, ci_level = res.ci_level, ci_method = String(res.ci_method))
+    (value = value, ci_low = tonum(res.ci_low), ci_high = tonum(res.ci_high), ci_level = res.ci_level,
+     ci_method = String(res.ci_method))
 end
 
 "Metric names the engine understands."
@@ -57,6 +58,10 @@ function metrics()
     ccall(sym(:evalsuite_free), Cvoid, (Ptr{UInt8},), ptr)
     names
 end
+
+# JSON has no NaN / Inf: the engine sends "NaN", "Infinity" and "-Infinity" as strings.
+tonum(v::AbstractString) = v in ("NaN", "Infinity", "-Infinity") ? parse(Float64, v) : v
+tonum(v) = v
 
 "Engine version."
 version() = unsafe_string(ccall(sym(:evalsuite_version), Ptr{UInt8}, ()))

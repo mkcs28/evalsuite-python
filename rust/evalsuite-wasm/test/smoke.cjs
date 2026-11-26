@@ -10,5 +10,6 @@ assert.ok(es.metrics().includes("roc_auc") && es.metrics().includes("ndcg"));
 const ci = es.evaluate("roc_auc", { y_true: [0, 0, 1, 1, 0, 1], y_prob: [0.1, 0.4, 0.35, 0.8, 0.2, 0.9], ci: "analytic" });
 assert.strictEqual(ci.ci_method, "delong");
 assert.ok(ci.ci_low <= ci.value && ci.value <= ci.ci_high);
+assert.strictEqual(es.evaluate("lr_positive", { y_true: [0, 1, 1, 0], y_pred: [0, 1, 1, 0] }).value, Infinity);
 assert.strictEqual(es.evaluate("mrr", { relevant: [["a"], ["x"]], retrieved: [["b", "a"], ["x"]] }).value, 0.75);
 console.log("ok", es.version());

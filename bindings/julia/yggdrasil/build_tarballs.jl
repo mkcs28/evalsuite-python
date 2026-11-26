@@ -4,15 +4,15 @@
 using BinaryBuilder
 
 name = "EvalSuite"
-version = v"1.1.0"
+version = v"1.1.1"
 
 sources = [
-    GitSource("https://github.com/mkcs28/evalsuite-python.git", "COMMIT_SHA_OF_v1.1.0"),
+    GitSource("https://github.com/mkcs28/evalsuite-python.git", "COMMIT_SHA_OF_v1.1.1"),
 ]
 
 script = raw"""
 cd ${WORKSPACE}/srcdir/evalsuite-python/rust
-cargo build --release -p evalsuite-capi
+CARGO_PROFILE_RELEASE_PANIC=unwind cargo build --release -p evalsuite-capi
 install -Dvm 755 "target/${rust_target}/release/"*evalsuite_c.${dlext} "${libdir}/libevalsuite_c.${dlext}"
 install -Dvm 644 evalsuite-capi/include/evalsuite.h "${includedir}/evalsuite.h"
 """

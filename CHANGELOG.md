@@ -6,6 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-26
+
+A hardening and speed release: every metric of the engine's JSON bridge (npm, C, R, Julia) was fuzzed with
+random and malformed arguments, and the bugs found are fixed. Results of valid calls are unchanged.
+
+### Fixed
+- `evaluate()` treated integer-valued truth with non-integer predictions (`[1., 2., 3.]` vs `[1., 2.5, 2.]`) as
+  classification; it is now regression. Probabilities passed as `y_pred` for a 0/1 outcome now raise a clear
+  error pointing to `y_prob=` instead of a confusing label error.
+- `evaluate()` accepts single-column inputs of shape (n, 1) (one-column DataFrames, reshaped arrays) as vectors;
+  they were rejected as malformed multilabel matrices.
+- Engine (npm, C, R, Julia):
+  - Undefined or infinite results (MCC with one class, a likelihood ratio with no false positives) came back as
+    `null`; they are now NaN / Infinity in JavaScript, R and Julia (the strings "NaN", "Infinity",
+    "-Infinity" in raw JSON).
+  - Very large `n_bins`, `bins`, `num_classes`, `shape` or `n_resamples` values could abort the process on an
+    allocation failure; they are now range-checked errors.
+  - Invalid option values (`average`, `strategy`, `gains`, `threshold`, `level`, `alpha`, `k`, ...) were silently
+    replaced by defaults; they are now errors naming the allowed values.
+  - Segmentation masks with non-integer labels were truncated; they are now rejected.
+  - Bootstrap intervals for Dice / IoU resampled pixels instead of images; they now raise an error pointing to
+    the Python `bootstrap_ci`.
+  - The C API catches internal panics and reports them as errors (built with `panic = "unwind"`), so a bug can
+    no longer end the R or Julia session.
+- The engine's bridge is fuzzed in CI (no panics on random or malformed input for any metric).
+
+### Changed
+- Bootstrap intervals through the engine are 2.4–6× faster (per-observation arrays parsed once into typed
+  columns instead of re-reading JSON for every resample).
+- BLEU's tokenization cache uses less memory and no allocation per lookup.
+
 ## [1.1.0] - 2026-11-26
 
 ### Added

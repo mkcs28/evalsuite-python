@@ -25,6 +25,8 @@ jobs:
       - run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite-core
       - run: cargo test --manifest-path rust/Cargo.toml -p evalsuite -p evalsuite-cli --release
+      # Random and malformed arguments for every metric of the JSON bridge (npm, C, R, Julia): no panics.
+      - run: cargo run --manifest-path rust/Cargo.toml -p evalsuite --release --example fuzz_bridge -- 300
 
   lint:
     runs-on: ubuntu-latest

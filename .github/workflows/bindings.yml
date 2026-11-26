@@ -19,7 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install stable --profile minimal && rustup default stable
-      - run: cargo build --release -p evalsuite-capi --manifest-path rust/Cargo.toml
+      # panic = "unwind" so the C API can turn an internal panic into an error instead of aborting the host.
+      - run: CARGO_PROFILE_RELEASE_PANIC=unwind cargo build --release -p evalsuite-capi --manifest-path rust/Cargo.toml
       - name: C demo
         run: |
           cc -O2 rust/evalsuite-capi/examples/demo.c -Irust/evalsuite-capi/include -Lrust/target/release -levalsuite_c -o demo

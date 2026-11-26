@@ -116,14 +116,37 @@ _DEFAULT_REGRESSION = [
 _NO_WEIGHTS = {"max_error"}
 
 
-def _infer_task(y_true: ArrayLike, y_prob: Optional[ArrayLike]) -> str:
+def _column(v: Any) -> Any:
+    """``v`` as a 1-D array when it is a single column of shape (n, 1); otherwise unchanged."""
+    if v is None or (isinstance(v, (list, tuple)) and not (v and isinstance(v[0], (list, tuple)))):
+        return v
+    shape = getattr(v, "shape", None)
+    if shape is None:
+        shape = np.shape(v)
+    if len(shape) == 2 and shape[1] == 1:
+        return np.asarray(v).reshape(-1)
+    return v
+
+
+def _infer_task(y_true: ArrayLike, y_prob: Optional[ArrayLike], y_pred: Optional[ArrayLike] = None) -> str:
     if y_prob is not None:
         return "classification"
-    return (
-        "regression"
-        if target_type(to_numpy(y_true, "y_true", allow_2d=True)) == "continuous"
-        else "classification"
-    )
+    yt = to_numpy(y_true, "y_true", allow_2d=True)
+    if target_type(yt) == "continuous":
+        return "regression"
+    if y_pred is not None and yt.dtype.kind in "iuf":
+        yp = to_numpy(y_pred, "y_pred", allow_2d=True)
+        if yp.dtype.kind == "f" and target_type(yp) == "continuous":
+            # Integer-valued truth with non-integer predictions: regression, unless the predictions look like
+            # probabilities of a 0/1 outcome, which belong in y_prob.
+            finite = yp[np.isfinite(yp)]
+            if set(np.unique(yt).tolist()) <= {0, 1} and finite.size and finite.min() >= 0 and finite.max() <= 1:
+                raise InputValidationError(
+                    "y_pred holds values between 0 and 1 for a 0/1 outcome; pass probabilities as y_prob=..., "
+                    "or set task='regression'."
+                )
+            return "regression"
+    return "classification"
 
 
 def evaluate(
@@ -176,7 +199,11 @@ def evaluate(
             "y_true has 3 or more dimensions, which looks like segmentation masks (images first); use "
             "evalsuite.segmentation_report(y_true, y_pred) or evalsuite.dice / evalsuite.iou."
         )
-    task = task or _infer_task(y_true, y_prob)
+    # A single column (n, 1), e.g. a one-column DataFrame or a reshaped array, is a plain vector.
+    y_true, y_pred, y_prob, baseline_pred, baseline_prob = (
+        _column(v) for v in (y_true, y_pred, y_prob, baseline_pred, baseline_prob)
+    )
+    task = task or _infer_task(y_true, y_prob, y_pred)
     if task == "classification":
         result = _evaluate_classification(
             y_true, y_pred, y_prob, metrics, average, labels, pos_label, sample_weight, zero_division
