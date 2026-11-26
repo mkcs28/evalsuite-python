@@ -45,6 +45,15 @@ fn main() {
     let preds: Vec<String> = (0..1000).map(|_| sent(20)).collect();
     let refs: Vec<Vec<String>> = (0..1000).map(|_| vec![sent(20)]).collect();
     println!(
+        "tok13a {:.2} ms",
+        best(|| {
+            for (p, r) in preds.iter().zip(&refs) {
+                std::hint::black_box(g::tokenize_13a(p));
+                std::hint::black_box(g::tokenize_13a(&r[0]));
+            }
+        })
+    );
+    println!(
         "bleu {:.2} ms",
         best(|| {
             g::bleu(&refs, &preds, &g::BleuOpts::default()).unwrap();
@@ -76,6 +85,7 @@ fn main() {
     let o = s::SurfaceOpts {
         num_classes: Some(2),
         macro_average: true,
+        include_background: false,
         ..Default::default()
     };
     println!(

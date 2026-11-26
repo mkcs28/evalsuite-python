@@ -103,14 +103,14 @@ on the same workloads and machine (2 vCPUs, Linux x86_64, Python 3.13, NumPy 2.5
 | BCa bootstrap of MAE, 10,000 obs × 2,000 resamples | 100 ms | 362 ms | 3.6× |
 | Mann–Whitney U, 10,000 | 0.68 ms | 0.83 ms | 1.2× |
 | Welch t-test, 10,000 | 0.064 ms | 0.105 ms | 1.6× |
-| BLEU, 1,000 sentences (1.0) | 9.9 ms | 7.7 ms | 0.8× |
+| BLEU, 1,000 sentences (1.1) | 6.0 ms | 7.7 ms | 1.3× |
 | chrF, 1,000 sentences (1.0) | 9.4 ms | 11.4 ms | 1.2× |
-| TER, 1,000 sentences (1.0) | 95 ms | 128 ms | 1.3× |
+| TER, 1,000 sentences (1.0) | 106 ms | 128 ms | 1.2× |
 | ROUGE-L, 1,000 sentences | 5.2 ms | 5.0 ms | 1.0× |
 | NDCG@10, 10,000 queries | 4.7 ms | 71 ms | 15.3× |
 | MRR, 10,000 queries | 4.1 ms | 42 ms | 10.4× |
 | Dice, 512 × 512 | 2.2 ms | 4.5 ms | 2.0× |
-| HD95, 512 × 512 | 3.5 ms | 2.1 ms | 0.6× |
+| HD95, 512 × 512 (1.1) | 1.3 ms | 2.1 ms | 1.6× |
 
 Where the Python package is faster it already runs NumPy's SIMD loops, or the same compiled kernels with a
 tokenizer written in C.

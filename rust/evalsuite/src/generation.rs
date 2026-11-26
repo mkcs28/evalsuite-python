@@ -39,7 +39,7 @@ pub(crate) fn py_lower(s: &str) -> String {
 /// Consecutive integer ids for tokens, in first-seen order.
 #[derive(Default)]
 pub(crate) struct Vocab<'a> {
-    ids: HashMap<&'a str, u32>,
+    ids: evalsuite_core::hash::FxMap<&'a str, u32>,
 }
 
 impl<'a> Vocab<'a> {
@@ -64,64 +64,91 @@ fn is_13a_punct(c: char) -> bool {
 
 /// sacreBLEU's default `13a` tokenizer (mteval-v13a).
 pub fn tokenize_13a(line: &str) -> Vec<String> {
-    let mut s = line
-        .replace("<skipped>", "")
-        .replace("-\n", "")
-        .replace('\n', " ");
-    if s.contains('&') {
-        s = s
-            .replace("&quot;", "\"")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">");
+    let mut owned: Option<String> = None;
+    if line.contains('<') || line.contains('\n') {
+        owned = Some(
+            line.replace("<skipped>", "")
+                .replace("-\n", "")
+                .replace('\n', " "),
+        );
     }
-    // 1. pad punctuation (apostrophe, comma, period and dash excluded), with the leading/trailing space.
-    let mut a: Vec<char> = Vec::with_capacity(s.len() * 2 + 2);
-    a.push(' ');
-    for c in s.chars() {
-        if is_13a_punct(c) {
-            a.extend([' ', c, ' ']);
+    if owned.as_deref().unwrap_or(line).contains('&') {
+        owned = Some(
+            owned
+                .as_deref()
+                .unwrap_or(line)
+                .replace("&quot;", "\"")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">"),
+        );
+    }
+    let s = owned.as_deref().unwrap_or(line);
+    if s.is_ascii() {
+        // Same rules on bytes: identical for ASCII text and several times cheaper than chars.
+        let d = rules_13a(
+            s.bytes(),
+            b' ',
+            |c| is_13a_punct(c as char),
+            |c| c.is_ascii_digit(),
+        );
+        return d
+            // Python's ASCII whitespace for str.split(): \t \n \x0b \x0c \r \x1c-\x1f and space.
+            .split(|&c| matches!(c, b'\t'..=b'\r' | 0x1c..=0x1f | b' '))
+            .filter(|t| !t.is_empty())
+            .map(|t| String::from_utf8(t.to_vec()).unwrap_or_default())
+            .collect();
+    }
+    let d: String = rules_13a(s.chars(), ' ', is_13a_punct, |c| c.is_ascii_digit())
+        .into_iter()
+        .collect();
+    py_split(&d).into_iter().map(str::to_owned).collect()
+}
+
+/// The 13a regular expressions: 1. pad punctuation (apostrophe, comma, period and dash excluded), with a
+/// leading/trailing space; 2–4. two-character rules applied left to right without overlap, as `re.sub`.
+fn rules_13a<T: Copy + PartialEq + From<u8>>(
+    text: impl Iterator<Item = T>,
+    space: T,
+    punct: impl Fn(T) -> bool,
+    digit: impl Fn(T) -> bool,
+) -> Vec<T> {
+    let mut a: Vec<T> = Vec::with_capacity(text.size_hint().0 * 2 + 2);
+    a.push(space);
+    for c in text {
+        if punct(c) {
+            a.extend([space, c, space]);
         } else {
             a.push(c);
         }
     }
-    a.push(' ');
-    // 2–4: two-character rules applied left to right without overlap, as `re.sub`; `pre` / `mid` / `post`
-    // say where the inserted spaces go.
-    fn rule(
-        cs: &[char],
-        first: impl Fn(char) -> bool,
-        second: impl Fn(char) -> bool,
-        pre: bool,
-        post: bool,
-    ) -> Vec<char> {
-        let mut o = Vec::with_capacity(cs.len() + 16);
-        let mut i = 0;
-        while i < cs.len() {
-            if i + 1 < cs.len() && first(cs[i]) && second(cs[i + 1]) {
-                if pre {
-                    o.push(' ');
+    a.push(space);
+    let rule =
+        |cs: &[T], first: &dyn Fn(T) -> bool, second: &dyn Fn(T) -> bool, pre: bool, post: bool| {
+            let mut o = Vec::with_capacity(cs.len() + 16);
+            let mut i = 0;
+            while i < cs.len() {
+                if i + 1 < cs.len() && first(cs[i]) && second(cs[i + 1]) {
+                    if pre {
+                        o.push(space);
+                    }
+                    o.extend([cs[i], space, cs[i + 1]]);
+                    if post {
+                        o.push(space);
+                    }
+                    i += 2;
+                } else {
+                    o.push(cs[i]);
+                    i += 1;
                 }
-                o.extend([cs[i], ' ', cs[i + 1]]);
-                if post {
-                    o.push(' ');
-                }
-                i += 2;
-            } else {
-                o.push(cs[i]);
-                i += 1;
             }
-        }
-        o
-    }
-    let digit = |c: char| c.is_ascii_digit();
-    let dotcomma = |c: char| c == '.' || c == ',';
-    let b = rule(&a, |c| !digit(c), dotcomma, false, true);
-    let c = rule(&b, dotcomma, |c| !digit(c), true, false);
-    let d: String = rule(&c, digit, |c| c == '-', false, true)
-        .into_iter()
-        .collect();
-    py_split(&d).into_iter().map(str::to_owned).collect()
+            o
+        };
+    let (dot, comma, dash) = (T::from(b'.'), T::from(b','), T::from(b'-'));
+    let dotcomma = |c: T| c == dot || c == comma;
+    let b = rule(&a, &|c| !digit(c), &dotcomma, false, true);
+    let c = rule(&b, &dotcomma, &|c| !digit(c), true, false);
+    rule(&c, &digit, &|c| c == dash, false, true)
 }
 
 /// Tokenization for BLEU-style metrics.
@@ -232,8 +259,51 @@ fn prep_all<R: AsRef<str>, P: AsRef<str>>(
 }
 
 fn prep(t: &str, lower: bool, tok: &Tokenize<'_>) -> Vec<String> {
-    let s = if lower { py_lower(t) } else { t.to_owned() };
-    tok.run(py_rstrip(&s))
+    if matches!(tok, Tokenize::Thirteen) {
+        return tokenize_13a_cached(t, lower);
+    }
+    if lower {
+        tok.run(py_rstrip(&py_lower(t)))
+    } else {
+        tok.run(py_rstrip(t))
+    }
+}
+
+/// 13a tokenization memoised across calls (as the Python package does), so evaluating many systems or
+/// checkpoints against the same references tokenizes each sentence once. Sharded to keep parallel callers
+/// apart; each shard is cleared when it grows past its bound.
+fn tokenize_13a_cached(t: &str, lower: bool) -> Vec<String> {
+    use std::collections::HashMap;
+    use std::hash::BuildHasher;
+    use std::sync::{Mutex, OnceLock};
+    const SHARDS: usize = 32;
+    const PER_SHARD: usize = 8192;
+    type Shard = Mutex<HashMap<(bool, String), Vec<String>>>;
+    static CACHE: OnceLock<(std::collections::hash_map::RandomState, Vec<Shard>)> = OnceLock::new();
+    let (state, shards) = CACHE.get_or_init(|| {
+        (
+            std::collections::hash_map::RandomState::new(),
+            (0..SHARDS).map(|_| Mutex::new(HashMap::new())).collect(),
+        )
+    });
+    let shard = &shards[(state.hash_one((lower, t)) as usize) % SHARDS];
+    if let Ok(m) = shard.lock() {
+        if let Some(v) = m.get(&(lower, t.to_owned())) {
+            return v.clone();
+        }
+    }
+    let v = if lower {
+        tokenize_13a(py_rstrip(&py_lower(t)))
+    } else {
+        tokenize_13a(py_rstrip(t))
+    };
+    if let Ok(mut m) = shard.lock() {
+        if m.len() >= PER_SHARD {
+            m.clear();
+        }
+        m.insert((lower, t.to_owned()), v.clone());
+    }
+    v
 }
 
 fn bleu_score(stats: &[f64], order: usize, smooth: Smooth, effective: bool) -> f64 {
@@ -288,24 +358,20 @@ fn bleu_score(stats: &[f64], order: usize, smooth: Smooth, effective: bool) -> f
 
 fn segment_stats(hyps: &[Vec<String>], refs: &[Vec<Vec<String>>], order: usize) -> Vec<Vec<f64>> {
     use rayon::prelude::*;
-    let mut v = Vocab::default();
-    let h: Vec<Vec<u32>> = hyps
-        .iter()
-        .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
-        .collect();
-    let r: Vec<Vec<Vec<u32>>> = refs
-        .iter()
-        .map(|rs| {
-            rs.iter()
-                .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
-                .collect()
-        })
-        .collect();
-    h.par_iter()
-        .zip(r.par_iter())
+    // n-gram matching only compares tokens within one segment, so each segment gets its own vocabulary and
+    // the work is fully parallel (no shared token table).
+    hyps.par_iter()
+        .zip(refs.par_iter())
+        .with_min_len(16)
         .map(|(h, rs)| {
-            let rr: Vec<&[u32]> = rs.iter().map(Vec::as_slice).collect();
-            evalsuite_core::text::bleu_stats(h, &rr, order)
+            let mut v = Vocab::default();
+            let h = v.encode(&h.iter().map(String::as_str).collect::<Vec<_>>());
+            let r: Vec<Vec<u32>> = rs
+                .iter()
+                .map(|x| v.encode(&x.iter().map(String::as_str).collect::<Vec<_>>()))
+                .collect();
+            let rr: Vec<&[u32]> = r.iter().map(Vec::as_slice).collect();
+            evalsuite_core::text::bleu_stats(&h, &rr, order)
                 .into_iter()
                 .map(|x| x as f64)
                 .collect()

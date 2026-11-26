@@ -19,27 +19,118 @@ pub fn bleu_stats(hyp: &[u32], refs: &[&[u32]], order: usize) -> Vec<i64> {
     let mut out = vec![0i64; 2 + 2 * order];
     out[0] = hyp_len;
     out[1] = if refs.is_empty() { 0 } else { closest };
+    // Short segments (the usual case): sorted n-gram runs merged against each reference, which avoids hash
+    // maps and their allocations; long ones: hash counting. Counts are integers, so both give the same result.
+    let short = hyp.len() <= 256 && refs.iter().all(|r| r.len() <= 256);
     for n in 1..=order {
-        // Max count of each n-gram over the references, then matches clipped by it.
-        let mut ref_max: FxMap<&[u32], u32> = FxMap::default();
-        for r in refs {
-            for (g, c) in ngram_counts(r, n) {
-                let e = ref_max.entry(g).or_insert(0);
-                if c > *e {
-                    *e = c;
-                }
-            }
-        }
-        let mut correct = 0i64;
-        for (g, c) in ngram_counts(hyp, n) {
-            if let Some(&m) = ref_max.get(g) {
-                correct += i64::from(c.min(m));
-            }
-        }
+        let correct = if short {
+            clipped_sorted(hyp, refs, n)
+        } else {
+            clipped_hashed(hyp, refs, n)
+        };
         out[1 + n] = correct;
         out[1 + order + n] = (hyp_len - n as i64 + 1).max(0);
     }
     out
+}
+
+/// Runs of equal n-grams in sorted order: (n-gram, count).
+fn sorted_runs(seq: &[u32], n: usize) -> Vec<(&[u32], u32)> {
+    if n == 0 || seq.len() < n {
+        return Vec::new();
+    }
+    let mut w: Vec<&[u32]> = seq.windows(n).collect();
+    w.sort_unstable();
+    let mut runs: Vec<(&[u32], u32)> = Vec::with_capacity(w.len());
+    for g in w {
+        match runs.last_mut() {
+            Some((last, c)) if *last == g => *c += 1,
+            _ => runs.push((g, 1)),
+        }
+    }
+    runs
+}
+
+fn clipped_sorted(hyp: &[u32], refs: &[&[u32]], n: usize) -> i64 {
+    // n-grams packed into one integer when the ids fit (16 bits each, n ≤ 4): sorting integers is much
+    // cheaper than sorting slices; otherwise slices.
+    let fits = n <= 4
+        && hyp
+            .iter()
+            .chain(refs.iter().flat_map(|r| r.iter()))
+            .all(|&t| t < 1 << 16);
+    if fits {
+        let pack = |s: &[u32]| -> Vec<u64> {
+            let mut v: Vec<u64> = if s.len() < n {
+                Vec::new()
+            } else {
+                s.windows(n)
+                    .map(|w| w.iter().fold(0u64, |k, &t| (k << 16) | u64::from(t)))
+                    .collect()
+            };
+            v.sort_unstable();
+            v
+        };
+        return clipped_merge(&runs_of(&pack(hyp)), refs.iter().map(|r| runs_of(&pack(r))));
+    }
+    let h = sorted_runs(hyp, n);
+    clipped_merge(&h, refs.iter().map(|r| sorted_runs(r, n)))
+}
+
+fn runs_of(sorted: &[u64]) -> Vec<(u64, u32)> {
+    let mut runs: Vec<(u64, u32)> = Vec::with_capacity(sorted.len());
+    for &g in sorted {
+        match runs.last_mut() {
+            Some((last, c)) if *last == g => *c += 1,
+            _ => runs.push((g, 1)),
+        }
+    }
+    runs
+}
+
+fn clipped_merge<K: Ord>(h: &[(K, u32)], refs: impl Iterator<Item = Vec<(K, u32)>>) -> i64 {
+    if h.is_empty() {
+        return 0;
+    }
+    let mut max_ref = vec![0u32; h.len()];
+    for rr in refs {
+        let (mut i, mut j) = (0, 0);
+        while i < h.len() && j < rr.len() {
+            match h[i].0.cmp(&rr[j].0) {
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+                std::cmp::Ordering::Equal => {
+                    max_ref[i] = max_ref[i].max(rr[j].1);
+                    i += 1;
+                    j += 1;
+                }
+            }
+        }
+    }
+    h.iter()
+        .zip(&max_ref)
+        .map(|((_, c), m)| i64::from((*c).min(*m)))
+        .sum()
+}
+
+fn clipped_hashed(hyp: &[u32], refs: &[&[u32]], n: usize) -> i64 {
+    // Max count of each n-gram over the references, then matches clipped by it.
+    let mut ref_max: FxMap<&[u32], u32> = FxMap::default();
+    for r in refs {
+        for (g, c) in ngram_counts(r, n) {
+            let e = ref_max.entry(g).or_insert(0);
+            if c > *e {
+                *e = c;
+            }
+        }
+    }
+    let mut correct = 0i64;
+    for (g, c) in ngram_counts(hyp, n) {
+        if let Some(&m) = ref_max.get(g) {
+            correct += i64::from(c.min(m));
+        }
+    }
+    correct
 }
 
 /// Clipped n-gram overlap between a reference `t` and a prediction `p` (ROUGE-N numerator).

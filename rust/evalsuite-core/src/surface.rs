@@ -13,29 +13,28 @@ pub fn surface_points(mask: &[bool], dims: &[usize]) -> Vec<[i64; 3]> {
     d3[3 - nd..].copy_from_slice(dims);
     let (n0, n1, n2) = (d3[0], d3[1], d3[2]);
     let strides = [n1 * n2, n2, 1];
-    let per_slab: Vec<Vec<[i64; 3]>> = (0..n0)
+    // Parallel over rows (slab × row), not only slabs, so 2-D images use every core; rows are collected in
+    // order, so the points come out in the same (C) order as a serial scan.
+    let per_slab: Vec<Vec<[i64; 3]>> = (0..n0 * n1)
         .into_par_iter()
-        .map(|i| {
+        .with_min_len(16)
+        .map(|r| {
+            let (i, j) = (r / n1, r % n1);
             let mut out = Vec::new();
-            for j in 0..n1 {
-                let row = (i * n1 + j) * n2;
-                for k in 0..n2 {
-                    let f = row + k;
-                    if !mask[f] {
-                        continue;
-                    }
-                    let idx = [i, j, k];
-                    // Surface: on the image border along a real axis, or a face neighbour is background.
-                    let border = (3 - nd..3).any(|ax| {
-                        let p = idx[ax];
-                        p == 0
-                            || p + 1 == d3[ax]
-                            || !mask[f - strides[ax]]
-                            || !mask[f + strides[ax]]
-                    });
-                    if border {
-                        out.push([i as i64, j as i64, k as i64]);
-                    }
+            let row = r * n2;
+            for k in 0..n2 {
+                let f = row + k;
+                if !mask[f] {
+                    continue;
+                }
+                let idx = [i, j, k];
+                // Surface: on the image border along a real axis, or a face neighbour is background.
+                let border = (3 - nd..3).any(|ax| {
+                    let p = idx[ax];
+                    p == 0 || p + 1 == d3[ax] || !mask[f - strides[ax]] || !mask[f + strides[ax]]
+                });
+                if border {
+                    out.push([i as i64, j as i64, k as i64]);
                 }
             }
             out
