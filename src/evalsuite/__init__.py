@@ -277,3 +277,16 @@ __all__ = [
 ]
 __all__ += list(_text_all)
 __all__ += list(_llmsys_all)
+
+import contextlib as _contextlib  # noqa: E402
+
+from ._update import UpdateInfo, check_for_update, upgrade  # noqa: E402
+
+__all__ += ["UpdateInfo", "check_for_update", "upgrade"]
+
+# A cached, once-a-day notice; the PyPI lookup runs in a background thread (see evalsuite._update). It must
+# never affect importing EvalSuite.
+with _contextlib.suppress(Exception):
+    from ._update import notify_on_import as _notify
+
+    _notify()

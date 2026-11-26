@@ -425,6 +425,38 @@ def cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_upgrade(args: argparse.Namespace) -> int:
+    from .._update import check_for_update, upgrade
+
+    info = check_for_update()
+    if info.latest is None and not args.force:
+        print(f"evalsuite-python {info.installed}: PyPI could not be reached; upgrading anyway.", file=sys.stderr)
+    elif not info.update_available and not args.force:
+        print(f"evalsuite-python {info.installed} is the latest release.")
+        return 0
+    elif info.latest is not None:
+        print(f"Upgrading evalsuite-python {info.installed} -> {info.latest} ...")
+    if args.check:
+        return 0
+    return upgrade()
+
+
+def cmd_version(args: argparse.Namespace) -> int:
+    from .._update import check_for_update
+
+    info = check_for_update() if args.check else None
+    line = f"evalsuite-python {__version__}"
+    if info is not None:
+        if info.latest is None:
+            line += " (could not reach PyPI)"
+        elif info.update_available:
+            line += f" (latest: {info.latest}; upgrade with: evalsuite upgrade)"
+        else:
+            line += " (latest)"
+    print(line)
+    return 0
+
+
 def cmd_info(args: argparse.Namespace) -> int:
     import evalsuite as es
 
@@ -593,6 +625,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0, help="random seed for bootstrap intervals (default 0)")
     add_output(p, digits=3)
     p.set_defaults(func=cmd_leaderboard)
+
+    p = sub.add_parser(
+        "upgrade", help="install the latest EvalSuite release into this Python environment (pip install -U)"
+    )
+    p.add_argument("--check", action="store_true", help="only report whether a newer release exists")
+    p.add_argument("--force", action="store_true", help="run pip even if this is already the latest release")
+    p.set_defaults(func=cmd_upgrade)
+
+    p = sub.add_parser("version", help="show the installed version (--check: compare with PyPI)")
+    p.add_argument("--check", action="store_true", help="also look up the latest release on PyPI")
+    p.set_defaults(func=cmd_version)
 
     p = sub.add_parser("metrics", help="list available metrics")
     p.add_argument("--category", choices=("classification", "regression", "clinical", "calibration"))

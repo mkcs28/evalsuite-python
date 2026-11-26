@@ -5,7 +5,9 @@ same value in every language.
 
 ## R
 
-* **From a release:** `install.packages("https://github.com/mkcs28/evalsuite-python/releases/download/v1.1.0/evalsuite_1.1.0.tar.gz", repos = NULL)`
+* **From a release:** download `evalsuite_<version>.tar.gz` from the latest
+  [GitHub release](https://github.com/mkcs28/evalsuite-python/releases/latest) and run
+  `install.packages("evalsuite_<version>.tar.gz", repos = NULL)`
   (needs Rust's `cargo`; the tarball carries all Rust sources and builds offline).
 * **R-universe:** the `r-package` branch is updated on every release. To publish, create the repository
   `mkcs28/mkcs28.r-universe.dev` with this `packages.json`:
@@ -24,6 +26,11 @@ same value in every language.
 * **Registry:** submit `julia/yggdrasil/build_tarballs.jl` to Yggdrasil (fill in the release commit) to get
   `EvalSuite_jll` with prebuilt libraries for every platform; then register `EvalSuite.jl` in the General registry
   with JuliaRegistrator.
+
+## Staying up to date
+
+`npm install evalsuite@latest`, `cargo install evalsuite-cli` (or `evalsuite upgrade`), re-install the R
+package from the latest release, `] up EvalSuite` in Julia, and `evalsuite upgrade` for the Python package.
 
 ## C
 

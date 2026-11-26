@@ -118,6 +118,13 @@ enum Command {
     },
     /// List the metrics each command can compute.
     Metrics,
+    /// Install the latest evalsuite-cli from crates.io (runs `cargo install evalsuite-cli`, which replaces an
+    /// older version and leaves the current one in place).
+    Upgrade {
+        /// Show the command instead of running it.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 /// A table read from a file: column name → cells.
@@ -572,6 +579,30 @@ fn classification<L: Label>(
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
+        Command::Upgrade { dry_run } => {
+            let args = ["install", "--locked", "evalsuite-cli"];
+            println!(
+                "evalsuite {}: cargo {}",
+                env!("CARGO_PKG_VERSION"),
+                args.join(" ")
+            );
+            if dry_run {
+                return Ok(());
+            }
+            let status = std::process::Command::new(
+                std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()),
+            )
+            .args(args)
+            .status()
+            .map_err(|e| {
+                format!("could not run cargo ({e}); install Rust from https://rustup.rs")
+            })?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("cargo install failed ({status})"))
+            }
+        }
         Command::Metrics => {
             println!(
                 "evaluate (classification): {}",

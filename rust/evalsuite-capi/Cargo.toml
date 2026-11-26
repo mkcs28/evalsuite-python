@@ -14,4 +14,4 @@ name = "evalsuite_c"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-evalsuite = { path = "../evalsuite", version = "1.1.1", default-features = false }
+evalsuite = { path = "../evalsuite", version = "1.1.2", default-features = false }

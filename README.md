@@ -10,28 +10,38 @@
 EvalSuite brings classification, regression, clinical, statistical, segmentation and object-detection
 evaluation into one consistent, validated, documented framework.
 
-> **Status: stable (1.1.1).** Try it in Colab: [example notebooks](notebooks/README.md). **1.0** makes `evaluate()` report confidence intervals by default and test
-> against a baseline, and adds an LLM leaderboard harness, framework integrations (scikit-learn, Hugging Face,
-> Keras, Lightning, MLflow, W&B), monitoring with drift alerts, TRIPOD+AI / model-card report cards, and the same
-> engine for JavaScript (npm, WebAssembly), C, R and Julia.
-> Every item on the 0.1.0–0.5.0 roadmaps is implemented and verified, including SPICE.
-> **0.6 adds a compiled Rust core**: same API and identical results, with text metrics, COCO evaluation and
-> bootstrap resampling several times faster and multithreaded (prebuilt wheels for Linux, macOS and Windows).
-> **0.7.0** moves ROC AUC / average precision (and so `evaluate()`), the LLM-systems consistency metrics,
-> groundedness, citation coverage, toxicity, exposure and Elo into the core.
-> **0.7.1** adds bootstrapped ROC AUC / AP (4–5× faster intervals), DeLong, QA exact match / F1,
-> Hausdorff / surface distances, calibration and the WEAT permutation test.
-> **0.8.0** adds a **full Rust edition on crates.io** ([`evalsuite`](https://crates.io/crates/evalsuite)): every
-> metric, checked case by case against this package. **0.8.5** completes it (code complexity, CodeBLEU), adds
-> the `evalsuite` command-line tool (`cargo install evalsuite-cli`) and runs the retrieval metrics on Rust (3×).
-> **LLM systems arrive in 0.5.0**: safety, robustness, calibration and uncertainty, agents and tool use,
-> multilingual, code generation, long context and summarization, and inference efficiency and cost.
+> **Status: stable (1.1.2).** [Example notebooks](notebooks/README.md) (Colab) ·
+> [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
+
+**What's new**
+
+- **1.1.2** — a once-a-day notice when a newer release exists, and a one-command upgrade (`evalsuite upgrade`
+  or `es.upgrade()`); every README refreshed with current benchmark numbers.
+- **1.1.1** — hardening: every engine metric fuzzed (no crashes on malformed input), NaN / Infinity preserved in
+  every language, bug fixes in `evaluate()`'s task detection, 2.4–6× faster engine bootstrap intervals.
+- **1.1** — the engine everywhere: clinical, calibration, retrieval and segmentation metrics with confidence
+  intervals in JavaScript, C, R and Julia; an R source package; Colab notebooks; BLEU and HD95 faster than the
+  Python path.
+- **1.0** — `evaluate()` reports confidence intervals by default and tests against a baseline; an LLM
+  leaderboard that knows when models are tied; scikit-learn, Hugging Face, Keras, Lightning, MLflow and W&B
+  integrations; monitoring with drift alerts; TRIPOD+AI and model-card report cards; npm (WebAssembly), C, R
+  and Julia bindings.
+- **0.8** — a full Rust edition on crates.io ([`evalsuite`](https://crates.io/crates/evalsuite)) and the
+  `evalsuite-cli` command. **0.6–0.7** — a compiled, multithreaded Rust core with identical results.
+  **0.5** — LLM systems (safety, robustness, agents, code, long context, efficiency). **0.1–0.4** —
+  classification, regression, clinical, statistics, vision and LLM evaluation.
 
 ## Installation
 
 ```bash
 pip install evalsuite-python
 ```
+
+To move to the newest release later, run `evalsuite upgrade` (or `pip install -U evalsuite-python`). pip never
+replaces an installed package on its own, so EvalSuite prints a one-line notice, at most once a day, when a
+newer release is on PyPI; the check runs in the background and never slows `import evalsuite`
+(`EVALSUITE_NO_UPDATE_CHECK=1` turns it off; it is always off in CI). `es.check_for_update()` and
+`evalsuite version --check` report the installed and latest versions.
 
 The package is installed as `evalsuite-python` and imported as `evalsuite`:
 
@@ -59,7 +69,7 @@ and as a standalone command (`cargo install evalsuite-cli`):
 
 ```toml
 [dependencies]
-evalsuite = "0.8"
+evalsuite = "1.1"
 ```
 
 ```rust
@@ -71,7 +81,28 @@ evalsuite evaluate preds.csv --y-true label --y-pred pred --y-prob score
 ```
 
 See [rust/evalsuite/README.md](rust/evalsuite/README.md) for the module list, performance and the few
-documented differences, and [rust/evalsuite-cli/README.md](rust/evalsuite-cli/README.md) for the command.
+documented differences, and [rust/evalsuite-cli/README.md](rust/evalsuite-cli/README.md) for the command
+(`evalsuite upgrade` installs its latest release).
+
+### JavaScript, C, R and Julia
+
+One engine, the same numbers in every language ([bindings/README.md](bindings/README.md)):
+
+```js
+// npm install evalsuite@latest
+const es = require("evalsuite");
+es.evaluate("roc_auc", { y_true: [0, 0, 1, 1], y_prob: [0.1, 0.4, 0.35, 0.8], ci: "analytic" });
+// { metric: "roc_auc", value: 0.75, ci_low: ..., ci_high: ..., ci_method: "delong" }
+```
+
+```r
+library(evalsuite)  # install.packages from the release tarball or R-universe
+es_metric("f1", y_true = c(0, 1, 1, 0), y_pred = c(0, 1, 0, 0))
+```
+
+C (`evalsuite.h`, `-levalsuite_c`) and Julia (`EvalSuite.metric("f1"; y_true=..., y_pred=...)`) take the same
+arguments. Metrics: classification, clinical, calibration, regression, text, retrieval, segmentation, drift
+and the leaderboard, with `ci: "analytic"` or `"bootstrap"` intervals.
 
 ## Why EvalSuite
 
@@ -257,6 +288,67 @@ es.time_to_first_token(request_times=[0.0, 1.0], first_token_times=[0.21, 1.35])
 es.inference_cost([1200, 800], [300, 150], input_price=3.0, output_price=15.0)  # prices per 1M tokens
 ```
 
+## Confidence intervals and baselines by default
+
+```python
+result = es.evaluate(y_true, new_pred, y_prob=new_prob, baseline_pred=old_pred, baseline_prob=old_prob)
+print(result.summary())
+# Random forest vs logistic regression, breast-cancer test split (notebooks/01):
+#   Accuracy     0.9430  (0.9049–0.9664)  -0.0044 vs baseline (p=1.000, mcnemar-exact)
+#   ROC AUC      0.9833  (0.9637–1.0000)  -0.0097 vs baseline (p=0.285, delong)
+#   Brier score  0.0375  (0.0216–0.0535)  -0.0001 vs baseline (p=0.989, paired-bootstrap)
+```
+
+Intervals are analytic by default (Wilson, DeLong, Student-t; no extra cost), `ci="bootstrap"` for any metric,
+`ci=False` to turn them off; baseline tests are paired and Holm-adjusted.
+
+## Report cards (TRIPOD+AI, model cards)
+
+```python
+card = es.report_card(y_true, y_prob, threshold=0.2, groups=site, group_name="site")
+print(card.paragraph())  # results paragraph with intervals, ready for a paper
+card.to_markdown()
+card.to_latex()
+# card.to_docx("performance.docx")  # Word: pip install "evalsuite-python[docx]"
+```
+
+Discrimination, calibration, Brier score, threshold measures, net benefit and subgroup performance, plus the
+TRIPOD+AI checklist; `standard="model-card"` fills a model card's quantitative sections.
+
+## LLM leaderboards
+
+```python
+board = es.leaderboard({"model-a": "runs/a.jsonl", "model-b": "runs/b.jsonl"}, scorer="gsm8k")
+print(board.summary())  # ranks shared when differences are not significant (McNemar, Holm)
+```
+
+Scorers (exact match, GSM8K, boxed, choice, numeric, ...), per-category tables, contamination and LLM-judge
+position checks; also `evalsuite leaderboard runs/*.jsonl` and the [in-browser tool](https://evalsuite-nine.vercel.app/tools).
+
+## Monitoring
+
+```python
+mon = es.Monitor(
+    window=1000, alerts={"roc_auc": ("<", 0.8), "psi": (">", 0.25)}, reference_scores=validation_probabilities
+)
+alerts = mon.update(y_true_batch, y_pred=pred_batch, y_prob=prob_batch)
+```
+
+Sliding-window metrics, PSI and Kolmogorov–Smirnov drift (also before labels arrive, with `observe`), alert
+callbacks and `snapshot()` with intervals.
+
+## Integrations
+
+```python
+from evalsuite import integrations as ei
+
+cross_val_score(model, X, y, scoring=ei.sklearn_scorer("mcc"))
+Trainer(..., compute_metrics=ei.hf_compute_metrics(["accuracy", "f1"]))
+model.fit(X, y, callbacks=[ei.keras_callback(X_val, y_val)])
+ei.log_mlflow(result)
+ei.log_wandb(result)
+```
+
 ## Classification report
 
 ```python
@@ -305,7 +397,9 @@ evalsuite segmentation true_masks.npy pred_masks.npy --ignore-index 255 --plot p
 evalsuite detection instances_val.json detections.json --plot pr_curves.png
 evalsuite metrics --category clinical
 evalsuite info classification.mcc
+evalsuite leaderboard runs/*.jsonl --scorer gsm8k -o leaderboard.md
 evalsuite benchmark --quick
+evalsuite upgrade                      # install the latest release
 ```
 
 Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` or the `-o` extension
@@ -313,46 +407,46 @@ Input files can be CSV, TSV, Parquet or JSON. Output format follows `--format` o
 
 ## Performance
 
-Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 0.7.1, Python 3.13,
-NumPy 2.5, Linux x86_64). **Overall: 81 of 81 rows agree with the reference** (largest
-difference 2.5e-14), 80 are faster (the other, the maintainability index, runs Python's own `ast` parser
-like radon and lands at 0.89× on this run), and the geometric-mean speed-up across all
-27 cases and three sizes is **4.30×**. At 1,000,000 samples (pixels for
-segmentation; 1,000 images for detection and 50 for Hausdorff; 10,000 examples for the LLM cases), in
-alphabetical order:
+Benchmarked against reference implementations on the same data (fastest of 5 runs; EvalSuite 1.1.2, Python 3.13,
+NumPy 2.5, Linux x86_64 with 2 cores). **Every one of the 78 comparisons agrees with the reference** (largest
+difference 2.5e-14), 77 are faster (the other, Hochberg's correction at 100,000 p-values, is level at 0.98×),
+and the geometric-mean speed-up across 27 cases at three sizes is **3.86×**. `evaluate()` now also computes
+the default confidence intervals inside these timings and is still 18× faster than scikit-learn's separate
+metric calls. At 1,000,000 samples (pixels for segmentation; 1,000 images for detection and 50 for Hausdorff;
+10,000 examples for the LLM cases), in alphabetical order:
 
 | Case | Reference | EvalSuite (ms) | Reference (ms) | Speed-up |
 | --- | --- | ---: | ---: | ---: |
-| 10 classes: macro F1 | scikit-learn | 9.2 | 106.2 | **11.5×** |
-| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.7 | 3.6 | **2.1×** |
-| binary: 8 label metrics via evaluate() | scikit-learn | 10.0 | 932.8 | **93.4×** |
-| binary: ROC AUC | scikit-learn | 86.2 | 305.1 | **3.5×** |
-| calibration: slope and intercept | statsmodels | 209.6 | 1146.2 | **5.5×** |
-| clinical: diagnostic report (7 CIs) | statsmodels | 5.2 | 5.9 | **1.1×** |
-| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 20.9 | 381.9 | **18.3×** |
-| decision curve: 99 thresholds | NumPy loop | 145.7 | 190.2 | **1.3×** |
-| detection: COCO evaluation (1000 images) | pycocotools | 37.2 | 731.1 | **19.7×** |
-| multiple testing: Hochberg (n p-values) | statsmodels | 74.3 | 79.7 | **1.1×** |
-| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 7.9 | 13.4 | **1.7×** |
-| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 156.1 | 583.6 | **3.7×** |
-| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 36.1 | 248.7 | **6.9×** |
-| segmentation: Hausdorff distance (50 images) | SciPy | 4.6 | 16.6 | **3.6×** |
-| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.2 | **12.4×** |
-| statistics: Mann–Whitney U | SciPy | 135.5 | 303.6 | **2.2×** |
-| statistics: Welch t-test | SciPy | 7.1 | 10.4 | **1.5×** |
-| structured: JSON Schema compliance (10000 documents) | jsonschema | 103.6 | 211.7 | **2.0×** |
-| systems: CodeBLEU n-gram terms (1000 programs) | codebleu | 334.9 | 592.4 | **1.8×** |
-| systems: confidence AUROC (n answers) | scikit-learn | 162.4 | 265.7 | **1.6×** |
-| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 8.4 | 9.6 | **1.1×** |
-| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 108.1 | 252.4 | **2.3×** |
-| systems: latency p50 / p95 / p99 (n requests) | NumPy | 13.2 | 15.0 | **1.1×** |
-| systems: maintainability index (1000 programs) | radon | 100.8 | 89.5 | 0.89× |
-| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 206.2 | 2405.2 | **11.7×** |
-| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 72.2 | 404.0 | **5.6×** |
-| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 179.5 | 678.9 | **3.8×** |
+| 10 classes: macro F1 | scikit-learn | 8.6 | 35.6 | **4.16×** |
+| agreement: Krippendorff's alpha, interval (4 raters × 10000 items) | krippendorff | 1.6 | 3.2 | **2.01×** |
+| binary: 8 label metrics via evaluate() | scikit-learn | 9.2 | 172.0 | **18.70×** |
+| binary: ROC AUC | scikit-learn | 84.0 | 211.6 | **2.52×** |
+| calibration: slope and intercept | statsmodels | 218.2 | 1217.0 | **5.58×** |
+| clinical: diagnostic report (7 CIs) | statsmodels | 5.5 | 6.5 | **1.17×** |
+| clinical: sensitivity, specificity, LR+, LR− | scikit-learn | 19.5 | 76.4 | **3.91×** |
+| decision curve: 99 thresholds | NumPy loop | 169.5 | 196.8 | **1.16×** |
+| detection: COCO evaluation (1000 images) | pycocotools | 40.2 | 831.8 | **20.71×** |
+| multiple testing: Hochberg (n p-values) | statsmodels | 77.4 | 96.0 | **1.24×** |
+| regression: MAE, MSE, RMSE, R² via evaluate() | scikit-learn | 9.7 | 11.4 | **1.18×** |
+| retrieval: MRR, MAP@20, NDCG@10 (10000 queries) | ranx | 106.7 | 777.2 | **7.28×** |
+| segmentation: Dice and IoU per class (n = pixels) | scikit-learn | 34.9 | 72.2 | **2.07×** |
+| segmentation: Hausdorff distance (50 images) | SciPy | 7.6 | 18.5 | **2.43×** |
+| statistics: Cramér's V (5×5 table) | SciPy | 0.0 | 0.3 | **15.93×** |
+| statistics: Mann–Whitney U | SciPy | 127.5 | 385.5 | **3.02×** |
+| statistics: Welch t-test | SciPy | 5.4 | 8.1 | **1.50×** |
+| structured: JSON Schema compliance (10000 documents) | jsonschema | 133.2 | 295.5 | **2.22×** |
+| systems: CodeBLEU n-gram terms (1000 programs) | – | 435.4 | – | – |
+| systems: confidence AUROC (n answers) | scikit-learn | 181.8 | 242.6 | **1.33×** |
+| systems: distribution-shift drop, Welch CI (n scores) | SciPy | 6.3 | 7.5 | **1.20×** |
+| systems: invalid tool calls vs JSON Schema (10000 tasks) | jsonschema | 127.6 | 285.0 | **2.23×** |
+| systems: latency p50 / p95 / p99 (n requests) | NumPy | 9.0 | 15.3 | **1.71×** |
+| systems: maintainability index (1000 programs) | radon | 118.3 | 131.9 | **1.11×** |
+| text: METEOR, exact and stem matches (10000 sentences) | NLTK | 92.4 | 493.8 | **5.34×** |
+| text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 219.5 | 889.0 | **4.05×** |
+| text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 266.7 | 2399.8 | **9.00×** |
 
-**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`): all 225 registered metrics and
-statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
+**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`, last full run with 0.7.1): all 225
+registered metrics and statistics functions at 10,000 and 100,000 samples. 86 are compared with a reference library, 118 with an
 independent textbook formula and 21 (learned, judge-dependent or randomised) are timed alone; **all 204
 comparisons agree**, and against the libraries the geometric-mean speed-up is **6.64×** (171 of 172
 measurements faster). Per-metric table in BENCHMARKS.md.
