@@ -1,6 +1,9 @@
 //! C ABI: `include/evalsuite.h`. Every call takes a metric name and JSON arguments and returns a newly
 //! allocated JSON string (free it with `evalsuite_free`); on error it returns NULL and
 //! `evalsuite_last_error()` holds the message.
+//!
+//! Build with `CARGO_PROFILE_RELEASE_PANIC=unwind` (the workspace release profile aborts on panic) so that an
+//! internal panic is reported as an error rather than ending the host process.
 
 use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
@@ -34,10 +37,18 @@ pub unsafe extern "C" fn evalsuite_call(
         set_error("metric and args_json must be UTF-8.".into());
         return std::ptr::null_mut();
     };
-    match evalsuite::bridge::call(m, a) {
-        Ok(s) => CString::new(s).map_or(std::ptr::null_mut(), CString::into_raw),
-        Err(e) => {
+    // A panic must never unwind into C (undefined behaviour): report it as an error instead.
+    match std::panic::catch_unwind(|| evalsuite::bridge::call(m, a)) {
+        Ok(Ok(s)) => CString::new(s).map_or(std::ptr::null_mut(), CString::into_raw),
+        Ok(Err(e)) => {
             set_error(e.to_string());
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            set_error(
+                "internal error in the EvalSuite engine (please report it with the arguments)"
+                    .into(),
+            );
             std::ptr::null_mut()
         }
     }

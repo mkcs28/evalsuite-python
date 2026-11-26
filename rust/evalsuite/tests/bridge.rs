@@ -127,3 +127,33 @@ fn bridge_leaderboard() {
     assert!(call("leaderboard", r#"{"models":{"a":[1,0]}}"#).is_err());
     assert!(call("leaderboard", r#"{"models":{"a":[1,0],"b":[1]}}"#).is_err());
 }
+
+#[test]
+fn bridge_strict_arguments_and_non_finite_values() {
+    // JSON has no NaN / infinity: they come back as strings, never as null.
+    let lr = call("lr_positive", r#"{"y_true":[0,1,1,0],"y_pred":[0,1,1,0]}"#).unwrap();
+    assert!(lr.contains("\"Infinity\""), "{lr}");
+    let mcc = call("mcc", r#"{"y_true":[1,1,1],"y_pred":[1,1,1]}"#).unwrap();
+    assert!(!mcc.contains("null"), "{mcc}");
+    // invalid option values are errors, not silently replaced by defaults
+    for bad in [
+        r#"{"y_true":[0,1],"y_pred":[0,1],"average":"weird"}"#,
+        r#"{"y_true":[0,1],"y_pred":[0,1],"average":3}"#,
+        r#"{"y_true":[0,1],"y_prob":[0.2,0.8],"threshold":"a"}"#,
+        r#"{"y_true":[0,1],"y_prob":[0.2,0.8],"threshold":1.5}"#,
+        r#"{"y_true":[0,1],"y_prob":[0.2,0.8],"n_bins":100000000000}"#,
+        r#"{"y_true":[0,1],"y_pred":[0,1],"ci":"analytic","level":2}"#,
+    ] {
+        let metric = if bad.contains("threshold") {
+            "net_benefit"
+        } else if bad.contains("n_bins") {
+            "expected_calibration_error"
+        } else {
+            "f1"
+        };
+        assert!(call(metric, bad).is_err(), "{metric} {bad}");
+    }
+    assert!(call("psi", r#"{"reference":[1,2,3],"current":[1,2],"bins":100000000000}"#).is_err());
+    assert!(call("dice", r#"{"shape":[1e10,1e10],"y_true":[0],"y_pred":[0]}"#).is_err());
+    assert!(call("dice", r#"{"shape":[2,2],"y_true":[0,0.5,1,1],"y_pred":[0,1,1,1]}"#).is_err());
+}

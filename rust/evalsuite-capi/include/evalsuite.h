@@ -9,6 +9,7 @@ extern "C" {
 /* Computes `metric` on JSON arguments, e.g.
  *   evalsuite_call("f1", "{\"y_true\":[0,1,1,0],\"y_pred\":[0,1,0,0]}")
  * returns "{\"metric\":\"f1\",\"value\":0.6666666666666666}". Free the result with evalsuite_free.
+ * Undefined or infinite results are the JSON strings "NaN", "Infinity" and "-Infinity".
  * Add "ci":"analytic" or "ci":"bootstrap" (with "level", "n_resamples", "seed") for ci_low / ci_high.
  * Returns NULL on error; evalsuite_last_error() then gives the message. */
 char *evalsuite_call(const char *metric, const char *args_json);

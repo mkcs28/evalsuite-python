@@ -132,6 +132,37 @@ fn floats(a: &Map<String, Value>, k: &str) -> Result<Vec<f64>> {
         .collect()
 }
 
+/// An optional string argument restricted to `allowed` (`None` when absent or null).
+fn choice<'a>(a: &'a Map<String, Value>, k: &str, allowed: &[&str]) -> Result<Option<&'a str>> {
+    match a.get(k) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) if allowed.contains(&s.as_str()) => Ok(Some(s.as_str())),
+        _ => invalid(format!("'{k}' must be one of: {}.", allowed.join(", "))),
+    }
+}
+
+/// An optional number strictly between 0 and 1.
+fn unit(a: &Map<String, Value>, k: &str, default: f64) -> Result<f64> {
+    match a.get(k) {
+        None | Some(Value::Null) => Ok(default),
+        Some(v) => match v.as_f64() {
+            Some(x) if x > 0.0 && x < 1.0 => Ok(x),
+            _ => invalid(format!("'{k}' must be a number between 0 and 1.")),
+        },
+    }
+}
+
+/// An optional non-negative integer argument no larger than `max` (`None` when absent or null).
+fn uint(a: &Map<String, Value>, k: &str, max: u64) -> Result<Option<usize>> {
+    match a.get(k) {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => match v.as_u64() {
+            Some(n) if n <= max => Ok(Some(n as usize)),
+            _ => invalid(format!("'{k}' must be an integer between 0 and {max}.")),
+        },
+    }
+}
+
 fn opt_floats(a: &Map<String, Value>, k: &str) -> Result<Option<Vec<f64>>> {
     if a.get(k).is_none_or(Value::is_null) {
         Ok(None)
@@ -172,7 +203,8 @@ fn references(a: &Map<String, Value>) -> Result<Vec<Vec<String>>> {
 }
 
 fn average(a: &Map<String, Value>) -> Result<Average> {
-    Ok(match a.get("average").and_then(Value::as_str) {
+    let allowed = ["auto", "binary", "micro", "macro", "weighted", "none"];
+    Ok(match choice(a, "average", &allowed)? {
         None | Some("auto") => Average::Auto,
         Some("binary") => Average::Binary,
         Some("micro") => Average::Micro,
@@ -183,10 +215,24 @@ fn average(a: &Map<String, Value>) -> Result<Average> {
     })
 }
 
+/// A number as JSON; JSON has no NaN or infinity, so those become the strings "NaN", "Infinity" and
+/// "-Infinity" (the bindings turn them back into numbers).
+fn num(x: f64) -> Value {
+    if x.is_finite() {
+        json!(x)
+    } else if x.is_nan() {
+        json!("NaN")
+    } else if x > 0.0 {
+        json!("Infinity")
+    } else {
+        json!("-Infinity")
+    }
+}
+
 fn score(s: Score) -> Value {
     match s {
-        Score::Scalar(v) => json!(v),
-        Score::PerClass(v) => json!(v),
+        Score::Scalar(v) => num(v),
+        Score::PerClass(v) => Value::Array(v.into_iter().map(num).collect()),
     }
 }
 
@@ -236,11 +282,11 @@ fn classify<L: Label>(
             let pr = need()?;
             let k = t.iter().zip(pr).filter(|(a, b)| a == b).count();
             (
-                json!(cls::accuracy(t, pr, w)?),
+                num(cls::accuracy(t, pr, w)?),
                 wilson(k as f64, t.len() as f64),
             )
         }
-        "balanced_accuracy" => (json!(cls::balanced_accuracy(t, need()?, false, w)?), None),
+        "balanced_accuracy" => (num(cls::balanced_accuracy(t, need()?, false, w)?), None),
         "precision" => (score(cls::precision(t, need()?, &o)?), None),
         "recall" => (score(cls::recall(t, need()?, &o)?), None),
         "f1" => (score(cls::f1(t, need()?, &o)?), None),
@@ -258,20 +304,20 @@ fn classify<L: Label>(
                 "ppv" => clin::ppv(t, need()?, pl, w, zd)?,
                 _ => clin::npv(t, need()?, pl, w, zd)?,
             };
-            (json!(v), wilson(k, m))
+            (num(v), wilson(k, m))
         }
-        "mcc" => (json!(cls::mcc(t, need()?, w, zd)?), None),
-        "lr_positive" => (json!(clin::lr_positive(t, need()?, pl, w)?), None),
-        "lr_negative" => (json!(clin::lr_negative(t, need()?, pl, w)?), None),
+        "mcc" => (num(cls::mcc(t, need()?, w, zd)?), None),
+        "lr_positive" => (num(clin::lr_positive(t, need()?, pl, w)?), None),
+        "lr_negative" => (num(clin::lr_negative(t, need()?, pl, w)?), None),
         "diagnostic_odds_ratio" => (
-            json!(clin::diagnostic_odds_ratio(t, need()?, pl, w, 0.5)?),
+            num(clin::diagnostic_odds_ratio(t, need()?, pl, w, 0.5)?),
             None,
         ),
-        "youden_j" => (json!(clin::youden_j(t, need()?, pl, w)?), None),
+        "youden_j" => (num(clin::youden_j(t, need()?, pl, w)?), None),
         _ => {
             let q = floats(a, "y_prob")?;
-            let bins = a.get("n_bins").and_then(Value::as_u64).unwrap_or(10) as usize;
-            let strategy = match a.get("strategy").and_then(Value::as_str) {
+            let bins = uint(a, "n_bins", 100_000)?.unwrap_or(10);
+            let strategy = match choice(a, "strategy", &["uniform", "quantile"])? {
                 Some("quantile") => cls::binary::Strategy::Quantile,
                 _ => cls::binary::Strategy::Uniform,
             };
@@ -289,34 +335,32 @@ fn classify<L: Label>(
                         }
                         _ => None,
                     };
-                    (json!(v), ci)
+                    (num(v), ci)
                 }
-                "average_precision" => (json!(cls::binary::average_precision(t, &q, pl, w)?), None),
-                "log_loss" => (json!(cls::binary::log_loss(t, &q, pl, w)?), None),
-                "brier_score" => (json!(cls::binary::brier_score(t, &q, pl, w)?), None),
+                "average_precision" => (num(cls::binary::average_precision(t, &q, pl, w)?), None),
+                "log_loss" => (num(cls::binary::log_loss(t, &q, pl, w)?), None),
+                "brier_score" => (num(cls::binary::brier_score(t, &q, pl, w)?), None),
                 "net_benefit" => {
-                    let thr = a.get("threshold").and_then(Value::as_f64).unwrap_or(0.5);
-                    (json!(clin::net_benefit(t, &q, thr, pl, w)?), None)
+                    let thr = unit(a, "threshold", 0.5)?;
+                    (num(clin::net_benefit(t, &q, thr, pl, w)?), None)
                 }
-                "calibration_slope" => (json!(calib::calibration_slope(t, &q, pl, w)?.0), None),
-                "calibration_intercept" => {
-                    (json!(calib::calibration_intercept(t, &q, pl, w)?), None)
-                }
+                "calibration_slope" => (num(calib::calibration_slope(t, &q, pl, w)?.0), None),
+                "calibration_intercept" => (num(calib::calibration_intercept(t, &q, pl, w)?), None),
                 "expected_calibration_error" => (
-                    json!(cls::binary::expected_calibration_error(
-                        t, &q, bins, strategy, pl, w
+                    num(cls::binary::expected_calibration_error(
+                        t, &q, bins, strategy, pl, w,
                     )?),
                     None,
                 ),
                 "maximum_calibration_error" => (
-                    json!(calib::maximum_calibration_error(
-                        t, &q, bins, strategy, pl, w
+                    num(calib::maximum_calibration_error(
+                        t, &q, bins, strategy, pl, w,
                     )?),
                     None,
                 ),
                 _ => {
                     let (stat, p) = calib::hosmer_lemeshow(t, &q, bins, pl)?;
-                    (json!({"statistic": stat, "p_value": p}), None)
+                    (json!({"statistic": num(stat), "p_value": num(p)}), None)
                 }
             }
         }
@@ -403,7 +447,16 @@ fn retrieval_args(
 
 fn masks(a: &Map<String, Value>, k: &str, shape: &[usize]) -> Result<Vec<seg::Mask>> {
     let flat = floats(a, k)?;
-    let size: usize = shape.iter().product();
+    if flat
+        .iter()
+        .any(|x| !x.is_finite() || x.fract() != 0.0 || x.abs() > 1e15)
+    {
+        return invalid(format!("'{k}' must hold integer class labels."));
+    }
+    let size = shape
+        .iter()
+        .try_fold(1usize, |acc, &d| acc.checked_mul(d))
+        .unwrap_or(0);
     if size == 0 || flat.len() % size != 0 {
         return invalid(format!("'{k}' must hold whole masks of the given 'shape'."));
     }
@@ -426,7 +479,7 @@ fn compute(
             let (t, p) = (floats(a, "y_true")?, floats(a, "y_pred")?);
             let w = opt_floats(a, "sample_weight")?;
             let w = w.as_deref();
-            json!(match name {
+            num(match name {
                 "mae" => regression::mae(&t, &p, w)?,
                 "mse" => regression::mse(&t, &p, w)?,
                 "rmse" => regression::rmse(&t, &p, w)?,
@@ -439,24 +492,24 @@ fn compute(
         "bleu" | "chrf" | "ter" | "rouge_1" | "rouge_2" | "rouge_l" => {
             let (r, p) = (references(a)?, strings(a, "predictions")?);
             match name {
-                "bleu" => json!(gen::bleu(&r, &p, &gen::BleuOpts::default())?),
-                "chrf" => json!(gen::chrf(&r, &p, &gen::ChrfOpts::default())?),
-                "ter" => json!(gen::ter(&r, &p, false)?),
-                "rouge_1" => json!(gen::rouge_1(&r, &p)?),
-                "rouge_2" => json!(gen::rouge_2(&r, &p)?),
-                _ => json!(gen::rouge_l(&r, &p)?),
+                "bleu" => num(gen::bleu(&r, &p, &gen::BleuOpts::default())?),
+                "chrf" => num(gen::chrf(&r, &p, &gen::ChrfOpts::default())?),
+                "ter" => num(gen::ter(&r, &p, false)?),
+                "rouge_1" => Value::Array(gen::rouge_1(&r, &p)?.into_iter().map(num).collect()),
+                "rouge_2" => Value::Array(gen::rouge_2(&r, &p)?.into_iter().map(num).collect()),
+                _ => Value::Array(gen::rouge_l(&r, &p)?.into_iter().map(num).collect()),
             }
         }
         "ndcg" | "mrr" | "map" | "precision_at_k" | "recall_at_k" | "hit_rate" => {
             let (rel, got) = retrieval_args(a)?;
-            let k = a.get("k").and_then(Value::as_u64).map(|k| k as usize);
+            let k = uint(a, "k", u32::MAX as u64)?;
             let need_k = || match k {
                 Some(k) => Ok(k),
                 None => invalid(format!("{name} needs 'k'.")),
             };
             let q = match name {
                 "ndcg" => {
-                    let gains = match a.get("gains").and_then(Value::as_str) {
+                    let gains = match choice(a, "gains", &["linear", "exponential"])? {
                         Some("exponential") => ret::Gains::Exponential,
                         _ => ret::Gains::Linear,
                     };
@@ -468,17 +521,22 @@ fn compute(
                 "recall_at_k" => ret::recall_at_k(&rel, &got, need_k()?)?,
                 _ => ret::hit_rate_at_k(&rel, &got, need_k()?)?,
             };
-            json!(q.mean)
+            num(q.mean)
         }
         "dice" | "iou" => {
-            let shape: Vec<usize> = floats(a, "shape")?.iter().map(|&x| x as usize).collect();
+            let shape = floats(a, "shape")?;
+            if shape.is_empty()
+                || shape
+                    .iter()
+                    .any(|&d| !(d >= 1.0 && d.fract() == 0.0 && d < 1e9))
+            {
+                return invalid("'shape' must list positive integer dimensions.");
+            }
+            let shape: Vec<usize> = shape.iter().map(|&d| d as usize).collect();
             let (t, p) = (masks(a, "y_true", &shape)?, masks(a, "y_pred", &shape)?);
             let o = seg::Opts {
-                num_classes: a
-                    .get("num_classes")
-                    .and_then(Value::as_u64)
-                    .map(|n| n as usize),
-                average: match a.get("average").and_then(Value::as_str) {
+                num_classes: uint(a, "num_classes", 65_536)?,
+                average: match choice(a, "average", &["macro", "none"])? {
                     Some("none") => seg::Average::None,
                     _ => seg::Average::Macro,
                 },
@@ -495,10 +553,10 @@ fn compute(
             })
         }
         "leaderboard" => leaderboard(a)?,
-        "psi" => json!(monitor::population_stability_index(
+        "psi" => num(monitor::population_stability_index(
             &floats(a, "reference")?,
             &floats(a, "current")?,
-            a.get("bins").and_then(Value::as_u64).unwrap_or(10) as usize,
+            uint(a, "bins", 100_000)?.unwrap_or(10),
             1e-4,
         )?),
         "ks" => {
@@ -522,8 +580,8 @@ fn leaderboard(a: &Map<String, Value>) -> Result<Value> {
     let Value::Object(models) = field(a, "models")? else {
         return invalid("'models' must map each model name to a list of per-item results (0 / 1).");
     };
-    let level = a.get("level").and_then(Value::as_f64).unwrap_or(0.95);
-    let alpha = a.get("alpha").and_then(Value::as_f64).unwrap_or(0.05);
+    let level = unit(a, "level", 0.95)?;
+    let alpha = unit(a, "alpha", 0.05)?;
     if models.len() < 2 {
         return invalid("a leaderboard needs at least two models.");
     }
@@ -664,7 +722,7 @@ pub fn call(name: &str, args: &str) -> Result<String> {
         Some(Value::Bool(true)) => Some("analytic".to_owned()),
         _ => return invalid("'ci' must be \"analytic\", \"bootstrap\" or false."),
     };
-    let level = a.get("level").and_then(Value::as_f64).unwrap_or(0.95);
+    let level = unit(&a, "level", 0.95)?;
     let analytic = (ci.as_deref() == Some("analytic")).then_some(level);
     let (value, mut interval) = compute(name, &a, analytic)?;
     let mut method = interval.as_ref().map(|_| {
@@ -682,9 +740,9 @@ pub fn call(name: &str, args: &str) -> Result<String> {
         };
         let n = n_obs(&a)?;
         let opts = stats::Bootstrap {
-            n_resamples: a.get("n_resamples").and_then(Value::as_u64).unwrap_or(1000) as usize,
+            n_resamples: uint(&a, "n_resamples", 1_000_000)?.unwrap_or(1000),
             level,
-            seed: a.get("seed").and_then(Value::as_u64).unwrap_or(0),
+            seed: uint(&a, "seed", u64::MAX)?.unwrap_or(0) as u64,
             ..stats::Bootstrap::default()
         };
         let b = stats::bootstrap_ci(
@@ -707,9 +765,9 @@ pub fn call(name: &str, args: &str) -> Result<String> {
     out.insert("metric".into(), json!(name));
     out.insert(key.into(), value);
     if let (Some(iv), Some(m)) = (interval, method) {
-        out.insert("ci_low".into(), json!(iv.low));
-        out.insert("ci_high".into(), json!(iv.high));
-        out.insert("ci_level".into(), json!(level));
+        out.insert("ci_low".into(), num(iv.low));
+        out.insert("ci_high".into(), num(iv.high));
+        out.insert("ci_level".into(), num(level));
         out.insert("ci_method".into(), json!(m));
     }
     Ok(Value::Object(out).to_string())

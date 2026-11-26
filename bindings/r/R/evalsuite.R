@@ -21,12 +21,19 @@ es_metric <- function(metric, ..., ci = NULL, level = 0.95, n_resamples = 1000, 
   }
   json <- jsonlite::toJSON(args, auto_unbox = TRUE, digits = NA)
   out <- jsonlite::fromJSON(.Call(C_es_call, as.character(metric), as.character(json)))
-  value <- if (!is.null(out$values)) out$values else out$value
+  value <- .es_num(if (!is.null(out$values)) out$values else out$value)
   if (!is.null(out$ci_low)) {
-    return(list(value = value, ci_low = out$ci_low, ci_high = out$ci_high, ci_level = out$ci_level,
-                ci_method = out$ci_method))
+    return(list(value = value, ci_low = .es_num(out$ci_low), ci_high = .es_num(out$ci_high),
+                ci_level = out$ci_level, ci_method = out$ci_method))
   }
   value
+}
+
+# JSON has no NaN / Inf: the engine sends "NaN", "Infinity" and "-Infinity" as strings.
+.es_num <- function(x) {
+  if (!is.character(x)) return(x)
+  y <- suppressWarnings(as.numeric(sub("Infinity", "Inf", x, fixed = TRUE)))
+  if (anyNA(y[x != "NaN"])) x else y
 }
 
 #' Names of the metrics available through the engine

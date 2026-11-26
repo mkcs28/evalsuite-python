@@ -12,7 +12,7 @@ PKG_LIBS = $(TARGET_DIR)/release/libevalsuite_c.a -lpthread -ldl -lm
 $(SHLIB): rustlib
 
 rustlib:
-	cd $(RUST_DIR) && CARGO_TARGET_DIR=$(TARGET_DIR) cargo build --release -p evalsuite-capi $(CARGO_FLAGS)
+	cd $(RUST_DIR) && CARGO_TARGET_DIR=$(TARGET_DIR) CARGO_PROFILE_RELEASE_PANIC=unwind cargo build --release -p evalsuite-capi $(CARGO_FLAGS)
 
 clean:
 	rm -rf $(TARGET_DIR)

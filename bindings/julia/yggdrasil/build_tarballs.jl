@@ -12,7 +12,7 @@ sources = [
 
 script = raw"""
 cd ${WORKSPACE}/srcdir/evalsuite-python/rust
-cargo build --release -p evalsuite-capi
+CARGO_PROFILE_RELEASE_PANIC=unwind cargo build --release -p evalsuite-capi
 install -Dvm 755 "target/${rust_target}/release/"*evalsuite_c.${dlext} "${libdir}/libevalsuite_c.${dlext}"
 install -Dvm 644 evalsuite-capi/include/evalsuite.h "${includedir}/evalsuite.h"
 """
