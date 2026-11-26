@@ -118,7 +118,7 @@ _NO_WEIGHTS = {"max_error"}
 
 def _column(v: Any) -> Any:
     """``v`` as a 1-D array when it is a single column of shape (n, 1); otherwise unchanged."""
-    if v is None or isinstance(v, (list, tuple)) and not (v and isinstance(v[0], (list, tuple))):
+    if v is None or (isinstance(v, (list, tuple)) and not (v and isinstance(v[0], (list, tuple)))):
         return v
     shape = getattr(v, "shape", None)
     if shape is None:
