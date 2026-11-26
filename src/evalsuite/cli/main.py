@@ -176,8 +176,27 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         average=args.average,
         pos_label=label_value(args.pos_label),
         sample_weight=column(df, args.weight, "--weight") if args.weight else None,
+        baseline_pred=column(df, args.baseline_pred, "--baseline-pred") if args.baseline_pred else None,
+        baseline_prob=columns(df, args.baseline_prob, "--baseline-prob") if args.baseline_prob else None,
+        clusters=column(df, args.clusters, "--clusters") if args.clusters else None,
+        ci=False if args.ci == "none" else args.ci,
     )
     emit(result, args)
+    if args.fail_on_regression:
+        worse = []
+        for m in result.metrics.values():
+            p = m.params
+            if "baseline_p_adjusted" not in p or p["baseline_p_adjusted"] >= 0.05:
+                continue
+            ids = [x for x in es.list_metrics() if x.split(".")[-1] == m.metric]
+            info = es.metric_info(ids[0]) if ids else None
+            higher = True if info is None or info.higher_is_better is None else bool(info.higher_is_better)
+            diff = p["baseline_difference"]
+            if (diff < 0) if higher else (diff > 0):
+                worse.append(f"{m.name} {diff:+.4f} (p={p['baseline_p_adjusted']:.3g})")
+        if worse:
+            print("Significant regressions against the baseline: " + "; ".join(worse), file=sys.stderr)
+            return 1
     return 0
 
 
@@ -328,6 +347,7 @@ def cmd_leaderboard(args: argparse.Namespace) -> int:
     lb = es.leaderboard(
         runs,
         scorer=args.scorer,
+        benchmark=args.benchmark,
         references=args.references,
         level=args.level,
         alpha=args.alpha,
@@ -509,6 +529,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--metrics", help="comma-separated metric names, e.g. accuracy,f1,mcc")
     p.add_argument("--average", default="auto", help="binary, micro, macro, weighted, samples (default: auto)")
     p.add_argument("--pos-label", help="positive class for binary metrics (default: 1)")
+    p.add_argument("--baseline-pred", help="column with the baseline model's predictions (adds paired tests)")
+    p.add_argument("--baseline-prob", nargs="+", help="column(s) with the baseline model's probabilities")
+    p.add_argument("--clusters", help="column with a cluster id per row (patient, document): cluster bootstrap")
+    p.add_argument(
+        "--ci",
+        choices=("analytic", "bootstrap", "none"),
+        default="analytic",
+        help="interval method (default analytic)",
+    )
+    p.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="exit with code 1 when a metric is significantly worse than the baseline (Holm-adjusted p < 0.05)",
+    )
     add_output(p)
     p.set_defaults(func=cmd_evaluate)
 
@@ -612,8 +646,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run", action="append", help="NAME=FILE (repeat; instead of positional files)")
     p.add_argument("--references", help="JSONL with id and reference (when the runs do not carry them)")
     p.add_argument(
+        "--benchmark",
+        choices=["gsm8k", "mmlu", "arc", "arc-easy", "truthfulqa", "humaneval"],
+        help="use that benchmark's scorer (and, with --references from es.load_benchmark, its categories)",
+    )
+    p.add_argument(
         "--scorer",
-        default="exact_match",
+        default=None,
         choices=["exact_match", "contains", "gsm8k", "boxed", "choice", "last_line", "numeric"],
         help="how predictions are scored against references (records with 'correct' or 'score' are used as given)",
     )

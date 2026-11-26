@@ -278,6 +278,57 @@ __all__ = [
 __all__ += list(_text_all)
 __all__ += list(_llmsys_all)
 
+from .fairness import FairnessReport, fairness_report  # noqa: E402
+from .html_report import html_report  # noqa: E402
+from .judging import JudgeReport, RubricReport, judge_report, rubric_report  # noqa: E402
+from .llm_benchmarks import BENCHMARKS, format_multiple_choice, load_benchmark  # noqa: E402
+from .rag_report import RAGReport, rag_report  # noqa: E402
+from .stats.planning import (  # noqa: E402
+    SampleSize,
+    power_auc,
+    power_mean_difference,
+    power_two_proportions,
+    sample_size_auc,
+    sample_size_mean_difference,
+    sample_size_proportion,
+    sample_size_two_proportions,
+)
+from .survival import (  # noqa: E402
+    brier_score_survival,
+    concordance_index,
+    integrated_brier_score,
+    kaplan_meier,
+    time_dependent_auc,
+)
+
+__all__ += [
+    "BENCHMARKS",
+    "FairnessReport",
+    "JudgeReport",
+    "RAGReport",
+    "RubricReport",
+    "SampleSize",
+    "brier_score_survival",
+    "concordance_index",
+    "fairness_report",
+    "format_multiple_choice",
+    "html_report",
+    "integrated_brier_score",
+    "judge_report",
+    "kaplan_meier",
+    "load_benchmark",
+    "power_auc",
+    "power_mean_difference",
+    "power_two_proportions",
+    "rag_report",
+    "rubric_report",
+    "sample_size_auc",
+    "sample_size_mean_difference",
+    "sample_size_proportion",
+    "sample_size_two_proportions",
+    "time_dependent_auc",
+]
+
 import contextlib as _contextlib  # noqa: E402
 
 from ._update import UpdateInfo, check_for_update, upgrade  # noqa: E402

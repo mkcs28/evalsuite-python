@@ -6,6 +6,49 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-26
+
+EvalSuite for LLM evaluation and research-grade statistics.
+
+### Added
+- **LLM benchmark presets**: `es.leaderboard(..., benchmark="gsm8k" | "mmlu" | "arc" | "arc-easy" |
+  "truthfulqa" | "humaneval")` sets the scorer; `es.load_benchmark(name)` returns prompts, gold answers and
+  categories (MMLU subjects) from the Hugging Face Hub (`[benchmarks]` extra); `es.format_multiple_choice`.
+  HumanEval records carry `passed` or `n_samples` / `n_correct` from your own sandbox (EvalSuite never runs
+  model-generated code). `evalsuite leaderboard --benchmark`.
+- **`es.judge_report`**: win rates (Wilson) and Bradley–Terry ratings (bootstrap) from pairwise verdicts, with
+  position consistency and first-position preference, length bias, self-preference and agreement with human
+  verdicts (Cohen's kappa with a bootstrap interval); each bias tested and flagged only when significant.
+  **`es.rubric_report`**: rubric means with t intervals, inter-rater Krippendorff's alpha, Spearman
+  correlation with human scores.
+- **`es.rag_report`**: hit rate / recall / MRR at k, exact match, token F1 and grounded rate with intervals, and
+  every question classified as correct, retrieval failure, generation failure, unsupported-but-correct or
+  unknown cause, with the biggest problem named.
+- **`es.html_report`**: one self-contained HTML file (no scripts, no external requests) from any EvalSuite
+  results, Matplotlib figures and Markdown text, with a provenance footer.
+- **Planning**: `sample_size_proportion`, `sample_size_two_proportions` (paired McNemar, Connor 1987;
+  unpaired, Fleiss et al.), `sample_size_auc` (Hanley & McNeil; Obuchowski), `sample_size_mean_difference`, and
+  `power_*` counterparts; checked against statsmodels and by simulation.
+- **Clustered intervals**: `bootstrap_ci(..., clusters=)` and `evaluate(..., clusters=)` resample whole clusters
+  (patients, documents, sites) for every interval and paired baseline test; in a simulation with 60 patients
+  of 10 scans, 95% intervals covered the truth 93% of the time against 77% for ordinary intervals.
+- **`es.fairness_report`**: per-group selection rate, TPR, FPR, PPV, accuracy (Wilson), ROC AUC (DeLong) and
+  calibration-in-the-large; demographic parity difference / ratio, equalized odds, equal opportunity and
+  predictive parity gaps with bootstrap intervals; intersectional groups; Fisher tests against a reference
+  group, Holm-adjusted. Gap values identical to Fairlearn's.
+- **Survival metrics**: `concordance_index` (Harrell; Uno's IPCW with `ipcw=True`, optional bootstrap
+  interval), `time_dependent_auc`, `brier_score_survival`, `integrated_brier_score`, `kaplan_meier`;
+  identical to scikit-survival (to 1e-15), Harrell's C 17× faster on 100,000 subjects.
+- **GitHub Action** (`uses: mkcs28/evalsuite-python@v1.2.0`): evaluates a predictions file on every pull
+  request, comments metrics with intervals and paired tests (updating its own comment), writes the job summary
+  and can fail on a significant regression. The CLI gains `evaluate --baseline-pred/--baseline-prob
+  --clusters --ci --fail-on-regression`.
+- CI builds and tests the R package on Windows; an upgrade banner in the README for users of older versions.
+
+### Changed
+- `EvaluationResult.to_html()` shows intervals and baseline tests, like the Markdown and LaTeX exports.
+- Per-metric benchmark table (all registered metrics) re-run on 1.2.0.
+
 ## [1.1.2] - 2026-11-26
 
 ### Added

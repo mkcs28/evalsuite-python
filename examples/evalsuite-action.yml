@@ -1,0 +1,22 @@
+# Example workflow: evaluate the model's predictions on every pull request and compare them with the baseline.
+# Copy to .github/workflows/evaluate.yml in your repository.
+name: Evaluate model
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write   # to comment the results
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ... produce predictions.csv with columns label, pred, prob, base_pred, base_prob ...
+      - uses: mkcs28/evalsuite-python@v1.2.0
+        with:
+          predictions: predictions.csv
+          y-true: label
+          y-pred: pred
+          y-prob: prob
+          baseline-pred: base_pred
+          baseline-prob: base_prob
+          fail-on-regression: "true"

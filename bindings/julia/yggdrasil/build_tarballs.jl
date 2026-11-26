@@ -4,10 +4,10 @@
 using BinaryBuilder
 
 name = "EvalSuite"
-version = v"1.1.2"
+version = v"1.2.0"
 
 sources = [
-    GitSource("https://github.com/mkcs28/evalsuite-python.git", "COMMIT_SHA_OF_v1.1.2"),
+    GitSource("https://github.com/mkcs28/evalsuite-python.git", "COMMIT_SHA_OF_v1.2.0"),
 ]
 
 script = raw"""

@@ -366,13 +366,23 @@ class EvaluationResult(Mapping[str, MetricResult]):
         page with inline CSS and no scripts)."""
         from .export import html_document, html_table
 
-        parts = [
-            html_table(
-                ["Metric", "Value"],
-                [[m.name, _fmt(m.value, digits)] for m in self._scalar_rows()],
-                caption=caption or "Metrics",
-            )
-        ]
+        rows = self._scalar_rows()
+        has_ci = any("ci_low" in m.params for m in rows)
+        has_base = any("baseline_difference" in m.params for m in rows)
+        head = (
+            ["Metric", "Value"]
+            + ([f"{_level_pct(rows)} CI"] if has_ci else [])
+            + (["Δ vs baseline", "p"] if has_base else [])
+        )
+        table_rows = []
+        for m in rows:
+            cells = [m.name, _fmt(m.value, digits)]
+            if has_ci:
+                cells.append(_ci_cell(m, digits))
+            if has_base:
+                cells += _base_cells(m, digits)
+            table_rows.append(cells)
+        parts = [html_table(head, table_rows, caption=caption or "Metrics")]
         for m in self.metrics.values():
             if isinstance(m.value, np.ndarray):
                 parts.append(

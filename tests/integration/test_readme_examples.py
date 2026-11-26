@@ -70,6 +70,7 @@ def _namespace(tmp_path: Path) -> dict:
     g = [rng.normal(m, 1, 30) for m in (0, 0.3, 0.6)]
     return {
         "es": es,
+        "np": np,
         "y_true": y,
         "y_pred": preds["lr"],
         "y_prob": probs["lr"],
