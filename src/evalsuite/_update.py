@@ -22,7 +22,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 PACKAGE = "evalsuite-python"
 PYPI_URL = f"https://pypi.org/pypi/{PACKAGE}/json"
@@ -78,7 +78,7 @@ def _cache_file() -> Path:
     return Path(base) / "evalsuite" / "update-check.json"
 
 
-def _read_cache() -> dict:
+def _read_cache() -> dict[str, Any]:
     try:
         data = json.loads(_cache_file().read_text())
         return data if isinstance(data, dict) else {}
@@ -86,7 +86,7 @@ def _read_cache() -> dict:
         return {}
 
 
-def _write_cache(data: dict) -> None:
+def _write_cache(data: dict[str, Any]) -> None:
     try:
         path = _cache_file()
         path.parent.mkdir(parents=True, exist_ok=True)

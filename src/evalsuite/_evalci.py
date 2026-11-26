@@ -115,13 +115,13 @@ def _analytic(
         if n >= 2:
             # One pass of BLAS dot products serves every error metric: Σe², Σe⁴ (and Σe) give the means and
             # sample variances of |e|, e² and e without temporaries for |e| (|e|·|e| = e·e).
-            q = _t_quantile(level, n - 1)
+            tq = _t_quantile(level, n - 1)
             ee = float(np.dot(e, e))
             sq: Optional[np.ndarray] = None
 
             def t_ci(mean: float, sum_sq: float) -> tuple[float, float]:
                 var = max(0.0, (sum_sq - n * mean * mean) / (n - 1))
-                half = q * math.sqrt(var / n)
+                half = tq * math.sqrt(var / n)
                 return mean - half, mean + half
 
             for name in result.metrics:

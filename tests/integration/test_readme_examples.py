@@ -96,6 +96,16 @@ def _namespace(tmp_path: Path) -> dict:
         "boxes_a": [[0, 0, 10, 10]],
         "boxes_b": [[0, 0, 5, 5]],
         "_vision": {"masks": masks, "boxes": boxes, "dets": dets},
+        # 1.x sections: baselines, report cards, monitoring
+        "new_pred": preds["lr"],
+        "new_prob": probs["lr"],
+        "old_pred": preds["b"],
+        "old_prob": probs["b"],
+        "site": np.where(np.arange(200) % 2 == 0, "A", "B"),
+        "validation_probabilities": probs["rf"],
+        "y_true_batch": y[:50],
+        "pred_batch": preds["lr"][:50],
+        "prob_batch": probs["lr"][:50],
     }
 
 
@@ -104,8 +114,18 @@ EXAMPLES = _blocks()
 
 @pytest.mark.parametrize(("heading", "code"), EXAMPLES, ids=[f"{i}-{h[:30]}" for i, (h, _) in enumerate(EXAMPLES)])
 def test_readme_example_runs(heading: str, code: str, tmp_path, monkeypatch) -> None:
+    if heading.lower().startswith("integrations"):
+        pytest.skip("needs the optional frameworks (scikit-learn, Hugging Face, Keras, MLflow, W&B) and models")
     monkeypatch.chdir(tmp_path)
     ns = _namespace(tmp_path)
+    if heading.lower().startswith("llm leaderboards"):
+        (tmp_path / "runs").mkdir()
+        for name, skill in (("a", 8), ("b", 6)):
+            rows = [
+                json.dumps({"id": i, "prediction": f"so #### {i if i % 10 < skill else -1}", "reference": str(i)})
+                for i in range(60)
+            ]
+            (tmp_path / "runs" / f"{name}.jsonl").write_text("\n".join(rows))
     vision = ns.pop("_vision")
     if heading.lower().startswith("segmentation"):
         ns["y_true"], ns["y_pred"] = vision["masks"], np.roll(vision["masks"], 1, axis=2)
