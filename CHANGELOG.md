@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-26
+
+### Added
+- **The engine everywhere**: npm, C, R and Julia now cover clinical metrics (sensitivity, PPV, NPV, likelihood
+  ratios, diagnostic odds ratio, Youden's J, net benefit), calibration (slope, intercept, ECE, MCE,
+  Hosmer–Lemeshow), retrieval (NDCG, MRR, MAP, precision / recall / hit rate at k) and segmentation (Dice, IoU),
+  in addition to the 1.0 set.
+- **Confidence intervals in every language**: `ci: "analytic"` (Wilson for proportions, DeLong for ROC AUC,
+  bootstrap otherwise) or `ci: "bootstrap"` (seeded BCa) returns `ci_low` / `ci_high` alongside the value.
+- **Leaderboard in the engine** (`leaderboard`): Wilson intervals, McNemar tests with Holm adjustment and
+  significance-aware ranks, available from JavaScript, C, R and Julia.
+- **R package distribution**: a self-contained source package (Rust sources vendored, offline build, Windows
+  support) checked with `R CMD check`, attached to each release and published to the `r-package` branch for
+  R-universe. **Julia**: a BinaryBuilder recipe for `EvalSuite_jll`.
+- **Example notebooks** (Colab): classification quickstart, clinical TRIPOD+AI, LLM leaderboard, monitoring,
+  vision.
+
+### Changed
+- BLEU 1.3× and HD95 1.6× faster than the Python reference path (memoised 13a tokenization, byte-level
+  tokenizer, per-segment vocabularies, packed n-gram matching; row-parallel surface scan, allocation-free label
+  checks). Results unchanged.
+
 ## [1.0.0] - 2026-11-25
 
 EvalSuite 1.0: answers with uncertainty by default, and one engine in every language.

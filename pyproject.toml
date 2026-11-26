@@ -129,6 +129,7 @@ ignore = ["N803", "N806", "RUF022", "UP007", "UP045", "RUF001", "RUF002", "RUF00
 "src/evalsuite/*/metrics.py" = ["E501"]
 # Developer script recording parity fixtures for the Rust crate: each case's lambda runs immediately.
 "scripts/rust_fixtures.py" = ["B007", "B023", "E501", "E731", "E741", "RUF005"]
+"scripts/make_notebooks.py" = ["E501", "S102"]
 
 [tool.mypy]
 python_version = "3.10"
