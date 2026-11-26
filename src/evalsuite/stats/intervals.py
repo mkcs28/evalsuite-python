@@ -160,6 +160,7 @@ def bootstrap_ci(
     stratify: Optional[bool] = None,
     jackknife_groups: int = 1000,
     resampling: str = "numpy",
+    clusters: Optional[ArrayLike] = None,
     **metric_kwargs: Any,
 ) -> ConfidenceInterval:
     """Bootstrap confidence interval for any metric.
@@ -176,6 +177,11 @@ def bootstrap_ci(
     ``resampling="native"`` (opt-in) draws the resample indices in the compiled core instead of NumPy: faster on
     large inputs and still reproducible with ``random_state``, but a different random stream from the default.
 
+    ``clusters`` (one id per observation: patient, document, site, conversation) resamples whole clusters
+    instead of observations (cluster bootstrap; Field & Welsh 2007), so correlated observations in a cluster are
+    kept together. Ordinary intervals are too narrow when observations are clustered; the cluster interval is
+    honest. BCa's acceleration then uses leave-one-cluster-out estimates.
+
         References: Efron B. Better bootstrap confidence intervals. JASA. 1987;82(397):171-185.
         Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman & Hall; 1993.
     """
@@ -188,6 +194,20 @@ def bootstrap_ci(
     call = MetricCall(fn, y_true, y_pred, y_prob, sample_weight, metric_kwargs)
     estimate = call()
     rng = np.random.default_rng(random_state)
+    if clusters is not None:
+        return _cluster_bootstrap(
+            call,
+            name,
+            estimate,
+            clusters,
+            level,
+            method,
+            n_resamples,
+            rng,
+            random_state,
+            jackknife_groups,
+            metric_kwargs,
+        )
     use_strata = call.categorical if stratify is None else bool(stratify)
     idx = resample_indices(call.n, n_resamples, rng, call.y_true if use_strata else None, resampling)
     boot, failed = bootstrap_distribution(call, idx)
@@ -215,6 +235,100 @@ def bootstrap_ci(
         low, high, extra = _bca(call, valid, estimate, alpha, rng, jackknife_groups)
         params.update(extra)
     return ConfidenceInterval(estimate, float(low), float(high), level, f"bootstrap-{method}", name, params)
+
+
+def _cluster_members(clusters: ArrayLike, n: int) -> list[NDArray[np.int64]]:
+    c = np.asarray(clusters).ravel()
+    if c.shape[0] != n:
+        raise InputValidationError(f"clusters must have one id per observation ({n}); got {c.shape[0]}.")
+    _, codes = np.unique(c, return_inverse=True)
+    order = np.argsort(codes, kind="stable")
+    bounds = np.flatnonzero(np.diff(codes[order])) + 1
+    return [m.astype(np.int64) for m in np.split(order, bounds)]
+
+
+def _cluster_bootstrap(
+    call: MetricCall,
+    name: str,
+    estimate: float,
+    clusters: ArrayLike,
+    level: float,
+    method: str,
+    n_resamples: int,
+    rng: np.random.Generator,
+    random_state: Optional[int],
+    groups: int,
+    metric_kwargs: dict[str, Any],
+) -> ConfidenceInterval:
+    members = _cluster_members(clusters, call.n)
+    g = len(members)
+    if g < 2:
+        raise InputValidationError("A cluster bootstrap needs at least two clusters.")
+    boot = np.empty(n_resamples)
+    failed = 0
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for b in range(n_resamples):
+            pick = rng.integers(0, g, g)
+            idx = np.concatenate([members[k] for k in pick])
+            try:
+                boot[b] = call(idx)
+            except EvalSuiteError:
+                boot[b] = np.nan
+                failed += 1
+    if failed > MAX_FAILED_FRACTION * n_resamples:
+        raise StatisticalTestError(
+            f"The metric was undefined on {failed} of {n_resamples} cluster resamples; too few clusters?"
+        )
+    alpha = 1 - level
+    valid = boot[~np.isnan(boot)]
+    params: dict[str, Any] = {
+        "n_resamples": n_resamples,
+        "random_state": random_state,
+        "clusters": g,
+        "failed_resamples": failed,
+        "resampling": "cluster",
+        **metric_kwargs,
+    }
+    if method == "percentile":
+        low, high = np.quantile(valid, [alpha / 2, 1 - alpha / 2])
+    elif method == "basic":
+        q_low, q_high = np.quantile(valid, [alpha / 2, 1 - alpha / 2])
+        low, high = 2 * estimate - q_high, 2 * estimate - q_low
+    else:
+        share = (np.sum(valid < estimate) + 0.5 * np.sum(valid == estimate)) / valid.shape[0]
+        if share <= 0 or share >= 1:
+            low, high = np.quantile(valid, [alpha / 2, 1 - alpha / 2])
+            params["bca_fallback"] = "percentile"
+        else:
+            z0 = special.ndtri(share)
+            if g <= groups:
+                blocks = members
+            else:  # leave out groups of clusters
+                parts = np.array_split(rng.permutation(g), groups)
+                blocks = [np.concatenate([members[k] for k in part]) for part in parts]
+            everything = np.arange(call.n)
+            jack = np.empty(len(blocks))
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                for j, block in enumerate(blocks):
+                    try:
+                        jack[j] = call(np.setdiff1d(everything, block, assume_unique=True))
+                    except EvalSuiteError:
+                        jack[j] = np.nan
+            jack = jack[~np.isnan(jack)]
+            diffs = jack.mean() - jack
+            denom = 6.0 * np.sum(diffs**2) ** 1.5
+            accel = float(np.sum(diffs**3) / denom) if denom > 0 else 0.0
+            probs = []
+            for z_alpha in (special.ndtri(alpha / 2), special.ndtri(1 - alpha / 2)):
+                num = z0 + z_alpha
+                probs.append(special.ndtr(z0 + num / (1 - accel * num)))
+            low, high = np.quantile(valid, probs)
+            params.update(bias_correction=float(z0), acceleration=accel)
+    return ConfidenceInterval(
+        estimate, float(low), float(high), level, f"cluster-bootstrap-{method}", name, params
+    )
 
 
 def _bca(

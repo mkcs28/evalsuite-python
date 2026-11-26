@@ -328,6 +328,7 @@ def cmd_leaderboard(args: argparse.Namespace) -> int:
     lb = es.leaderboard(
         runs,
         scorer=args.scorer,
+        benchmark=args.benchmark,
         references=args.references,
         level=args.level,
         alpha=args.alpha,
@@ -612,8 +613,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run", action="append", help="NAME=FILE (repeat; instead of positional files)")
     p.add_argument("--references", help="JSONL with id and reference (when the runs do not carry them)")
     p.add_argument(
+        "--benchmark",
+        choices=["gsm8k", "mmlu", "arc", "arc-easy", "truthfulqa", "humaneval"],
+        help="use that benchmark's scorer (and, with --references from es.load_benchmark, its categories)",
+    )
+    p.add_argument(
         "--scorer",
-        default="exact_match",
+        default=None,
         choices=["exact_match", "contains", "gsm8k", "boxed", "choice", "last_line", "numeric"],
         help="how predictions are scored against references (records with 'correct' or 'score' are used as given)",
     )

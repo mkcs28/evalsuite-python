@@ -273,8 +273,9 @@ class Leaderboard:
 def leaderboard(
     runs: Mapping[str, Records],
     *,
-    scorer: Union[str, Callable[[str, str], Any]] = "exact_match",
+    scorer: Optional[Union[str, Callable[[str, str], Any]]] = None,
     references: Optional[Records] = None,
+    benchmark: Optional[str] = None,
     level: float = 0.95,
     alpha: float = 0.05,
     correction: str = "holm",
@@ -290,6 +291,11 @@ def leaderboard(
     of "exact_match" (SQuAD-normalised), "contains", "gsm8k", "boxed", "choice", "last_line", "numeric", or a
     callable (prediction, reference) -> score in [0, 1]; records with a ``correct`` or ``score`` field are used
     as given. ``train_corpus`` (iterable of texts) enables the contamination check.
+    ``benchmark`` (``"gsm8k"``, ``"mmlu"``, ``"arc"``, ``"arc-easy"``, ``"truthfulqa"``, ``"humaneval"``) picks
+    that
+    benchmark's scorer (unless ``scorer`` is given); pass ``references=es.load_benchmark(name)`` for its gold
+    answers and categories. For HumanEval, records carry ``passed`` (or ``n_samples`` / ``n_correct``) from your
+    own sandboxed execution; the score is pass@1.
     """
     from . import adjust_pvalues, mcnemar_test, position_consistency, proportion_ci
 
@@ -297,10 +303,24 @@ def leaderboard(
         raise InputValidationError("runs must map model names to their records.")
     if not 0 < level < 1 or not 0 < alpha < 1:
         raise InputValidationError("level and alpha must be in (0, 1).")
+    bench = None
+    if benchmark is not None:
+        from .llm_benchmarks import spec
+
+        bench = spec(benchmark)
+    scorer_label: Optional[str] = None
+    if scorer is None:
+        if bench is not None and bench.scorer == "pass":
+            scorer, scorer_label = "exact_match", "pass@1"
+        else:
+            scorer = bench.scorer if bench is not None else "exact_match"
     gold: dict[Any, Any] = {}
+    gold_category: dict[Any, str] = {}
     if references is not None:
         for r in _load(references, "references"):
             gold[r["id"]] = r.get("reference", r.get("answer"))
+            if r.get("category") is not None:
+                gold_category[r["id"]] = str(r["category"])
     score_fn = _scorer(scorer)
     scores: dict[str, dict[Any, float]] = {}
     failures: dict[str, int] = {}
@@ -318,6 +338,15 @@ def leaderboard(
                 raise InputValidationError(f"runs[{model!r}] has item id {key!r} more than once.")
             if "correct" in r and r["correct"] is not None:
                 v = float(bool(r["correct"]))
+            elif "passed" in r and r["passed"] is not None:
+                v = float(bool(r["passed"]))
+            elif r.get("n_samples") is not None and r.get("n_correct") is not None:
+                ns, nc = int(r["n_samples"]), int(r["n_correct"])
+                if ns < 1 or not 0 <= nc <= ns:
+                    raise InputValidationError(
+                        f"runs[{model!r}] item {key!r}: need 0 <= n_correct <= n_samples and n_samples >= 1."
+                    )
+                v = nc / ns  # unbiased pass@1
             elif "score" in r and r["score"] is not None:
                 v = float(r["score"])
                 if not 0.0 <= v <= 1.0:
@@ -336,6 +365,8 @@ def leaderboard(
             m = meta.setdefault(key, {})
             if r.get("category") is not None:
                 m.setdefault("category", str(r["category"]))
+            elif key in gold_category:
+                m.setdefault("category", gold_category[key])
             for f in ("prompt", "reference"):
                 if r.get(f) is not None:
                     m.setdefault(f, str(r[f]))
@@ -459,7 +490,9 @@ def leaderboard(
         categories={k: tuple(v) for k, v in categories.items()},
         checks=checks,
         settings={
-            "scorer": scorer if isinstance(scorer, str) else getattr(scorer, "__name__", "custom"),
+            "scorer": scorer_label
+            or (scorer if isinstance(scorer, str) else getattr(scorer, "__name__", "custom")),
+            "benchmark": bench.name if bench is not None else None,
             "level": level,
             "alpha": alpha,
             "correction": correction,

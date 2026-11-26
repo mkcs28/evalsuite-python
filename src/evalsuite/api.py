@@ -167,6 +167,7 @@ def evaluate(
     baseline_prob: Optional[ArrayLike] = None,
     n_resamples: int = 1000,
     random_state: Optional[int] = 0,
+    clusters: Optional[ArrayLike] = None,
 ) -> EvaluationResult:
     """Evaluate predictions with a standard set of metrics (or the ``metrics`` you name), with confidence
     intervals and, given a baseline, paired significance tests against it.
@@ -188,6 +189,9 @@ def evaluate(
     ``random_state``); ``ci=False`` turns them off. ``baseline_pred`` / ``baseline_prob`` (e.g. the current model)
     add the difference, its interval and a paired test per metric (McNemar for accuracy, DeLong for ROC AUC,
     paired bootstrap otherwise; Holm-adjusted), as ``baseline_*`` params and ``result.comparison``.
+    ``clusters`` (one id per observation, e.g. the patient of each scan or the document of each question) makes
+    every interval and baseline test a cluster bootstrap that resamples whole clusters; ordinary intervals are
+    too narrow when observations within a cluster are correlated.
     """
     if isinstance(y_true, (list, tuple)) and y_true and isinstance(y_true[0], dict):
         raise UnsupportedTaskError(
@@ -228,6 +232,7 @@ def evaluate(
         n_resamples=n_resamples,
         random_state=random_state,
         sample_weight=sample_weight,
+        clusters=clusters,
     )
 
 

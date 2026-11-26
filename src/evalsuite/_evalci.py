@@ -171,6 +171,7 @@ def attach(
     n_resamples: int,
     random_state: Optional[int],
     sample_weight: Any,
+    clusters: Any = None,
 ) -> EvaluationResult:
     """Return ``result`` with intervals in each metric's params (``ci_low``, ``ci_high``, ``ci_level``,
     ``ci_method``) and, with a baseline, the paired comparison (``baseline_*`` params and ``comparison``)."""
@@ -187,6 +188,22 @@ def attach(
         return result
     names = [k for k, m in result.metrics.items() if not isinstance(m.value, np.ndarray)]
     intervals: dict[str, tuple[float, float, str]] = {}
+    if clusters is not None:
+        return _attach_clustered(
+            result,
+            y_true,
+            y_pred,
+            y_prob,
+            names,
+            mode,
+            level,
+            baseline_pred,
+            baseline_prob,
+            n_resamples,
+            random_state,
+            sample_weight,
+            clusters,
+        )
     if mode == "analytic" and sample_weight is None:
         intervals = _analytic(result, y_true, y_pred, y_prob, level)
     comparison = None
@@ -266,4 +283,125 @@ def attach(
             **({"n_resamples": n_resamples, "random_state": random_state} if comparison is not None else {}),
         },
         comparison=comparison,
+    )
+
+
+def _attach_clustered(
+    result: EvaluationResult,
+    y_true: Any,
+    y_pred: Any,
+    y_prob: Any,
+    names: list[str],
+    mode: str,
+    level: float,
+    baseline_pred: Any,
+    baseline_prob: Any,
+    n_resamples: int,
+    random_state: Optional[int],
+    sample_weight: Any,
+    clusters: Any,
+) -> EvaluationResult:
+    """Intervals and baseline tests that resample whole clusters (``evaluate(..., clusters=...)``): analytic
+    intervals assume independent observations, so with clusters every interval is a cluster bootstrap."""
+    import warnings
+
+    from . import adjust_pvalues
+    from .core.exceptions import EvalSuiteError
+    from .stats._resolve import resolve_metric
+    from .stats.compare import _needs_prob
+    from .stats.intervals import _cluster_members
+
+    yt = np.asarray(y_true)
+    members = _cluster_members(clusters, yt.shape[0])
+    g = len(members)
+    if g < 2:
+        raise InputValidationError("Clustered intervals need at least two clusters.")
+    kwargs = _metric_kwargs(names, result)
+    rng = np.random.default_rng(random_state)
+    picks = [np.concatenate([members[k] for k in rng.integers(0, g, g)]) for _ in range(n_resamples)]
+    w = None if sample_weight is None else np.asarray(sample_weight, dtype=float)
+
+    def value(name: str, second: Any, idx: Optional[np.ndarray]) -> float:
+        fn, _ = resolve_metric(name)
+        s = np.asarray(second)
+        kw = dict(kwargs[name])
+        if w is not None:
+            kw["sample_weight"] = w if idx is None else w[idx]
+        if idx is None:
+            return float(fn(yt, s, **kw)) if not _needs_prob(name) else float(fn(yt, y_prob=s, **kw))
+        return (
+            float(fn(yt[idx], s[idx], **kw)) if not _needs_prob(name) else float(fn(yt[idx], y_prob=s[idx], **kw))
+        )
+
+    def dist(name: str, second: Any) -> np.ndarray:
+        out = np.empty(n_resamples)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for b, idx in enumerate(picks):
+                try:
+                    out[b] = value(name, second, idx)
+                except EvalSuiteError:
+                    out[b] = np.nan
+        return out
+
+    a = (1 - level) / 2
+    extra: dict[str, dict[str, Any]] = {k: {} for k in names}
+    raw_p: dict[str, float] = {}
+    for name in names:
+        second = y_prob if _needs_prob(name) else y_pred
+        if second is None:
+            continue
+        d_model = dist(name, second)
+        if mode != "none" and d_model is not None:
+            v = d_model[~np.isnan(d_model)]
+            if v.size:
+                lo, hi = np.quantile(v, [a, 1 - a])
+                extra[name].update(
+                    ci_low=float(lo),
+                    ci_high=float(hi),
+                    ci_level=level,
+                    ci_method=f"cluster bootstrap ({g} clusters)",
+                )
+        base = baseline_prob if _needs_prob(name) else baseline_pred
+        if base is not None and d_model is not None:
+            d_base = dist(name, base)
+            diff = d_model - d_base
+            diff = diff[~np.isnan(diff)]
+            est = result.metrics[name].value
+            base_val = value(name, base, None)
+            if diff.size:
+                lo, hi = np.quantile(diff, [a, 1 - a])
+                p = float(min(1.0, 2 * min(np.mean(diff <= 0), np.mean(diff >= 0))))
+                raw_p[name] = p
+                extra[name].update(
+                    baseline_value=base_val,
+                    baseline_difference=float(est) - base_val,
+                    baseline_ci_low=float(lo),
+                    baseline_ci_high=float(hi),
+                    baseline_test="paired cluster bootstrap",
+                    baseline_p_value=p,
+                )
+    if raw_p:
+        adj = adjust_pvalues(list(raw_p.values()), method="holm")
+        for name, p in zip(raw_p, np.atleast_1d(adj)):
+            extra[name]["baseline_p_adjusted"] = float(p)
+    metrics: dict[str, MetricResult] = {}
+    for key, m in result.metrics.items():
+        e = extra.get(key) or {}
+        metrics[key] = MetricResult(m.metric, m.name, m.value, {**m.params, **e}, m.labels) if e else m
+    return EvaluationResult(
+        task=result.task,
+        metrics=metrics,
+        n_samples=result.n_samples,
+        target_type=result.target_type,
+        labels=result.labels,
+        confusion_matrix=result.confusion_matrix,
+        metadata={
+            **result.metadata,
+            "ci": "cluster bootstrap",
+            "ci_level": level,
+            "clusters": g,
+            "n_resamples": n_resamples,
+            "random_state": random_state,
+        },
     )
