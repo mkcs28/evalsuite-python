@@ -182,6 +182,12 @@ def _group_labels(groups: Any, n: int, intersectional: bool) -> tuple[np.ndarray
     for k, v in cols.items():
         if v.shape[0] != n:
             raise InputValidationError(f"groups[{k!r}] must have one value per observation ({n}).")
+        missing = [i for i, x in enumerate(v) if x is None or (isinstance(x, float) and math.isnan(x))]
+        if missing:
+            raise InputValidationError(
+                f"groups[{k!r}] has {len(missing)} missing value(s) (first at position {missing[0]}); give every "
+                "observation a group, for example an explicit 'unknown' category."
+            )
     names = list(cols)
     if len(names) == 1:
         return np.array([str(x) for x in cols[names[0]]], dtype=object), names

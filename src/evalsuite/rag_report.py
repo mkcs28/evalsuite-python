@@ -55,7 +55,8 @@ class RAGReport:
     def summary(self, *, digits: int = 3) -> str:
         d = digits
         pct = f"{self.settings['level'] * 100:g}%"
-        lines = [f"EvalSuite RAG report ({self.settings['n']} questions, k={self.settings['k']}, {pct} CIs)"]
+        n = self.settings["n"]
+        lines = [f"EvalSuite RAG report ({n} question{'s' * (n != 1)}, k={self.settings['k']}, {pct} CIs)"]
         for m in self.metrics.values():
             lines.append(f"  {m['name']:<22} {m['value']:.{d}f} ({m['low']:.{d}f}–{m['high']:.{d}f})")
         lines.append("  Outcome per question:")
