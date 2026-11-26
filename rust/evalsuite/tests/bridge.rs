@@ -153,7 +153,15 @@ fn bridge_strict_arguments_and_non_finite_values() {
         };
         assert!(call(metric, bad).is_err(), "{metric} {bad}");
     }
-    assert!(call("psi", r#"{"reference":[1,2,3],"current":[1,2],"bins":100000000000}"#).is_err());
+    assert!(call(
+        "psi",
+        r#"{"reference":[1,2,3],"current":[1,2],"bins":100000000000}"#
+    )
+    .is_err());
     assert!(call("dice", r#"{"shape":[1e10,1e10],"y_true":[0],"y_pred":[0]}"#).is_err());
-    assert!(call("dice", r#"{"shape":[2,2],"y_true":[0,0.5,1,1],"y_pred":[0,1,1,1]}"#).is_err());
+    assert!(call(
+        "dice",
+        r#"{"shape":[2,2],"y_true":[0,0.5,1,1],"y_pred":[0,1,1,1]}"#
+    )
+    .is_err());
 }

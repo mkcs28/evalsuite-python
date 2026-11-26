@@ -113,18 +113,95 @@ const PER_OBS: &[&str] = &[
     "retrieved",
 ];
 
-fn field<'a>(a: &'a Map<String, Value>, k: &str) -> Result<&'a Value> {
-    match a.get(k) {
-        Some(v) if !v.is_null() => Ok(v),
-        _ => invalid(format!("missing argument '{k}'.")),
+/// A per-observation column parsed once (so bootstrap resamples copy typed values, not JSON).
+enum Col {
+    Num(Vec<f64>),
+    Int(Vec<i64>),
+    Str(Vec<String>),
+}
+
+/// The arguments of one call, optionally restricted to the observations `idx` (a bootstrap resample): every
+/// per-observation array is read through `idx`; options are read as given.
+struct Args<'a> {
+    m: &'a Map<String, Value>,
+    idx: Option<&'a [usize]>,
+    cols: &'a std::collections::HashMap<&'static str, Col>,
+}
+
+impl<'a> Args<'a> {
+    /// An option (never a per-observation array).
+    fn get(&self, k: &str) -> Option<&'a Value> {
+        self.m.get(k)
+    }
+
+    /// A per-observation (or other) array, restricted to `idx`; `None` when absent or null.
+    fn arr(&self, k: &str) -> Result<Option<std::borrow::Cow<'a, [Value]>>> {
+        use std::borrow::Cow;
+        match self.m.get(k) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::Array(v)) => Ok(Some(match self.idx {
+                Some(idx) if PER_OBS.contains(&k) => {
+                    Cow::Owned(idx.iter().map(|&i| v[i].clone()).collect())
+                }
+                _ => Cow::Borrowed(v.as_slice()),
+            })),
+            Some(_) => invalid(format!("'{k}' must be an array.")),
+        }
+    }
+
+    fn arr_req(&self, k: &str) -> Result<std::borrow::Cow<'a, [Value]>> {
+        match self.arr(k)? {
+            Some(v) => Ok(v),
+            None => invalid(format!("missing argument '{k}'.")),
+        }
+    }
+
+    fn pick<T: Clone>(&self, v: &[T]) -> Vec<T> {
+        match self.idx {
+            Some(idx) => idx.iter().map(|&i| v[i].clone()).collect(),
+            None => v.to_vec(),
+        }
     }
 }
 
-fn floats(a: &Map<String, Value>, k: &str) -> Result<Vec<f64>> {
-    let Value::Array(v) = field(a, k)? else {
-        return invalid(format!("'{k}' must be an array of numbers."));
-    };
-    v.iter()
+/// Parses the per-observation arrays that are all numbers, all integers or all strings.
+fn parse_cols(m: &Map<String, Value>) -> std::collections::HashMap<&'static str, Col> {
+    let mut out = std::collections::HashMap::new();
+    for &k in PER_OBS {
+        let Some(Value::Array(v)) = m.get(k) else {
+            continue;
+        };
+        if v.iter().all(|x| x.as_i64().is_some()) {
+            out.insert(k, Col::Int(v.iter().filter_map(Value::as_i64).collect()));
+        } else if v.iter().all(Value::is_number) {
+            out.insert(k, Col::Num(v.iter().filter_map(Value::as_f64).collect()));
+        } else if v.iter().all(Value::is_string) {
+            out.insert(
+                k,
+                Col::Str(
+                    v.iter()
+                        .filter_map(|x| x.as_str().map(str::to_owned))
+                        .collect(),
+                ),
+            );
+        }
+    }
+    out
+}
+
+fn floats(a: &Args<'_>, k: &str) -> Result<Vec<f64>> {
+    match a.cols.get(k) {
+        Some(Col::Num(v)) => return Ok(a.pick(v)),
+        Some(Col::Int(v)) => {
+            return Ok(match a.idx {
+                Some(idx) => idx.iter().map(|&i| v[i] as f64).collect(),
+                None => v.iter().map(|&x| x as f64).collect(),
+            })
+        }
+        _ => {}
+    }
+    a.arr_req(k)?
+        .iter()
         .map(|x| match x.as_f64() {
             Some(f) => Ok(f),
             None => invalid(format!("'{k}' must be an array of numbers.")),
@@ -133,7 +210,7 @@ fn floats(a: &Map<String, Value>, k: &str) -> Result<Vec<f64>> {
 }
 
 /// An optional string argument restricted to `allowed` (`None` when absent or null).
-fn choice<'a>(a: &'a Map<String, Value>, k: &str, allowed: &[&str]) -> Result<Option<&'a str>> {
+fn choice<'a>(a: &Args<'a>, k: &str, allowed: &[&str]) -> Result<Option<&'a str>> {
     match a.get(k) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(s)) if allowed.contains(&s.as_str()) => Ok(Some(s.as_str())),
@@ -142,7 +219,7 @@ fn choice<'a>(a: &'a Map<String, Value>, k: &str, allowed: &[&str]) -> Result<Op
 }
 
 /// An optional number strictly between 0 and 1.
-fn unit(a: &Map<String, Value>, k: &str, default: f64) -> Result<f64> {
+fn unit(a: &Args<'_>, k: &str, default: f64) -> Result<f64> {
     match a.get(k) {
         None | Some(Value::Null) => Ok(default),
         Some(v) => match v.as_f64() {
@@ -153,7 +230,7 @@ fn unit(a: &Map<String, Value>, k: &str, default: f64) -> Result<f64> {
 }
 
 /// An optional non-negative integer argument no larger than `max` (`None` when absent or null).
-fn uint(a: &Map<String, Value>, k: &str, max: u64) -> Result<Option<usize>> {
+fn uint(a: &Args<'_>, k: &str, max: u64) -> Result<Option<usize>> {
     match a.get(k) {
         None | Some(Value::Null) => Ok(None),
         Some(v) => match v.as_u64() {
@@ -163,7 +240,7 @@ fn uint(a: &Map<String, Value>, k: &str, max: u64) -> Result<Option<usize>> {
     }
 }
 
-fn opt_floats(a: &Map<String, Value>, k: &str) -> Result<Option<Vec<f64>>> {
+fn opt_floats(a: &Args<'_>, k: &str) -> Result<Option<Vec<f64>>> {
     if a.get(k).is_none_or(Value::is_null) {
         Ok(None)
     } else {
@@ -171,11 +248,12 @@ fn opt_floats(a: &Map<String, Value>, k: &str) -> Result<Option<Vec<f64>>> {
     }
 }
 
-fn strings(a: &Map<String, Value>, k: &str) -> Result<Vec<String>> {
-    let Value::Array(v) = field(a, k)? else {
-        return invalid(format!("'{k}' must be an array of strings."));
-    };
-    v.iter()
+fn strings(a: &Args<'_>, k: &str) -> Result<Vec<String>> {
+    if let Some(Col::Str(v)) = a.cols.get(k) {
+        return Ok(a.pick(v));
+    }
+    a.arr_req(k)?
+        .iter()
         .map(|x| match x {
             Value::String(s) => Ok(s.clone()),
             _ => invalid(format!("'{k}' must be an array of strings.")),
@@ -183,11 +261,9 @@ fn strings(a: &Map<String, Value>, k: &str) -> Result<Vec<String>> {
         .collect()
 }
 
-fn references(a: &Map<String, Value>) -> Result<Vec<Vec<String>>> {
-    let Value::Array(v) = field(a, "references")? else {
-        return invalid("'references' must be an array.");
-    };
-    v.iter()
+fn references(a: &Args<'_>) -> Result<Vec<Vec<String>>> {
+    a.arr_req("references")?
+        .iter()
         .map(|x| match x {
             Value::String(s) => Ok(vec![s.clone()]),
             Value::Array(r) => r
@@ -202,7 +278,7 @@ fn references(a: &Map<String, Value>) -> Result<Vec<Vec<String>>> {
         .collect()
 }
 
-fn average(a: &Map<String, Value>) -> Result<Average> {
+fn average(a: &Args<'_>) -> Result<Average> {
     let allowed = ["auto", "binary", "micro", "macro", "weighted", "none"];
     Ok(match choice(a, "average", &allowed)? {
         None | Some("auto") => Average::Auto,
@@ -236,17 +312,9 @@ fn score(s: Score) -> Value {
     }
 }
 
-fn labels_of(a: &Map<String, Value>, k: &str) -> Result<Option<Vec<Value>>> {
-    match a.get(k) {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::Array(v)) => Ok(Some(v.clone())),
-        _ => invalid(format!("'{k}' must be an array of labels.")),
-    }
-}
-
 fn classify<L: Label>(
     name: &str,
-    a: &Map<String, Value>,
+    a: &Args<'_>,
     t: &[L],
     p: Option<&[L]>,
     pos: Option<L>,
@@ -367,35 +435,71 @@ fn classify<L: Label>(
     })
 }
 
+/// Labels of one array: integers, strings, or neither.
+enum Labels {
+    Int(Vec<i64>),
+    Str(Vec<String>),
+}
+
+fn labels(a: &Args<'_>, k: &str) -> Result<Option<Labels>> {
+    match a.cols.get(k) {
+        Some(Col::Int(v)) => return Ok(Some(Labels::Int(a.pick(v)))),
+        Some(Col::Str(v)) => return Ok(Some(Labels::Str(a.pick(v)))),
+        _ => {}
+    }
+    match a.arr(k)? {
+        None => Ok(None),
+        Some(v) if v.is_empty() => Ok(Some(Labels::Int(vec![]))),
+        Some(_) => invalid("labels must be all integers or all strings."),
+    }
+}
+
 fn classification(
     name: &str,
-    a: &Map<String, Value>,
+    a: &Args<'_>,
     analytic: Option<f64>,
 ) -> Result<(Value, Option<Interval>)> {
-    let t = labels_of(a, "y_true")?.map_or_else(|| invalid("missing argument 'y_true'."), Ok)?;
-    let p = labels_of(a, "y_pred")?;
-    let pos = a.get("pos_label").filter(|v| !v.is_null()).cloned();
-    let all = t.iter().chain(p.iter().flatten()).chain(pos.iter());
-    if all.clone().all(|v| v.as_i64().is_some()) {
-        let ints = |v: &[Value]| {
-            v.iter()
-                .map(|x| x.as_i64().unwrap_or(0))
-                .collect::<Vec<i64>>()
-        };
-        let pv = p.as_deref().map(ints);
-        let pl = pos.and_then(|v| v.as_i64());
-        classify(name, a, &ints(&t), pv.as_deref(), pl, analytic)
-    } else if all.clone().all(Value::is_string) {
-        let strs = |v: &[Value]| {
-            v.iter()
-                .map(|x| x.as_str().unwrap_or("").to_owned())
-                .collect::<Vec<String>>()
-        };
-        let pv = p.as_deref().map(strs);
-        let pl = pos.and_then(|v| v.as_str().map(str::to_owned));
-        classify(name, a, &strs(&t), pv.as_deref(), pl, analytic)
-    } else {
-        invalid("labels must be all integers or all strings.")
+    let Some(t) = labels(a, "y_true")? else {
+        return invalid("missing argument 'y_true'.");
+    };
+    let p = labels(a, "y_pred")?;
+    let pos = a.get("pos_label").filter(|v| !v.is_null());
+    // An empty array fits either kind of label.
+    let empty = |l: &Labels| matches!(l, Labels::Int(v) if v.is_empty());
+    match (t, p) {
+        (Labels::Int(t), None) => classify(name, a, &t, None, int_pos(pos)?, analytic),
+        (Labels::Int(t), Some(Labels::Int(p))) => {
+            classify(name, a, &t, Some(&p), int_pos(pos)?, analytic)
+        }
+        (Labels::Str(t), None) => classify(name, a, &t, None, str_pos(pos)?, analytic),
+        (Labels::Str(t), Some(Labels::Str(p))) => {
+            classify(name, a, &t, Some(&p), str_pos(pos)?, analytic)
+        }
+        (Labels::Str(t), Some(p)) if empty(&p) => {
+            classify(name, a, &t, Some(&[]), str_pos(pos)?, analytic)
+        }
+        (t, Some(Labels::Str(p))) if empty(&t) => {
+            classify(name, a, &[], Some(&p), str_pos(pos)?, analytic)
+        }
+        _ => invalid("labels must be all integers or all strings."),
+    }
+}
+
+fn int_pos(v: Option<&Value>) -> Result<Option<i64>> {
+    match v {
+        None => Ok(None),
+        Some(x) => match x.as_i64() {
+            Some(i) => Ok(Some(i)),
+            None => invalid("labels must be all integers or all strings."),
+        },
+    }
+}
+
+fn str_pos(v: Option<&Value>) -> Result<Option<String>> {
+    match v {
+        None => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(_) => invalid("labels must be all integers or all strings."),
     }
 }
 
@@ -407,15 +511,9 @@ fn id_of(v: &Value) -> Result<String> {
     }
 }
 
-fn retrieval_args(
-    a: &Map<String, Value>,
-) -> Result<(Vec<ret::Judgements<String>>, Vec<Vec<String>>)> {
-    let Value::Array(rel) = field(a, "relevant")? else {
-        return invalid("'relevant' must be an array (one entry per query).");
-    };
-    let Value::Array(got) = field(a, "retrieved")? else {
-        return invalid("'retrieved' must be an array (one ranked list per query).");
-    };
+fn retrieval_args(a: &Args<'_>) -> Result<(Vec<ret::Judgements<String>>, Vec<Vec<String>>)> {
+    let rel = a.arr_req("relevant")?;
+    let got = a.arr_req("retrieved")?;
     let relevant = rel
         .iter()
         .map(|q| match q {
@@ -445,7 +543,7 @@ fn retrieval_args(
     Ok((relevant, retrieved))
 }
 
-fn masks(a: &Map<String, Value>, k: &str, shape: &[usize]) -> Result<Vec<seg::Mask>> {
+fn masks(a: &Args<'_>, k: &str, shape: &[usize]) -> Result<Vec<seg::Mask>> {
     let flat = floats(a, k)?;
     if flat
         .iter()
@@ -466,11 +564,7 @@ fn masks(a: &Map<String, Value>, k: &str, shape: &[usize]) -> Result<Vec<seg::Ma
 }
 
 /// The metric itself (no interval).
-fn compute(
-    name: &str,
-    a: &Map<String, Value>,
-    analytic: Option<f64>,
-) -> Result<(Value, Option<Interval>)> {
+fn compute(name: &str, a: &Args<'_>, analytic: Option<f64>) -> Result<(Value, Option<Interval>)> {
     if CLASSIFICATION.contains(&name) {
         return classification(name, a, analytic);
     }
@@ -576,8 +670,8 @@ fn compute(
 /// Ranks models scored on the same items: `models` maps each name to per-item correctness (0 / 1, or
 /// true / false). Accuracy with a Wilson interval; every pair compared with McNemar's test (exact for few
 /// discordant items), Holm-adjusted; rank = 1 + the number of models significantly better.
-fn leaderboard(a: &Map<String, Value>) -> Result<Value> {
-    let Value::Object(models) = field(a, "models")? else {
+fn leaderboard(a: &Args<'_>) -> Result<Value> {
+    let Some(Value::Object(models)) = a.get("models") else {
         return invalid("'models' must map each model name to a list of per-item results (0 / 1).");
     };
     let level = unit(a, "level", 0.95)?;
@@ -668,20 +762,6 @@ fn leaderboard(a: &Map<String, Value>) -> Result<Value> {
     }))
 }
 
-/// The arguments restricted to observations `idx` (every per-observation array resampled together).
-fn subset(a: &Map<String, Value>, idx: &[usize]) -> Map<String, Value> {
-    let mut out = a.clone();
-    for k in PER_OBS {
-        if let Some(Value::Array(v)) = a.get(*k) {
-            out.insert(
-                (*k).to_owned(),
-                Value::Array(idx.iter().map(|&i| v[i].clone()).collect()),
-            );
-        }
-    }
-    out
-}
-
 fn n_obs(a: &Map<String, Value>) -> Result<usize> {
     let mut n = None;
     for k in PER_OBS {
@@ -722,9 +802,15 @@ pub fn call(name: &str, args: &str) -> Result<String> {
         Some(Value::Bool(true)) => Some("analytic".to_owned()),
         _ => return invalid("'ci' must be \"analytic\", \"bootstrap\" or false."),
     };
-    let level = unit(&a, "level", 0.95)?;
+    let cols = parse_cols(&a);
+    let args = Args {
+        m: &a,
+        idx: None,
+        cols: &cols,
+    };
+    let level = unit(&args, "level", 0.95)?;
     let analytic = (ci.as_deref() == Some("analytic")).then_some(level);
-    let (value, mut interval) = compute(name, &a, analytic)?;
+    let (value, mut interval) = compute(name, &args, analytic)?;
     let mut method = interval.as_ref().map(|_| {
         if name == "roc_auc" {
             "delong"
@@ -738,17 +824,28 @@ pub fn call(name: &str, args: &str) -> Result<String> {
                 "an interval is available only for a single-number {name}."
             ));
         };
+        if matches!(name, "dice" | "iou") {
+            return invalid(
+                "intervals for segmentation metrics need resampling of whole images, which the engine does \
+                 not do; use the Python package's bootstrap_ci.",
+            );
+        }
         let n = n_obs(&a)?;
         let opts = stats::Bootstrap {
-            n_resamples: uint(&a, "n_resamples", 1_000_000)?.unwrap_or(1000),
+            n_resamples: uint(&args, "n_resamples", 1_000_000)?.unwrap_or(1000),
             level,
-            seed: uint(&a, "seed", u64::MAX)?.unwrap_or(0) as u64,
+            seed: uint(&args, "seed", u64::MAX)?.unwrap_or(0) as u64,
             ..stats::Bootstrap::default()
         };
         let b = stats::bootstrap_ci(
             n,
             |idx| {
-                let (v, _) = compute(name, &subset(&a, idx), None)?;
+                let sub = Args {
+                    m: &a,
+                    idx: Some(idx),
+                    cols: &cols,
+                };
+                let (v, _) = compute(name, &sub, None)?;
                 Ok(v.as_f64().unwrap_or(f64::NAN))
             },
             &opts,
