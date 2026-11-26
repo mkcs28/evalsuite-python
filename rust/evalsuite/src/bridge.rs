@@ -71,6 +71,7 @@ pub const METRICS: &[&str] = &[
     "iou",
     "psi",
     "ks",
+    "leaderboard",
 ];
 
 const CLASSIFICATION: &[&str] = &[
@@ -493,6 +494,7 @@ fn compute(
                 seg::iou(&t, &p, &o)?
             })
         }
+        "leaderboard" => leaderboard(a)?,
         "psi" => json!(monitor::population_stability_index(
             &floats(a, "reference")?,
             &floats(a, "current")?,
@@ -511,6 +513,101 @@ fn compute(
         }
     };
     Ok((value, None))
+}
+
+/// Ranks models scored on the same items: `models` maps each name to per-item correctness (0 / 1, or
+/// true / false). Accuracy with a Wilson interval; every pair compared with McNemar's test (exact for few
+/// discordant items), Holm-adjusted; rank = 1 + the number of models significantly better.
+fn leaderboard(a: &Map<String, Value>) -> Result<Value> {
+    let Value::Object(models) = field(a, "models")? else {
+        return invalid("'models' must map each model name to a list of per-item results (0 / 1).");
+    };
+    let level = a.get("level").and_then(Value::as_f64).unwrap_or(0.95);
+    let alpha = a.get("alpha").and_then(Value::as_f64).unwrap_or(0.05);
+    if models.len() < 2 {
+        return invalid("a leaderboard needs at least two models.");
+    }
+    let mut names = Vec::new();
+    let mut scores: Vec<Vec<u8>> = Vec::new();
+    for (name, v) in models {
+        let Value::Array(items) = v else {
+            return invalid(format!("'{name}' must be a list of per-item results."));
+        };
+        let s = items
+            .iter()
+            .map(|x| match x {
+                Value::Bool(b) => Ok(u8::from(*b)),
+                Value::Number(n) if n.as_f64() == Some(0.0) || n.as_f64() == Some(1.0) => {
+                    Ok(u8::from(n.as_f64() == Some(1.0)))
+                }
+                _ => invalid(format!(
+                    "'{name}' must hold 0 / 1 (or true / false) per item."
+                )),
+            })
+            .collect::<Result<Vec<u8>>>()?;
+        names.push(name.clone());
+        scores.push(s);
+    }
+    let n = scores[0].len();
+    if n == 0 || scores.iter().any(|s| s.len() != n) {
+        return invalid("every model must be scored on the same, non-empty list of items.");
+    }
+    let acc: Vec<f64> = scores
+        .iter()
+        .map(|s| s.iter().map(|&x| f64::from(x)).sum::<f64>() / n as f64)
+        .collect();
+    let truth = vec![1u8; n];
+    let mut pairs = Vec::new();
+    let mut raw = Vec::new();
+    for i in 0..names.len() {
+        for j in i + 1..names.len() {
+            let t = stats::mcnemar_test(&truth, &scores[i], &scores[j], None, false)?;
+            raw.push(t.p_value);
+            pairs.push((i, j));
+        }
+    }
+    let adj = stats::adjust_pvalues(&raw, stats::Adjust::Holm)?;
+    let mut better = vec![0usize; names.len()];
+    let mut out_pairs = Vec::new();
+    for (k, &(i, j)) in pairs.iter().enumerate() {
+        if adj[k] < alpha {
+            if acc[i] > acc[j] {
+                better[j] += 1;
+            } else if acc[j] > acc[i] {
+                better[i] += 1;
+            }
+        }
+        out_pairs.push(json!({
+            "a": names[i], "b": names[j], "difference": acc[i] - acc[j],
+            "p_value": raw[k], "p_adjusted": adj[k], "significant": adj[k] < alpha,
+        }));
+    }
+    let mut rows = Vec::new();
+    for (i, name) in names.iter().enumerate() {
+        let k: u64 = scores[i].iter().map(|&x| u64::from(x)).sum();
+        let ci = stats::proportion_ci(k, n as u64, level, stats::ProportionMethod::Wilson)?;
+        rows.push((
+            better[i] + 1,
+            -acc[i],
+            json!({
+                "model": name, "accuracy": acc[i], "ci_low": ci.low, "ci_high": ci.high,
+                "rank": better[i] + 1, "n": n,
+            }),
+        ));
+    }
+    rows.sort_by(|a, b| {
+        (a.0, a.1)
+            .partial_cmp(&(b.0, b.1))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    Ok(json!({
+        "models": rows.into_iter().map(|r| r.2).collect::<Vec<_>>(),
+        "pairs": out_pairs,
+        "level": level,
+        "alpha": alpha,
+        "test": "mcnemar",
+        "correction": "holm",
+    }))
 }
 
 /// The arguments restricted to observations `idx` (every per-observation array resampled together).

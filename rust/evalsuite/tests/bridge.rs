@@ -108,3 +108,22 @@ fn bridge_new_metrics_and_intervals() {
     .is_err());
     assert!(call("f1", r#"{"y_true":[0,1],"y_pred":[0,1],"ci":"maybe"}"#).is_err());
 }
+
+#[test]
+fn bridge_leaderboard() {
+    let mut a = vec![1; 200];
+    let mut b = vec![1; 200];
+    b[..60].fill(0);
+    a[199] = 0;
+    let c = a.clone();
+    let args = serde_json::json!({"models": {"a": a, "b": b, "c": c}}).to_string();
+    let out: serde_json::Value =
+        serde_json::from_str(&call("leaderboard", &args).unwrap()).unwrap();
+    let m = &out["value"]["models"];
+    assert_eq!(m[0]["rank"], 1);
+    assert_eq!(m[1]["rank"], 1); // a and c are identical
+    assert_eq!(m[2]["model"], "b");
+    assert_eq!(m[2]["rank"], 3);
+    assert!(call("leaderboard", r#"{"models":{"a":[1,0]}}"#).is_err());
+    assert!(call("leaderboard", r#"{"models":{"a":[1,0],"b":[1]}}"#).is_err());
+}
