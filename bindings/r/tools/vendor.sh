@@ -23,7 +23,7 @@ src = re.sub(r'members = \[[^\]]*\]', 'members = ["evalsuite-core", "evalsuite",
 open(sys.argv[2], "w").write(src)
 PY
 cp "$repo/rust/Cargo.lock" "$dst/Cargo.lock"
-(cd "$dst" && cargo vendor --versioned-dirs vendor > vendor-config.toml)
+(cd "$dst" && cargo vendor v > vendor-config.toml)
 mkdir -p "$dst/.cargo"
 mv "$dst/vendor-config.toml" "$dst/.cargo/config.toml"
 # Drop test fixtures and benches from the copied crates (not needed to build, and large), and their targets.
@@ -37,12 +37,12 @@ for p in glob.glob(sys.argv[1] + "/evalsuite*/Cargo.toml"):
 PY
 # Trim vendored crates to what a build needs (tests, benches, examples, docs carry very long paths that R's tar
 # format rejects) and clear the file list in their checksums so cargo accepts the trimmed sources.
-python3 - "$dst/vendor" <<'PY'
+python3 - "$dst/v" <<'PY'
 import json, os, shutil, sys
 root = sys.argv[1]
 for crate in os.listdir(root):
     d = os.path.join(root, crate)
-    for sub in ("tests", "benches", "examples", "docs", "doc", ".github", "ci", "src/bin_util", "src/snapshots", "src/output_tests"):
+    for sub in ("tests", "benches", "examples", "docs", "doc", ".github", "ci", "src/bin_util", "src/snapshots", "src/output_tests", "src/test_util"):
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
     ck = os.path.join(d, ".cargo-checksum.json")
     if os.path.exists(ck):
@@ -70,7 +70,7 @@ if tomllib:
                 if pkg == "windows-sys" and isinstance(spec, dict):
                     wanted.setdefault("windows-sys", set()).update(spec.get("features", []))
     for crate in os.listdir(root):
-        if not crate.startswith("windows-sys-"):
+        if not (crate == "windows-sys" or crate.startswith("windows-sys-")):
             continue
         d = os.path.join(root, crate)
         feats = tomllib.load(open(os.path.join(d, "Cargo.toml"), "rb")).get("features", {})
@@ -88,7 +88,7 @@ if tomllib:
                 if feat not in on:
                     shutil.rmtree(os.path.join(p, sub))
                     dirs.remove(sub)
-long = [p for p, _, fs in os.walk(root) for f in fs if len(os.path.relpath(os.path.join(p, f), root)) > 74]
+long = [p for p, _, fs in os.walk(root) for f in fs if len(os.path.relpath(os.path.join(p, f), root)) > 78]
 if long:
     sys.exit("paths too long for an R source package:\n" + "\n".join(long[:20]))
 PY
