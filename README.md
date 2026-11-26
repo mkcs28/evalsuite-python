@@ -362,8 +362,8 @@ ei.log_wandb(result)
 
 ```python
 es.sample_size_two_proportions(0.80, 0.83, discordance=0.10)  # items to detect +3 points between two models
-es.sample_size_proportion(0.9, 0.02)                         # items for accuracy ± 2 points
-es.sample_size_auc(0.85, prevalence=0.2, half_width=0.03)    # positives and negatives for an AUC interval
+es.sample_size_proportion(0.9, 0.02)  # items for accuracy ± 2 points
+es.sample_size_auc(0.85, prevalence=0.2, half_width=0.03)  # positives and negatives for an AUC interval
 es.power_two_proportions(500, 0.80, 0.83, discordance=0.10)  # power with the items you have
 ```
 
@@ -373,7 +373,7 @@ Several scans per patient, several questions per document or several sites make 
 Pass the cluster of each row and every interval and baseline test resamples whole clusters:
 
 ```python
-patient = np.repeat(np.arange(40), 5)        # 200 rows, 5 per patient
+patient = np.repeat(np.arange(40), 5)  # 200 rows, 5 per patient
 result = es.evaluate(y_true, y_pred, clusters=patient)
 es.bootstrap_ci("roc_auc", y_true, y_prob=y_prob, clusters=patient)
 ```
@@ -383,7 +383,7 @@ es.bootstrap_ci("roc_auc", y_true, y_prob=y_prob, clusters=patient)
 ```python
 group = np.where(np.arange(200) % 3 == 0, "A", "B")
 report = es.fairness_report(y_true, y_pred, y_prob, groups={"group": group})
-print(report.summary())   # per-group rates with CIs, parity / equalized-odds gaps with CIs, Holm-adjusted tests
+print(report.summary())  # per-group rates with CIs, parity / equalized-odds gaps with CIs, Holm-adjusted tests
 ```
 
 Several attributes give intersectional groups (`groups={"sex": sex, "age": age}`); gap definitions match
@@ -395,7 +395,7 @@ Fairlearn's.
 time = np.arange(1, 201) * 0.5
 event = np.arange(200) % 4 != 0
 risk = -time + np.sin(np.arange(200))
-es.concordance_index(time, event, risk)                 # Harrell's C (ipcw=True: Uno's C)
+es.concordance_index(time, event, risk)  # Harrell's C (ipcw=True: Uno's C)
 es.time_dependent_auc(time, event, risk, [20, 40, 60])  # cumulative/dynamic AUC
 ```
 
@@ -413,11 +413,13 @@ judgements = [
 print(es.judge_report(judgements, n_resamples=200).summary())
 # win rates, Bradley–Terry, position consistency, length bias, self-preference, agreement with humans
 
-rag = es.rag_report([
-    {"retrieved": ["d1", "d7"], "relevant": ["d1"], "answer": "Paris", "reference": "Paris"},
-    {"retrieved": ["d3"], "relevant": ["d2"], "answer": "Rome", "reference": "Oslo"},
-])
-print(rag.summary())      # retrieval / grounding / answer metrics, and each failure blamed on a stage
+rag = es.rag_report(
+    [
+        {"retrieved": ["d1", "d7"], "relevant": ["d1"], "answer": "Paris", "reference": "Paris"},
+        {"retrieved": ["d3"], "relevant": ["d2"], "answer": "Rome", "reference": "Oslo"},
+    ]
+)
+print(rag.summary())  # retrieval / grounding / answer metrics, and each failure blamed on a stage
 ```
 
 Leaderboards know common benchmarks: `es.leaderboard(runs, benchmark="gsm8k", references=es.load_benchmark("gsm8k"))`
@@ -426,8 +428,11 @@ Leaderboards know common benchmarks: `es.leaderboard(runs, benchmark="gsm8k", re
 ## One HTML report
 
 ```python
-page = es.html_report({"Test set": es.evaluate(y_true, y_pred, y_prob=y_prob), "Notes": "Model v3."},
-                      title="Model evaluation", path="report.html")
+page = es.html_report(
+    {"Test set": es.evaluate(y_true, y_pred, y_prob=y_prob), "Notes": "Model v3."},
+    title="Model evaluation",
+    path="report.html",
+)
 ```
 
 Any EvalSuite result, Matplotlib figure or Markdown text becomes a section of one self-contained file (no
