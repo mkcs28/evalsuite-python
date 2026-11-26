@@ -79,8 +79,8 @@ def kaplan_meier(time: Any, event: Any, *, reverse: bool = False) -> SurvivalCur
     if reverse:
         if e.all():
             return SurvivalCurve(uniq, np.ones(uniq.size))
-        d = n_total - n_events  # censorings
-        r = at_risk - n_events
+        d = np.asarray(n_total - n_events, dtype=float)  # censorings
+        r = np.asarray(at_risk - n_events, dtype=float)
     else:
         d, r = n_events, at_risk
     ratio = np.divide(d, r, out=np.zeros_like(d), where=d != 0)

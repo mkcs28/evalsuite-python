@@ -309,7 +309,10 @@ def fairness_report(
         tpr = [_rate(c, "tpr") for c in tested if c["pos"]]
         fpr = [_rate(c, "fpr") for c in tested if c["neg"]]
         ppv = [_rate(c, "ppv") for c in tested if c["pred_pos"]]
-        span = lambda v: (max(v) - min(v)) if len(v) >= 2 else math.nan  # noqa: E731
+
+        def span(v: list[float]) -> float:
+            return (max(v) - min(v)) if len(v) >= 2 else math.nan
+
         return {
             "Demographic parity difference": span(sel),
             "Demographic parity ratio": (min(sel) / max(sel)) if sel and max(sel) > 0 else math.nan,

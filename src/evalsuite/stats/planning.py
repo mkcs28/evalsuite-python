@@ -21,9 +21,23 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from scipy import optimize, stats
-
 from ..core.exceptions import InputValidationError
+
+
+class _LazyModule:
+    """Imports a SciPy submodule on first use, so ``import evalsuite`` stays free of SciPy."""
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def __getattr__(self, attr: str) -> Any:
+        import importlib
+
+        return getattr(importlib.import_module(self._name), attr)
+
+
+optimize = _LazyModule("scipy.optimize")
+stats = _LazyModule("scipy.stats")
 
 __all__ = [
     "SampleSize",

@@ -30,9 +30,23 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from scipy import stats
 
 from .core.exceptions import InputValidationError
+
+
+class _LazyModule:
+    """Imports a SciPy submodule on first use, so ``import evalsuite`` stays free of SciPy."""
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def __getattr__(self, attr: str) -> Any:
+        import importlib
+
+        return getattr(importlib.import_module(self._name), attr)
+
+
+stats = _LazyModule("scipy.stats")
 
 __all__ = ["JudgeReport", "RubricReport", "judge_report", "rubric_report"]
 
@@ -203,8 +217,8 @@ def judge_report(
             sample = [comps[i] for i in rng.choice(arr, n)]
             got = bt(sample)
             if got:
-                for k, v in got.items():
-                    boots[k].append(v)
+                for key, val in got.items():
+                    boots[key].append(val)
     a_ = (1 - level) / 2
     models = []
     for m in names:
@@ -263,18 +277,18 @@ def judge_report(
         if x is not None and y is not None and float(x) != float(y) and _verdict(r["verdict"]) != "tie"
     ]
     if dec:
-        k, m_ = int(sum(dec)), len(dec)
-        lo, hi = _wilson(k, m_, level)
-        p = _binom(k, m_)
+        kk, m_ = int(sum(dec)), len(dec)
+        lo, hi = _wilson(kk, m_, level)
+        p = _binom(kk, m_)
         checks["length"] = {
             "label": "Length bias",
-            "value": k / m_,
+            "value": kk / m_,
             "low": lo,
             "high": hi,
             "n": m_,
             "p_value": p,
             "flag": bool(p < alpha),
-            "text": f"the longer response wins {k / m_:.3f} ({lo:.3f}–{hi:.3f}) of {m_} decisive comparisons "
+            "text": f"the longer response wins {kk / m_:.3f} ({lo:.3f}–{hi:.3f}) of {m_} decisive comparisons "
             f"(p={p:.3g} against 0.5)",
         }
     # self-preference: judge picks its own model vs other judges / humans on comparisons involving that model
