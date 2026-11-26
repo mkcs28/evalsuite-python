@@ -57,7 +57,9 @@ def test_no_notice_when_current_or_disabled(cache, monkeypatch, capsys):
 
 def test_upgrade_runs_this_interpreters_pip(monkeypatch):
     calls = []
-    monkeypatch.setattr(_update.subprocess, "call", lambda cmd: calls.append(cmd) or 0)
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "call", lambda cmd: calls.append(cmd) or 0)
     assert es.upgrade() == 0
     assert calls[0][:5] == [sys.executable, "-m", "pip", "install", "--upgrade"]
     assert calls[0][5] == "evalsuite-python"

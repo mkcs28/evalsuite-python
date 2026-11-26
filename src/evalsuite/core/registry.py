@@ -38,6 +38,28 @@ class MetricInfo:
 
 _REGISTRY: dict[str, MetricInfo] = {}
 
+# Packages whose import registers metrics. EvalSuite loads lazily, so the catalogue imports them on first use.
+_METRIC_PACKAGES = (
+    "evalsuite.classification",
+    "evalsuite.regression",
+    "evalsuite.clinical",
+    "evalsuite.calibration",
+    "evalsuite.text",
+    "evalsuite.llmsys",
+    "evalsuite.vision",
+)
+_loaded = False
+
+
+def _load_all() -> None:
+    global _loaded
+    if not _loaded:
+        import importlib
+
+        for name in _METRIC_PACKAGES:
+            importlib.import_module(name)
+        _loaded = True
+
 
 def register(
     *,
@@ -77,11 +99,13 @@ def register(
 
 def list_metrics(category: Optional[str] = None) -> list[str]:
     """Sorted metric ids, optionally filtered by category (``"classification"``, ``"regression"``)."""
+    _load_all()
     return sorted(k for k, v in _REGISTRY.items() if category is None or v.category == category)
 
 
 def metric_info(metric_id: str) -> MetricInfo:
     """Documentation for one metric, e.g. ``metric_info("classification.mcc")``."""
+    _load_all()
     try:
         return _REGISTRY[metric_id]
     except KeyError:
