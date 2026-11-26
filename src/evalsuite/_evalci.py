@@ -371,7 +371,9 @@ def _attach_clustered(
             base_val = value(name, base, None)
             if diff.size:
                 lo, hi = np.quantile(diff, [a, 1 - a])
-                p = float(min(1.0, 2 * min(np.mean(diff <= 0), np.mean(diff >= 0))))
+                # two-sided bootstrap p-value with the +1 correction, so it is never reported as exactly 0
+                tail = min(int(np.sum(diff <= 0)), int(np.sum(diff >= 0)))
+                p = float(min(1.0, 2 * (tail + 1) / (diff.size + 1)))
                 raw_p[name] = p
                 extra[name].update(
                     baseline_value=base_val,

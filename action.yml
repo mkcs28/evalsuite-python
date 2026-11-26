@@ -1,0 +1,151 @@
+name: EvalSuite evaluation
+description: >-
+  Evaluate model predictions with EvalSuite on every pull request: metrics with confidence intervals, paired
+  tests against a baseline, a comment on the pull request, and an optional failure on significant regressions.
+author: Manoj Kumar C S
+branding:
+  icon: bar-chart-2
+  color: purple
+
+inputs:
+  predictions:
+    description: CSV / TSV / JSON / Parquet file with one row per test item
+    required: true
+  y-true:
+    description: column with the true labels or values
+    required: true
+  y-pred:
+    description: column with the model's predictions
+    required: false
+    default: ""
+  y-prob:
+    description: column(s) with the model's probabilities (space-separated for several classes)
+    required: false
+    default: ""
+  baseline-pred:
+    description: column with the baseline (e.g. main branch) predictions, for paired tests
+    required: false
+    default: ""
+  baseline-prob:
+    description: column(s) with the baseline's probabilities
+    required: false
+    default: ""
+  clusters:
+    description: column with a cluster id per row (patient, document) for cluster-bootstrap intervals
+    required: false
+    default: ""
+  metrics:
+    description: "comma-separated metric names (default: the standard set)"
+    required: false
+    default: ""
+  ci:
+    description: analytic, bootstrap or none
+    required: false
+    default: analytic
+  fail-on-regression:
+    description: fail the step when a metric is significantly worse than the baseline (Holm-adjusted p < 0.05)
+    required: false
+    default: "false"
+  comment:
+    description: post (or update) a comment with the results on the pull request
+    required: false
+    default: "true"
+  title:
+    description: heading of the comment
+    required: false
+    default: EvalSuite evaluation
+  version:
+    description: evalsuite-python version to install (default the latest)
+    required: false
+    default: ""
+  python-version:
+    description: Python version
+    required: false
+    default: "3.12"
+
+outputs:
+  report:
+    description: path of the Markdown report
+    value: ${{ steps.run.outputs.report }}
+  regressed:
+    description: '"true" when a metric is significantly worse than the baseline'
+    value: ${{ steps.run.outputs.regressed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install EvalSuite
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$VERSION" ]; then pip install --quiet "evalsuite-python==$VERSION"; else pip install --quiet --upgrade evalsuite-python; fi
+    - name: Evaluate
+      id: run
+      shell: bash
+      env:
+        EVALSUITE_NO_UPDATE_CHECK: "1"
+        IN_FILE: ${{ inputs.predictions }}
+        IN_Y_TRUE: ${{ inputs.y-true }}
+        IN_Y_PRED: ${{ inputs.y-pred }}
+        IN_Y_PROB: ${{ inputs.y-prob }}
+        IN_B_PRED: ${{ inputs.baseline-pred }}
+        IN_B_PROB: ${{ inputs.baseline-prob }}
+        IN_CLUSTERS: ${{ inputs.clusters }}
+        IN_METRICS: ${{ inputs.metrics }}
+        IN_CI: ${{ inputs.ci }}
+        IN_FAIL: ${{ inputs.fail-on-regression }}
+        IN_TITLE: ${{ inputs.title }}
+      run: |
+        args=(evaluate "$IN_FILE" --y-true "$IN_Y_TRUE" --ci "$IN_CI" -f markdown)
+        [ -n "$IN_Y_PRED" ] && args+=(--y-pred "$IN_Y_PRED")
+        [ -n "$IN_Y_PROB" ] && { read -ra p <<< "$IN_Y_PROB"; args+=(--y-prob "${p[@]}"); }
+        [ -n "$IN_B_PRED" ] && args+=(--baseline-pred "$IN_B_PRED")
+        [ -n "$IN_B_PROB" ] && { read -ra b <<< "$IN_B_PROB"; args+=(--baseline-prob "${b[@]}"); }
+        [ -n "$IN_CLUSTERS" ] && args+=(--clusters "$IN_CLUSTERS")
+        [ -n "$IN_METRICS" ] && args+=(--metrics "$IN_METRICS")
+        [ -n "$IN_B_PRED$IN_B_PROB" ] && args+=(--fail-on-regression)
+        report="$RUNNER_TEMP/evalsuite-report.md"
+        set +e
+        evalsuite "${args[@]}" > "$RUNNER_TEMP/table.md" 2> "$RUNNER_TEMP/err.txt"
+        status=$?
+        set -e
+        regressed=false
+        if [ $status -eq 1 ]; then regressed=true; elif [ $status -ne 0 ]; then cat "$RUNNER_TEMP/err.txt"; exit $status; fi
+        {
+          echo "<!-- evalsuite-action -->"
+          echo "### $IN_TITLE"
+          echo
+          cat "$RUNNER_TEMP/table.md"
+          echo
+          if [ "$regressed" = true ]; then echo "**⚠ Significant regression against the baseline:** $(cat "$RUNNER_TEMP/err.txt" | sed 's/^Significant regressions against the baseline: //')"; fi
+          echo
+          echo "<sub>$(evalsuite --version) · intervals: $IN_CI$([ -n "$IN_CLUSTERS" ] && echo ", clustered by $IN_CLUSTERS") · paired tests Holm-adjusted</sub>"
+        } > "$report"
+        cat "$report" >> "$GITHUB_STEP_SUMMARY"
+        echo "report=$report" >> "$GITHUB_OUTPUT"
+        echo "regressed=$regressed" >> "$GITHUB_OUTPUT"
+    - name: Comment on the pull request
+      if: inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPORT: ${{ steps.run.outputs.report }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- evalsuite-action -->")) | .id' | head -1)
+        if [ -n "$id" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$REPORT" > /dev/null
+        else
+          gh api "repos/$REPO/issues/$PR/comments" -F body=@"$REPORT" > /dev/null
+        fi
+    - name: Fail on regression
+      if: inputs.fail-on-regression == 'true' && steps.run.outputs.regressed == 'true'
+      shell: bash
+      run: |
+        echo "::error::EvalSuite found a significant regression against the baseline (see the job summary)."
+        exit 1
