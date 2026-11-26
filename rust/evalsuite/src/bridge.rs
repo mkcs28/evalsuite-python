@@ -374,6 +374,7 @@ fn retrieval_args(
     let relevant = rel
         .iter()
         .map(|q| match q {
+            Value::String(_) | Value::Number(_) => Ok(ret::judgements([id_of(q)?])),
             Value::Array(ids) => Ok(ret::judgements(
                 ids.iter().map(id_of).collect::<Result<Vec<_>>>()?,
             )),
@@ -391,6 +392,7 @@ fn retrieval_args(
     let retrieved = got
         .iter()
         .map(|q| match q {
+            Value::String(_) | Value::Number(_) => Ok(vec![id_of(q)?]),
             Value::Array(ids) => ids.iter().map(id_of).collect::<Result<Vec<_>>>(),
             _ => invalid("each 'retrieved' entry must be a ranked list of ids."),
         })

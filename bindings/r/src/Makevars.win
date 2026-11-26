@@ -1,0 +1,16 @@
+# Windows (Rtools with Rust's x86_64-pc-windows-gnu target).
+VENDORED = $(wildcard rust/Cargo.toml)
+RUST_DIR = $(if $(VENDORED),rust,$(or $(EVALSUITE_RUST_DIR),../../../rust))
+CARGO_FLAGS = $(if $(VENDORED),--offline,)
+TARGET_DIR = $(CURDIR)/rust-target
+TARGET = x86_64-pc-windows-gnu
+
+PKG_CPPFLAGS = -I$(RUST_DIR)/evalsuite-capi/include
+PKG_LIBS = $(TARGET_DIR)/$(TARGET)/release/libevalsuite_c.a -lws2_32 -ladvapi32 -luserenv -lbcrypt -lntdll
+
+$(SHLIB): rustlib
+
+rustlib:
+	cd $(RUST_DIR) && CARGO_TARGET_DIR=$(TARGET_DIR) cargo build --release -p evalsuite-capi --target $(TARGET) $(CARGO_FLAGS)
+
+.PHONY: rustlib
