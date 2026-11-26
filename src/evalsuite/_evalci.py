@@ -303,13 +303,12 @@ def _attach_clustered(
 ) -> EvaluationResult:
     """Intervals and baseline tests that resample whole clusters (``evaluate(..., clusters=...)``): analytic
     intervals assume independent observations, so with clusters every interval is a cluster bootstrap."""
-    import warnings
 
     from . import adjust_pvalues
     from .core.exceptions import EvalSuiteError
-    from .stats._resolve import resolve_metric
+    from .stats._resolve import MetricCall, resolve_metric
     from .stats.compare import _needs_prob
-    from .stats.intervals import _cluster_members
+    from .stats.intervals import _cluster_members, cluster_distribution
 
     yt = np.asarray(y_true)
     members = _cluster_members(clusters, yt.shape[0])
@@ -318,7 +317,7 @@ def _attach_clustered(
         raise InputValidationError("Clustered intervals need at least two clusters.")
     kwargs = _metric_kwargs(names, result)
     rng = np.random.default_rng(random_state)
-    picks = [np.concatenate([members[k] for k in rng.integers(0, g, g)]) for _ in range(n_resamples)]
+    draws = [rng.integers(0, g, g) for _ in range(n_resamples)]
     w = None if sample_weight is None else np.asarray(sample_weight, dtype=float)
 
     def value(name: str, second: Any, idx: Optional[np.ndarray]) -> float:
@@ -334,15 +333,13 @@ def _attach_clustered(
         )
 
     def dist(name: str, second: Any) -> np.ndarray:
-        out = np.empty(n_resamples)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            for b, idx in enumerate(picks):
-                try:
-                    out[b] = value(name, second, idx)
-                except EvalSuiteError:
-                    out[b] = np.nan
-        return out
+        fn, _ = resolve_metric(name)
+        prob = _needs_prob(name)
+        try:
+            call = MetricCall(fn, yt, None if prob else second, second if prob else None, w, kwargs[name])
+        except EvalSuiteError:
+            return np.full(n_resamples, np.nan)
+        return cluster_distribution(call, members, draws)[0]
 
     a = (1 - level) / 2
     extra: dict[str, dict[str, Any]] = {k: {} for k in names}

@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 import evalsuite as es
@@ -91,3 +92,90 @@ def test_functions_named_like_their_module_stay_functions():
         "assert callable(es.rag_report) and callable(es.html_report)"
     )
     assert "evalsuite.rag_report" in loaded
+
+
+# --- speed paths are exact --------------------------------------------------------------------------------------
+
+
+def test_native_concordance_is_bit_identical_to_python():
+    from evalsuite import survival as sv
+    from evalsuite._native import core
+
+    if core is None:
+        pytest.skip("compiled core not available")
+    for seed in range(60):
+        rng = np.random.default_rng(seed)
+        n = int(rng.integers(2, 200))
+        t = np.round(rng.exponential(5, n), int(rng.integers(0, 3)))
+        e = rng.random(n) < rng.random()
+        r = np.round(rng.random(n), int(rng.integers(1, 4)))
+        w = rng.random(n) + 0.1
+        tol = [0.0, 1e-8, 0.05][seed % 3]
+        try:
+            fast = sv._concordance(t, e, r, w, tol)
+        except es.InputValidationError:
+            with pytest.raises(es.InputValidationError):
+                sv._concordance_python(t, e, r, w, tol)
+            continue
+        assert fast == sv._concordance_python(t, e, r, w, tol)
+
+
+def test_batched_concordance_bootstrap_matches_one_by_one(monkeypatch):
+    from evalsuite import survival as sv
+
+    rng = np.random.default_rng(3)
+    t, e, r = np.round(rng.exponential(5, 300), 1), rng.random(300) < 0.6, np.round(rng.random(300), 2)
+    fast = es.concordance_index(t, e, r, ci="bootstrap", n_resamples=150, random_state=1).params
+    monkeypatch.setattr(sv, "_bootstrap_concordance", lambda *a: None)
+    assert es.concordance_index(t, e, r, ci="bootstrap", n_resamples=150, random_state=1).params == fast
+
+
+def _slow_cluster(call, members, picks):
+    out = []
+    for pick in picks:
+        try:
+            out.append(call(np.concatenate([members[k] for k in pick])))
+        except es.EvalSuiteError:
+            out.append(np.nan)
+    return np.array(out)
+
+
+@pytest.mark.parametrize("metric", ["accuracy", "f1", "mcc", "roc_auc", "average_precision", "log_loss", "brier"])
+def test_cluster_resamples_equal_concatenating_clusters(metric):
+    from evalsuite.stats._resolve import MetricCall
+    from evalsuite.stats.intervals import _cluster_members, cluster_distribution
+
+    fn = {"brier": es.brier_score}.get(metric) or getattr(es, metric)
+    for seed in range(12):
+        rng = np.random.default_rng(seed)
+        n, g = int(rng.integers(30, 300)), int(rng.integers(2, 25))
+        y = rng.integers(0, 2, n)
+        score = np.round(rng.random(n), 1)  # ties
+        weight = None if seed % 2 else rng.random(n) + 0.1
+        prob = metric in ("roc_auc", "average_precision", "log_loss", "brier")
+        if prob:
+            call = MetricCall(fn, y, None, score, weight, {})
+        else:
+            call = MetricCall(fn, y, (score > 0.5).astype(int), None, None, {})
+        members = _cluster_members(rng.integers(0, g, n), n)
+        picks = [rng.integers(0, len(members), len(members)) for _ in range(40)]
+        fast, _ = cluster_distribution(call, members, picks)
+        slow = _slow_cluster(call, members, picks)
+        np.testing.assert_array_equal(np.isnan(fast), np.isnan(slow))
+        np.testing.assert_allclose(fast, slow, rtol=1e-12, atol=1e-14)
+
+
+def test_judge_bootstrap_unchanged_by_matrix_resampling():
+    rng = np.random.default_rng(1)
+    recs = [
+        {"model_a": a, "model_b": b, "verdict": str(rng.choice(["a", "b", "tie"]))}
+        for a, b in [("x", "y"), ("y", "z"), ("x", "z")]
+        for _ in range(40)
+    ]
+    from evalsuite.text.judge import bradley_terry
+
+    rep = es.judge_report(recs, n_resamples=200, random_state=0)
+    rows = [(r["model_a"], r["model_b"], {"a": "win", "b": "loss", "tie": "tie"}[r["verdict"]]) for r in recs]
+    point = dict(zip(bradley_terry(rows).labels, bradley_terry(rows).value))
+    for m in rep.models:
+        assert m["bt"] == pytest.approx(point[m["model"]], abs=1e-12)

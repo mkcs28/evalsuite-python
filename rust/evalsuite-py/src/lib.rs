@@ -10,7 +10,8 @@
 //! are bit-identical for any number of threads.
 
 use evalsuite_core::{
-    agreement, coco, curve, groups, meteor, permutation, qa, ranks, resample, surface, ter, text,
+    agreement, coco, curve, groups, meteor, permutation, qa, ranks, resample, surface, survival,
+    ter, text,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -393,6 +394,69 @@ fn coco_evaluate<'py>(
         f64_bytes(py, &ev.precision),
         f64_bytes(py, &ev.recall),
     ))
+}
+
+/// Harrell's concordance sums `(numerator, denominator, comparable pairs)`. `time`, `risk` and `weight` are float64
+/// views and `event` a uint8 view, all of `n` elements, kept alive and unchanged by the caller during the call.
+#[pyfunction]
+fn concordance(
+    py: Python<'_>,
+    time: (usize, usize),
+    event: (usize, usize),
+    risk: (usize, usize),
+    weight: (usize, usize),
+    tol: f64,
+) -> PyResult<(f64, f64, u64)> {
+    let t: &[f64] = view(time.0, time.1)?;
+    let e: &[u8] = view(event.0, event.1)?;
+    let r: &[f64] = view(risk.0, risk.1)?;
+    let w: &[f64] = view(weight.0, weight.1)?;
+    if e.len() != t.len() || r.len() != t.len() || w.len() != t.len() {
+        return Err(PyValueError::new_err(
+            "time, event, risk and weight must have the same length",
+        ));
+    }
+    Ok(py.detach(|| survival::concordance(t, e, r, w, tol)))
+}
+
+#[allow(clippy::too_many_arguments)]
+/// [`concordance`] on every row of `indices` (an int64 view of `rows × n` subject indices), resamples in
+/// parallel. Each row gathers time, event, risk and weight at its indices, exactly as NumPy fancy indexing.
+#[pyfunction]
+fn concordance_resamples(
+    py: Python<'_>,
+    time: (usize, usize),
+    event: (usize, usize),
+    risk: (usize, usize),
+    weight: (usize, usize),
+    tol: f64,
+    indices: (usize, usize),
+    rows: usize,
+) -> PyResult<Vec<(f64, f64, u64)>> {
+    let t: &[f64] = view(time.0, time.1)?;
+    let e: &[u8] = view(event.0, event.1)?;
+    let r: &[f64] = view(risk.0, risk.1)?;
+    let w: &[f64] = view(weight.0, weight.1)?;
+    let idx: &[i64] = view(indices.0, indices.1)?;
+    let n = t.len();
+    if e.len() != n || r.len() != n || w.len() != n || rows == 0 || idx.len() % rows != 0 {
+        return Err(PyValueError::new_err("inconsistent lengths"));
+    }
+    if idx.iter().any(|&i| i < 0 || i as usize >= n) {
+        return Err(PyValueError::new_err("index out of range"));
+    }
+    let m = idx.len() / rows;
+    Ok(py.detach(|| {
+        idx.par_chunks(m)
+            .map(|row| {
+                let tt: Vec<f64> = row.iter().map(|&i| t[i as usize]).collect();
+                let ee: Vec<u8> = row.iter().map(|&i| e[i as usize]).collect();
+                let rr: Vec<f64> = row.iter().map(|&i| r[i as usize]).collect();
+                let ww: Vec<f64> = row.iter().map(|&i| w[i as usize]).collect();
+                survival::concordance(&tt, &ee, &rr, &ww, tol)
+            })
+            .collect()
+    }))
 }
 
 /// Counts of each code `0..k` in every resample. `codes` is a uint32 view, `indices` an int64 view of
@@ -1066,6 +1130,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
         }
     }
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add_function(wrap_pyfunction!(concordance, m)?)?;
+    m.add_function(wrap_pyfunction!(concordance_resamples, m)?)?;
     m.add_function(wrap_pyfunction!(bleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(self_bleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(ter_corpus, m)?)?;

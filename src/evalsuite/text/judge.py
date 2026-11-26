@@ -138,6 +138,41 @@ def _comparisons(comparisons: Any) -> tuple[list[Any], list[tuple[int, int, floa
     return list(names), out
 
 
+def _bt_fit(wins: np.ndarray, max_iter: int = 10_000, tol: float = 1e-10) -> np.ndarray:
+    """Centred log-strengths of a Bradley–Terry model from a win matrix (``wins[i, j]``: i's wins over j, ties
+    counted half to each), by Hunter's MM algorithm; raises when the MLE does not exist."""
+    m = wins.shape[0]
+    games = wins + wins.T
+    total_w = wins.sum(axis=1)
+    if np.any(total_w == 0) or np.any(total_w == games.sum(axis=1)):
+        raise InputValidationError(
+            "The Bradley–Terry MLE does not exist: some model wins or loses every comparison. Add comparisons or "
+            "use a prior."
+        )
+    reach = (games > 0).astype(int)
+    seen, frontier = {0}, [0]
+    while frontier:
+        i = frontier.pop()
+        for j in np.flatnonzero(reach[i]):
+            if j not in seen:
+                seen.add(int(j))
+                frontier.append(int(j))
+    if len(seen) != m:
+        raise InputValidationError(
+            "The comparison graph is not connected; ratings are not comparable across parts."
+        )
+    p = np.ones(m)
+    for _ in range(max_iter):
+        denom = (games / (p[:, None] + p[None, :])).sum(axis=1)
+        new = total_w / denom
+        new /= np.exp(np.mean(np.log(new)))
+        if np.max(np.abs(np.log(new) - np.log(p))) < tol:
+            p = new
+            break
+        p = new
+    return np.log(p) - np.mean(np.log(p))
+
+
 @register(
     category=_C,
     task="preference",
@@ -167,35 +202,7 @@ def bradley_terry(
         for a, b, o in rows:
             wins[a, b] += o
             wins[b, a] += 1 - o
-    games = wins + wins.T
-    total_w = wins.sum(axis=1)
-    if np.any(total_w == 0) or np.any(total_w == games.sum(axis=1)):
-        raise InputValidationError(
-            "The Bradley–Terry MLE does not exist: some model wins or loses every comparison. Add comparisons or "
-            "use a prior."
-        )
-    reach = (games > 0).astype(int)
-    seen, frontier = {0}, [0]
-    while frontier:
-        i = frontier.pop()
-        for j in np.flatnonzero(reach[i]):
-            if j not in seen:
-                seen.add(int(j))
-                frontier.append(int(j))
-    if len(seen) != m:
-        raise InputValidationError(
-            "The comparison graph is not connected; ratings are not comparable across parts."
-        )
-    p = np.ones(m)
-    for _ in range(max_iter):
-        denom = (games / (p[:, None] + p[None, :])).sum(axis=1)
-        new = total_w / denom
-        new /= np.exp(np.mean(np.log(new)))
-        if np.max(np.abs(np.log(new) - np.log(p))) < tol:
-            p = new
-            break
-        p = new
-    logp = np.log(p) - np.mean(np.log(p))
+    logp = _bt_fit(wins, max_iter, tol)
     if scale == "log":
         value = logp
     elif scale == "elo":

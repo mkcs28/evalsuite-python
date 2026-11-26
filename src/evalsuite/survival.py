@@ -115,6 +115,28 @@ class _Fenwick:
 
 
 def _concordance(t: np.ndarray, e: np.ndarray, r: np.ndarray, w: np.ndarray, tol: float) -> tuple[float, int]:
+    """Concordance sums in the compiled core when available (bit-identical), else in Python."""
+    from ._native import array_view, core
+
+    if core is not None:
+        tt, tv = array_view(np.ascontiguousarray(t, dtype=np.float64), np.float64)
+        ee, ev = array_view(np.ascontiguousarray(e, dtype=np.uint8), np.uint8)
+        rr, rv = array_view(np.ascontiguousarray(r, dtype=np.float64), np.float64)
+        ww, wv = array_view(np.ascontiguousarray(w, dtype=np.float64), np.float64)
+        num, den, pairs = core.concordance(tv, ev, rv, wv, float(tol))
+        del tt, ee, rr, ww
+        if den == 0:
+            raise InputValidationError(
+                "No comparable pairs: the concordance index needs at least one observed event "
+                "before another subject's time."
+            )
+        return num / den, int(pairs)
+    return _concordance_python(t, e, r, w, tol)
+
+
+def _concordance_python(
+    t: np.ndarray, e: np.ndarray, r: np.ndarray, w: np.ndarray, tol: float
+) -> tuple[float, int]:
     """Σ_i w_i (concordant_i + ties_i / 2) / Σ_i w_i comparable_i over events i; comparable j: t_j > t_i, or
     t_j == t_i with j censored. O(n log n)."""
     order_r = np.sort(r)
@@ -161,6 +183,36 @@ def _concordance(t: np.ndarray, e: np.ndarray, r: np.ndarray, w: np.ndarray, tol
     return num / den, pairs
 
 
+def _bootstrap_concordance(
+    t: np.ndarray, e: np.ndarray, r: np.ndarray, tol: float, rng: np.random.Generator, n_resamples: int
+) -> Optional[list[float]]:
+    """Harrell's C on every bootstrap resample in the compiled core (resamples in parallel, in chunks), with the
+    same resample indices as drawing them one by one; None without the core."""
+    from ._native import array_view, core
+
+    if core is None:
+        return None
+    n = t.size
+    tt, tv = array_view(t, np.float64)
+    ee, ev = array_view(e, np.uint8)
+    rr, rv = array_view(r, np.float64)
+    ww, wv = array_view(np.ones(n), np.float64)
+    vals: list[float] = []
+    step = max(1, min(n_resamples, 2_000_000 // max(1, n)))
+    done = 0
+    while done < n_resamples:
+        rows = min(step, n_resamples - done)
+        idx = np.stack([rng.integers(0, n, n) for _ in range(rows)])
+        ii, iv = array_view(idx, np.int64)
+        for num, den, _ in core.concordance_resamples(tv, ev, rv, wv, float(tol), iv, rows):
+            if den != 0:
+                vals.append(num / den)
+        del ii
+        done += rows
+    del tt, ee, rr, ww
+    return vals
+
+
 def concordance_index(
     time: Any,
     event: Any,
@@ -203,13 +255,15 @@ def concordance_index(
         params["tau"] = float(tau)
     if ci == "bootstrap":
         rng = np.random.default_rng(random_state)
-        vals = []
-        for _ in range(n_resamples):
-            idx = rng.integers(0, t.size, t.size)
-            try:
-                vals.append(_concordance(t[idx], e[idx], r[idx], weights(t[idx], e[idx]), tied_tol)[0])
-            except InputValidationError:
-                continue
+        vals = _bootstrap_concordance(t, e, r, tied_tol, rng, n_resamples) if not ipcw else None
+        if vals is None:
+            vals = []
+            for _ in range(n_resamples):
+                idx = rng.integers(0, t.size, t.size)
+                try:
+                    vals.append(_concordance(t[idx], e[idx], r[idx], weights(t[idx], e[idx]), tied_tol)[0])
+                except InputValidationError:
+                    continue
         a = (1 - level) / 2
         params.update(
             ci_low=float(np.quantile(vals, a)),
