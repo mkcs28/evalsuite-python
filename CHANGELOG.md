@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-26
+
+Faster to import, faster to resample, and a deep clean of the 1.2 modules.
+
+### Changed
+
+- **Load only what you use.** `import evalsuite` no longer imports NumPy, SciPy or any EvalSuite module: every
+  function, class and submodule is imported the first time it is used (PEP 562). Import time drops from about
+  100 ms to about 30 ms and the command line starts in about 55 ms instead of 145 ms. Code is unchanged:
+  `es.accuracy`, `from evalsuite import *`, `es.list_metrics()` and IDE completion work as before.
+- **Speed.**
+  - Cluster bootstrap (`evaluate(..., clusters=)`, `bootstrap_ci(..., clusters=)`): confusion-matrix metrics
+    from per-cluster counts, ROC AUC / average precision and mean losses from cluster multiplicities;
+    `bootstrap_ci` about 10× faster and `evaluate` about 3× faster on 100,000 observations.
+  - Concordance index in the compiled core: about 29× faster (bit-identical); bootstrap intervals run
+    resamples in parallel.
+  - `judge_report` Bradley–Terry bootstrap about 10× faster; `fairness_report` about 2× faster.
+
+### Fixed
+
+- `es.rag_report` and `es.html_report` could become modules instead of functions after their modules were
+  imported (lazy loading guards this).
+- `rubric_report` rejects non-numeric or NaN scores with a clear message instead of a raw error or a NaN row.
+- `fairness_report` rejects missing group values instead of silently forming a "None" group.
+- `sample_size_proportion` rejects a half-width of 0.5 or more.
+- Singular wording in reports ("1 comparison", "1 question") and clearer length errors for survival and
+  fairness inputs.
+- A power test's tolerance for older SciPy on Python 3.9.
+
 ## [1.2.0] - 2026-11-26
 
 EvalSuite for LLM evaluation and research-grade statistics.

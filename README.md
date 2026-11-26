@@ -13,11 +13,13 @@ evaluation into one consistent, validated, documented framework.
 > **On an older version? Upgrade once:** `pip install -U evalsuite-python`. From 1.1.2 on, EvalSuite tells you
 > when a newer release is out (`evalsuite upgrade`).
 
-> **Status: stable (1.2.0).** [Example notebooks](notebooks/README.md) (Colab) ·
+> **Status: stable (1.2.1).** [Example notebooks](notebooks/README.md) (Colab) ·
 > [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
 
 **What's new**
 
+- **1.2.1** — `import evalsuite` loads only what you use (about 30 ms, no NumPy until needed); faster cluster
+  bootstrap, concordance index (compiled core), judge and fairness reports; a deep clean of the 1.2 modules.
 - **1.2** — LLM evaluation and research-grade statistics: benchmark presets (GSM8K, MMLU, ARC, TruthfulQA,
   HumanEval) for the leaderboard, a judge report (win rates, position / length / self-preference bias, agreement
   with humans), rubric reports, an end-to-end RAG report that blames each failure on retrieval or generation, a
@@ -441,7 +443,7 @@ scripts, no external requests).
 ## Evaluation in pull requests
 
 ```yaml
-- uses: mkcs28/evalsuite-python@v1.2.0
+- uses: mkcs28/evalsuite-python@v1.2.1
   with:
     predictions: predictions.csv
     y-true: label
