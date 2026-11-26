@@ -45,7 +45,9 @@ def _survival_inputs(time: Any, event: Any) -> tuple[np.ndarray, np.ndarray]:
     t = np.asarray(time, dtype=float).ravel()
     e = np.asarray(event).ravel()
     if t.size == 0 or t.shape != e.shape:
-        raise InputValidationError("time and event must be non-empty and the same length.")
+        raise InputValidationError(
+            f"time and event must be non-empty and the same length; got {t.size} times and {e.size} events."
+        )
     if not np.all(np.isfinite(t)):
         raise InputValidationError("time contains NaN or infinite values.")
     if e.dtype != bool:
@@ -235,7 +237,10 @@ def concordance_index(
     t, e = _survival_inputs(time, event)
     r = np.asarray(risk, dtype=float).ravel()
     if r.shape != t.shape or not np.all(np.isfinite(r)):
-        raise InputValidationError("risk must be finite and have one value per subject.")
+        raise InputValidationError(
+            f"risk must be finite and have one value per subject ({t.size}); got {r.size} value(s)"
+            + ("." if r.shape != t.shape else " including NaN or infinite values.")
+        )
 
     def weights(tt: np.ndarray, ee: np.ndarray) -> np.ndarray:
         if not ipcw:

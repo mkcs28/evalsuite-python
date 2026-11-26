@@ -183,7 +183,9 @@ def _group_labels(groups: Any, n: int, intersectional: bool) -> tuple[np.ndarray
         cols = {f"attr{j}": arr[:, j] for j in range(arr.shape[1])} if arr.ndim == 2 else {"group": arr.ravel()}
     for k, v in cols.items():
         if v.shape[0] != n:
-            raise InputValidationError(f"groups[{k!r}] must have one value per observation ({n}).")
+            raise InputValidationError(
+                f"groups[{k!r}] must have one value per observation ({n}); got {v.shape[0]}."
+            )
         missing = [i for i, x in enumerate(v) if x is None or (isinstance(x, float) and math.isnan(x))]
         if missing:
             raise InputValidationError(
