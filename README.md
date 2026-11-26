@@ -309,7 +309,7 @@ card = es.report_card(y_true, y_prob, threshold=0.2, groups=site, group_name="si
 print(card.paragraph())  # results paragraph with intervals, ready for a paper
 card.to_markdown()
 card.to_latex()
-card.to_docx("performance.docx")
+# card.to_docx("performance.docx")  # Word: pip install "evalsuite-python[docx]"
 ```
 
 Discrimination, calibration, Brier score, threshold measures, net benefit and subgroup performance, plus the
