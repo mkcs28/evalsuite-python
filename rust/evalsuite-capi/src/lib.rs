@@ -62,6 +62,16 @@ pub unsafe extern "C" fn evalsuite_free(s: *mut c_char) {
     }
 }
 
+/// The metric names `evalsuite_call` understands, as a JSON array (free with `evalsuite_free`).
+#[no_mangle]
+pub extern "C" fn evalsuite_metrics() -> *mut c_char {
+    let names: Vec<String> = evalsuite::bridge::METRICS
+        .iter()
+        .map(|m| format!("\"{m}\""))
+        .collect();
+    CString::new(format!("[{}]", names.join(","))).map_or(std::ptr::null_mut(), CString::into_raw)
+}
+
 /// The engine version (static string).
 #[no_mangle]
 pub extern "C" fn evalsuite_version() -> *const c_char {

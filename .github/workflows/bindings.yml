@@ -29,7 +29,7 @@ jobs:
         run: |
           Rscript -e 'install.packages("jsonlite", repos = "https://cloud.r-project.org")'
           EVALSUITE_RUST_DIR=$PWD/rust R CMD INSTALL bindings/r
-          Rscript -e 'library(evalsuite); v <- es_metric("f1", y_true = c(0,1,1,0), y_pred = c(0,1,0,0)); stopifnot(abs(v - 2/3) < 1e-15); print(v)'
+          Rscript -e 'library(evalsuite); v <- es_metric("f1", y_true = c(0,1,1,0), y_pred = c(0,1,0,0)); stopifnot(abs(v - 2/3) < 1e-15); r <- es_metric("roc_auc", y_true = c(0,0,1,1,0,1), y_prob = c(0.1,0.4,0.35,0.8,0.2,0.9), ci = "analytic"); stopifnot(r$ci_method == "delong", "ndcg" %in% es_metrics()); print(r)'
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
@@ -37,4 +37,4 @@ jobs:
         env:
           EVALSUITE_LIB: ${{ github.workspace }}/rust/target/release/libevalsuite_c.so
         run: |
-          julia --project=bindings/julia -e 'using Pkg; Pkg.instantiate(); using EvalSuite; v = metric("f1"; y_true=[0,1,1,0], y_pred=[0,1,0,0]); @assert abs(v - 2/3) < 1e-15; println(v)'
+          julia --project=bindings/julia -e 'using Pkg; Pkg.instantiate(); using EvalSuite; v = metric("f1"; y_true=[0,1,1,0], y_pred=[0,1,0,0]); @assert abs(v - 2/3) < 1e-15; r = metric("roc_auc"; y_true=[0,0,1,1,0,1], y_prob=[0.1,0.4,0.35,0.8,0.2,0.9], ci="analytic"); @assert r.ci_method == "delong"; @assert "ndcg" in metrics(); println(r)'
