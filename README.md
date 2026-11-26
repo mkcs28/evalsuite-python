@@ -306,8 +306,10 @@ Intervals are analytic by default (Wilson, DeLong, Student-t; no extra cost), `c
 
 ```python
 card = es.report_card(y_true, y_prob, threshold=0.2, groups=site, group_name="site")
-print(card.paragraph())        # results paragraph with intervals, ready for a paper
-card.to_markdown(); card.to_latex(); card.to_docx("performance.docx")
+print(card.paragraph())  # results paragraph with intervals, ready for a paper
+card.to_markdown()
+card.to_latex()
+card.to_docx("performance.docx")
 ```
 
 Discrimination, calibration, Brier score, threshold measures, net benefit and subgroup performance, plus the
@@ -317,7 +319,7 @@ TRIPOD+AI checklist; `standard="model-card"` fills a model card's quantitative s
 
 ```python
 board = es.leaderboard({"model-a": "runs/a.jsonl", "model-b": "runs/b.jsonl"}, scorer="gsm8k")
-print(board.summary())         # ranks shared when differences are not significant (McNemar, Holm)
+print(board.summary())  # ranks shared when differences are not significant (McNemar, Holm)
 ```
 
 Scorers (exact match, GSM8K, boxed, choice, numeric, ...), per-category tables, contamination and LLM-judge
@@ -326,8 +328,9 @@ position checks; also `evalsuite leaderboard runs/*.jsonl` and the [in-browser t
 ## Monitoring
 
 ```python
-mon = es.Monitor(window=1000, alerts={"roc_auc": ("<", 0.8), "psi": (">", 0.25)},
-                 reference_scores=validation_probabilities)
+mon = es.Monitor(
+    window=1000, alerts={"roc_auc": ("<", 0.8), "psi": (">", 0.25)}, reference_scores=validation_probabilities
+)
 alerts = mon.update(y_true_batch, y_pred=pred_batch, y_prob=prob_batch)
 ```
 
@@ -338,10 +341,12 @@ callbacks and `snapshot()` with intervals.
 
 ```python
 from evalsuite import integrations as ei
+
 cross_val_score(model, X, y, scoring=ei.sklearn_scorer("mcc"))
 Trainer(..., compute_metrics=ei.hf_compute_metrics(["accuracy", "f1"]))
 model.fit(X, y, callbacks=[ei.keras_callback(X_val, y_val)])
-ei.log_mlflow(result); ei.log_wandb(result)
+ei.log_mlflow(result)
+ei.log_wandb(result)
 ```
 
 ## Classification report
