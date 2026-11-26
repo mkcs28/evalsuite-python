@@ -6,7 +6,7 @@ LLM systems. It is the Rust edition of [EvalSuite](https://github.com/mkcs28/eva
 
 ```toml
 [dependencies]
-evalsuite = "0.8"
+evalsuite = "1.1"
 ```
 
 For the terminal there is also the `evalsuite` command (`cargo install evalsuite-cli`): classification,

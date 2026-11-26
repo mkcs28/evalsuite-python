@@ -1,3 +1,3 @@
 """Package version (single source of truth, read by the build backend)."""
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"

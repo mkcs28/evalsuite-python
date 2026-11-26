@@ -21,6 +21,7 @@ evalsuite metrics
 | `diagnostic` | sensitivity, specificity, PPV, NPV, LR+, LR−, DOR, Youden's J, accuracy and prevalence with 95% CIs |
 | `calibration` | Brier score, ECE, MCE, calibration intercept and slope, Hosmer–Lemeshow |
 | `text` | BLEU, chrF, chrF++, TER, ROUGE-1/2/L, exact match, token F1 |
+| `upgrade` | installs the latest `evalsuite-cli` from crates.io (`cargo install`, replacing the older version) |
 
 Output as aligned text (default), `-f json`, `-f csv` or `-f markdown`, to standard output or `-o file`.
 `-` reads CSV from standard input.

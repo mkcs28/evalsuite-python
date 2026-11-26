@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-26
+
+### Added
+- **Staying current**: on import, a one-line notice (at most once a day) when a newer release is on PyPI. The
+  lookup runs in a background thread with a one-day cache, so importing never waits on the network; it is off in
+  CI and under pytest, and `EVALSUITE_NO_UPDATE_CHECK=1` turns it off. `evalsuite upgrade` / `es.upgrade()`
+  install the latest release into the running Python environment; `evalsuite version --check` and
+  `es.check_for_update()` report installed and latest versions. The Rust CLI gains `evalsuite upgrade`
+  (`cargo install evalsuite-cli`). pip itself never upgrades an installed package unless asked, and no package
+  can change that.
+
+### Changed
+- READMEs refreshed: a "What's new" summary, upgrade instructions, sections for intervals and baselines, report
+  cards, leaderboards, monitoring, integrations and the JavaScript / C / R / Julia bindings; the main
+  performance table and BENCHMARKS.md re-measured on 1.1.2 (78 of 78 comparisons agree with the reference
+  libraries, 77 faster, 3.86× geometric mean).
+- `evaluate()` regression intervals: one pass of dot products for MAE, MSE, RMSE and mean bias instead of a
+  temporary array per metric (regression `evaluate()` with intervals 2× faster at 1,000,000 samples, now ahead
+  of scikit-learn again).
+
 ## [1.1.1] - 2026-11-26
 
 A hardening and speed release: every metric of the engine's JSON bridge (npm, C, R, Julia) was fuzzed with

@@ -35,7 +35,10 @@ def _mean_ci(terms: np.ndarray, level: float) -> tuple[float, float]:
     if n < 2:
         return math.nan, math.nan
     m = float(np.mean(terms))
-    se = float(np.std(terms, ddof=1)) / math.sqrt(n)
+    d = terms - m
+    # Sample standard deviation via a BLAS dot product (one pass over the deviations instead of np.std's
+    # several temporaries); same two-pass formula, so the same accuracy.
+    se = math.sqrt(float(np.dot(d, d)) / (n - 1)) / math.sqrt(n)
     q = _t_quantile(level, n - 1)
     return m - q * se, m + q * se
 
@@ -108,17 +111,32 @@ def _analytic(
                     out[name] = (max(0.0, lo), hi, "t")
     elif result.task == "regression" and np.ndim(y_true) == 1:
         e = np.asarray(y_pred, dtype=float) - np.asarray(y_true, dtype=float)
-        for name in result.metrics:
-            if name == "mae":
-                lo, hi = _mean_ci(np.abs(e), level)
-                out[name] = (max(0.0, lo), hi, "t")
-            elif name in ("mse", "rmse"):
-                lo, hi = _mean_ci(e * e, level)
-                lo = max(0.0, lo)
-                out[name] = (lo, hi, "t") if name == "mse" else (math.sqrt(lo), math.sqrt(hi), "t (from MSE)")
-            elif name == "mean_bias_error":
-                lo, hi = _mean_ci(e, level)
-                out[name] = (lo, hi, "t")
+        n = e.shape[0]
+        if n >= 2:
+            # One pass of BLAS dot products serves every error metric: Σe², Σe⁴ (and Σe) give the means and
+            # sample variances of |e|, e² and e without temporaries for |e| (|e|·|e| = e·e).
+            q = _t_quantile(level, n - 1)
+            ee = float(np.dot(e, e))
+            sq: Optional[np.ndarray] = None
+
+            def t_ci(mean: float, sum_sq: float) -> tuple[float, float]:
+                var = max(0.0, (sum_sq - n * mean * mean) / (n - 1))
+                half = q * math.sqrt(var / n)
+                return mean - half, mean + half
+
+            for name in result.metrics:
+                if name == "mae":
+                    lo, hi = t_ci(float(result.metrics["mae"].value), ee)
+                    out[name] = (max(0.0, lo), hi, "t")
+                elif name in ("mse", "rmse"):
+                    if sq is None:
+                        sq = e * e
+                    lo, hi = t_ci(ee / n, float(np.dot(sq, sq)))
+                    lo = max(0.0, lo)
+                    out[name] = (lo, hi, "t") if name == "mse" else (math.sqrt(lo), math.sqrt(hi), "t (from MSE)")
+                elif name == "mean_bias_error":
+                    lo, hi = t_ci(float(e.mean()), ee)
+                    out[name] = (lo, hi, "t")
     return out
 
 
