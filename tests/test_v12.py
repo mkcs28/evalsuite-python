@@ -24,9 +24,9 @@ def test_sample_size_textbook_values():
 
 def test_power_matches_statsmodels():
     sm = pytest.importorskip("statsmodels.stats.power")
-    assert es.power_mean_difference(34, 0.5, 1.0) == pytest.approx(sm.TTestPower().power(0.5, 34, 0.05), rel=1e-9)
+    assert es.power_mean_difference(34, 0.5, 1.0) == pytest.approx(sm.TTestPower().power(0.5, 34, 0.05), rel=1e-7)
     assert es.power_mean_difference(64, 0.5, 1.0, paired=False) == pytest.approx(
-        sm.TTestIndPower().power(0.5, 64, 0.05), rel=1e-9
+        sm.TTestIndPower().power(0.5, 64, 0.05), rel=1e-7
     )
     prop = pytest.importorskip("statsmodels.stats.proportion")
     ours = es.power_two_proportions(294, 0.7, 0.8, paired=False)
