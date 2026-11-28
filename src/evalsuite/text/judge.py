@@ -258,7 +258,7 @@ def elo_ratings(
 
 # ---------------------------------------------------------------- agreement
 def _reliability_matrix(ratings: Any) -> np.ndarray:
-    a = numeric(ratings, "ratings").copy()
+    a: np.ndarray = numeric(ratings, "ratings").copy()
     if a.ndim != 2 or a.shape[0] < 2 or a.shape[1] < 1:
         raise InputValidationError(
             "ratings must be a 2-D array: one row per rater, one column per item (NaN = missing)."
