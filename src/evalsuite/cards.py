@@ -46,7 +46,11 @@ _TRIPOD_ITEMS = [
 _STARD_ITEMS = [
     ("20", "Baseline characteristics: numbers with and without the target condition", "n"),
     ("23", "Cross tabulation of the index test results by the reference standard (2×2 table)", "threshold"),
-    ("24", "Estimates of diagnostic accuracy and their precision (sensitivity, specificity, 95% CIs)", "threshold"),
+    (
+        "24",
+        "Estimates of diagnostic accuracy and their precision (sensitivity, specificity, 95% CIs)",
+        "threshold",
+    ),
     ("24b", "Discrimination across thresholds (ROC AUC) with confidence interval", "roc_auc"),
     ("24c", "Accuracy in clinically relevant subgroups", "subgroups"),
     ("19", "Flow of participants (diagram)", None),
@@ -269,9 +273,7 @@ class ReportCard:
         except ImportError as exc:
             raise OptionalDependencyError("python-docx", "docx", "ReportCard.to_docx") from exc
         doc = docx.Document()
-        doc.add_heading(
-            "Model card" if self.standard == "model-card" else _STANDARDS[self.standard][0], level=1
-        )
+        doc.add_heading("Model card" if self.standard == "model-card" else _STANDARDS[self.standard][0], level=1)
         if self.standard == "model-card":
             for key, title in _CARD_SECTIONS:
                 if key == "quantitative_analyses":

@@ -203,6 +203,28 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     import evalsuite as es
 
+    if (
+        not (args.y_true and args.y_pred)
+        or args.y_prob
+        or args.groups
+        or (args.output and args.output.endswith(".html"))
+    ):
+        if args.file == "-":
+            raise CLIError("The automatic report needs a file path, not standard input.")
+        rep = es.auto_report(
+            args.file,
+            target=args.y_true,
+            pred=args.y_pred,
+            prob=args.y_prob[0] if args.y_prob and len(args.y_prob) == 1 else args.y_prob,
+            groups=args.groups,
+            clusters=args.clusters,
+            task=args.task,
+            threshold=args.threshold,
+            path=args.output,
+            title=args.title,
+        )
+        print(rep.summary())
+        return 0
     df = read_table(args.file)
     report = es.classification_report(
         column(df, args.y_true, "--y-true"),
@@ -574,9 +596,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser(
-        "report", help="per-class classification report (precision, recall, F1, specificity, support)"
+        "report",
+        help="full HTML evaluation report from a predictions file (columns and task detected automatically); "
+        "with --y-true and --y-pred, the per-class classification report",
     )
-    add_targets(p, pred_required=True)
+    p.add_argument("file", help="CSV/TSV/Parquet/JSON file with one row per observation")
+    p.add_argument("--y-true", metavar="COL", help="outcome column (detected when omitted)")
+    p.add_argument("--y-pred", metavar="COL", help="predicted labels or values (detected when omitted)")
+    p.add_argument("--y-prob", nargs="+", metavar="COL", help="probability column(s) (detected when omitted)")
+    p.add_argument("--groups", nargs="+", metavar="COL", help="subgroup columns for the fairness section")
+    p.add_argument("--clusters", metavar="COL", help="cluster column (e.g. patient id) for clustered intervals")
+    p.add_argument("--task", choices=["binary", "multiclass", "regression"], help="override the detected task")
+    p.add_argument("--threshold", type=float, default=0.5, help="risk threshold for binary classification")
+    p.add_argument("--title", help="report title")
+    p.add_argument("--weight", metavar="COL", help="column with sample weights (per-class report only)")
     add_output(p)
     p.set_defaults(func=cmd_report)
 
