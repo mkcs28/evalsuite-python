@@ -178,12 +178,17 @@ def load_benchmark(
     """Items of a benchmark as records with ``id``, ``prompt``, ``reference`` (and ``choices`` / ``category``
     where they exist), ready to prompt a model and to pass as ``references`` to :func:`evalsuite.leaderboard`.
     Downloads from the Hugging Face Hub with the optional ``datasets`` package
-    (``pip install "evalsuite-python[benchmarks]"``)."""
+    (``pip install "evalsuite-python[benchmarks]"``) into EvalSuite's cache (``evalsuite cache info``), unless
+    ``cache_dir`` is given."""
     s = spec(name)
     try:
         import datasets  # type: ignore[import-not-found]
     except ImportError as exc:
         raise OptionalDependencyError("datasets", "benchmarks", "load_benchmark") from exc
+    if cache_dir is None:
+        from .cache import cache_dir as _cache_dir
+
+        cache_dir = str(_cache_dir(create=True) / "datasets")
     ds = datasets.load_dataset(s.hf_path, s.hf_config, split=split or s.split, cache_dir=cache_dir)
     out = []
     for i, row in enumerate(ds):

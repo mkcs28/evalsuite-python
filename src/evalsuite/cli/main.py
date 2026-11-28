@@ -461,6 +461,33 @@ def cmd_upgrade(args: argparse.Namespace) -> int:
     return upgrade()
 
 
+def cmd_cache(args: argparse.Namespace) -> int:
+    from ..cache import _human, cache_info, clear_cache
+
+    if args.action == "info":
+        print(cache_info().summary())
+        return 0
+    everything = args.older_than is None and args.max_size is None
+    if everything and not (args.yes or args.dry_run):
+        info = cache_info()
+        if not info.entries:
+            print(f"The cache is already empty ({info.path}).")
+            return 0
+        answer = input(
+            f"Delete all {len(info.entries)} cache entries ({_human(info.size_bytes)}) in {info.path}? [y/N] "
+        )
+        if answer.strip().lower() not in ("y", "yes"):
+            print("Nothing deleted.")
+            return 1
+    out = clear_cache(older_than=args.older_than, max_size=args.max_size, dry_run=args.dry_run)
+    verb = "Would free" if args.dry_run else "Freed"
+    k = len(out["removed"])
+    print(f"{verb} {_human(out['freed_bytes'])} ({k} entr{'y' if k == 1 else 'ies'}) in {out['path']}.")
+    for name in out["removed"][:20]:
+        print(f"  {name}")
+    return 0
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     from .._update import check_for_update
 
@@ -671,6 +698,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--check", action="store_true", help="only report whether a newer release exists")
     p.add_argument("--force", action="store_true", help="run pip even if this is already the latest release")
     p.set_defaults(func=cmd_upgrade)
+
+    p = sub.add_parser(
+        "cache", help="show or clear EvalSuite's cache of downloaded data (cleared automatically too)"
+    )
+    p.add_argument("action", choices=["info", "clear"], help="info: location and size; clear: delete entries")
+    p.add_argument("--older-than", help="clear only entries unused for this long, e.g. 30d, 12h, 2w")
+    p.add_argument("--max-size", help="clear least recently used entries until the cache is below this, e.g. 1GB")
+    p.add_argument("--dry-run", action="store_true", help="list what would be deleted without deleting it")
+    p.add_argument("-y", "--yes", action="store_true", help="do not ask before clearing everything")
+    p.set_defaults(func=cmd_cache)
 
     p = sub.add_parser("version", help="show the installed version (--check: compare with PyPI)")
     p.add_argument("--check", action="store_true", help="also look up the latest release on PyPI")

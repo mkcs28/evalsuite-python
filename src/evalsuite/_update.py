@@ -68,13 +68,20 @@ def _installed() -> str:
     return __version__
 
 
+def _cache_root() -> Path:
+    """EvalSuite's cache folder (documented in :mod:`evalsuite.cache`); kept here so importing stays light."""
+    env = os.environ.get("EVALSUITE_CACHE")
+    if env:
+        return Path(env).expanduser()
+    if os.environ.get("XDG_CACHE_HOME"):
+        return Path(os.environ["XDG_CACHE_HOME"]) / "evalsuite"
+    if sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
+        return Path(os.environ["LOCALAPPDATA"]) / "evalsuite"
+    return Path.home() / ".cache" / "evalsuite"
+
+
 def _cache_file() -> Path:
-    base = os.environ.get("XDG_CACHE_HOME") or (
-        os.path.join(os.environ.get("LOCALAPPDATA", ""), "evalsuite")
-        if sys.platform == "win32" and os.environ.get("LOCALAPPDATA")
-        else os.path.join(os.path.expanduser("~"), ".cache")
-    )
-    return Path(base) / "evalsuite" / "update-check.json"
+    return _cache_root() / "update-check.json"
 
 
 def _read_cache() -> dict[str, Any]:
@@ -87,9 +94,10 @@ def _read_cache() -> dict[str, Any]:
 
 def _write_cache(data: dict[str, Any]) -> None:
     try:
-        path = _cache_file()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data))
+        from .cache import cache_dir
+
+        cache_dir(create=True)
+        _cache_file().write_text(json.dumps(data))
     except OSError:
         pass
 
@@ -148,8 +156,30 @@ def _background_refresh() -> None:
         _write_cache(data)
 
 
+def _clean_in_background() -> None:
+    """Start the automatic cache clearing (evalsuite.cache) in a background thread when it is due (daily)."""
+    try:
+        root = _cache_root()
+        stamp = root / ".last-clean"
+        if not (root / ".evalsuite-cache").is_file():
+            return
+        if stamp.exists() and time.time() - stamp.stat().st_mtime < DAY:
+            return
+    except OSError:
+        return
+
+    def run() -> None:
+        from .cache import auto_clean
+
+        auto_clean()
+
+    threading.Thread(target=run, name="evalsuite-cache-clean", daemon=True).start()
+
+
 def notify_on_import() -> None:
-    """Print the cached notice (at most once a day) and refresh the cache in the background when stale."""
+    """Print the cached notice (at most once a day) and refresh the cache in the background when stale; also
+    start the daily automatic cache clearing when due."""
+    _clean_in_background()
     if _disabled():
         return
     data = _read_cache()

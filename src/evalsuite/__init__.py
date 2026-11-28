@@ -46,6 +46,12 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         bayes_compare,
         bayes_correlated_ttest,
     )
+    from .cache import (
+        CacheInfo,
+        cache_dir,
+        cache_info,
+        clear_cache,
+    )
     from .calibration import (
         CalibrationReport,
         calibration_intercept,
@@ -384,6 +390,12 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "Calibrator",
         "recalibrate",
     ),
+    ".cache": (
+        "CacheInfo",
+        "cache_dir",
+        "cache_info",
+        "clear_cache",
+    ),
     ".fairness": (
         "FairnessReport",
         "fairness_report",
@@ -674,6 +686,7 @@ __all__ = [
     "BENCHMARKS",
     "BayesComparison",
     "BlandAltman",
+    "CacheInfo",
     "CalibrationReport",
     "Calibrator",
     "ClassificationReport",
@@ -745,6 +758,8 @@ __all__ = [
     "bradley_terry",
     "brier_score",
     "brier_score_survival",
+    "cache_dir",
+    "cache_info",
     "calibration",
     "calibration_curve",
     "calibration_intercept",
@@ -760,6 +775,7 @@ __all__ = [
     "claim_verification_accuracy",
     "classification",
     "classification_report",
+    "clear_cache",
     "cliffs_delta",
     "clinical",
     "code_complexity",
