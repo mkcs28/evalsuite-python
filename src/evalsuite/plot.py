@@ -649,3 +649,48 @@ def text_scores(
     ax.set(ylabel=f"{res.name} per example", title=f"{res.name} by system (diamond = mean)")
     ax.grid(axis="y", alpha=0.3)
     return ax
+
+
+def critical_difference(result: Any, *, ax: Optional[Axes] = None, title: Optional[str] = None) -> Axes:
+    """Critical-difference diagram (Demšar 2006) from :func:`evalsuite.nemenyi_test`: models on an average-rank
+    axis (1 = best, on the left), with bars joining groups whose ranks differ by less than the critical
+    difference (not significantly different)."""
+    models, ranks, cd = list(result.models), np.asarray(result.average_ranks), float(result.critical_difference)
+    k = len(models)
+    order = np.argsort(ranks)
+    ax = _axes(ax, (max(5.0, 1.1 * k), 2.6 + 0.18 * k))
+    ax.set_xlim(1, k)
+    ax.set_ylim(0, 1)
+    ax.spines[["left", "right", "bottom"]].set_visible(False)
+    ax.xaxis.set_ticks_position("top")
+    ax.set_xticks(range(1, k + 1))
+    ax.set_yticks([])
+    ax.set_xlabel("Average rank (1 = best)")
+    ax.xaxis.set_label_position("top")
+    # critical-difference scale bar
+    ax.plot([1, 1 + cd], [0.93, 0.93], color="0.2", lw=1.5)
+    ax.text(1 + cd + 0.05, 0.93, f"CD = {cd:.2f}", ha="left", va="center", fontsize=8)
+    half = (k + 1) // 2
+    for pos, idx in enumerate(order):
+        r = ranks[idx]
+        left = pos < half
+        y = 0.75 - 0.6 * (pos if left else k - 1 - pos) / max(1, half)
+        x_text = 1 - 0.15 if left else k + 0.15
+        ax.plot([r, r, x_text], [0.88, y, y], color="0.3", lw=0.9)
+        ax.text(x_text, y, f"{models[idx]} ({r:.2f})", ha="right" if left else "left", va="center", fontsize=9)
+    # cliques of models not significantly different
+    cliques: list[tuple[float, float]] = []
+    for i in range(k):
+        j = i
+        while j + 1 < k and ranks[order[j + 1]] - ranks[order[i]] <= cd:
+            j += 1
+        if j > i:
+            span = (ranks[order[i]], ranks[order[j]])
+            if not any(a <= span[0] and span[1] <= b for a, b in cliques):
+                cliques.append(span)
+    for c, (a, b) in enumerate(cliques):
+        yb = 0.86 - 0.05 * (c + 1)
+        ax.plot([a - 0.03, b + 0.03], [yb, yb], color="0.1", lw=3)
+    if title:
+        ax.set_title(title, pad=28)
+    return ax
