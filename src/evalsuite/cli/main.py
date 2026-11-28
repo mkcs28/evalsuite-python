@@ -510,6 +510,46 @@ def cmd_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_history(args: argparse.Namespace) -> int:
+    from ..workflow import check_regression, load_history
+
+    entries = load_history(model=args.model, dataset=args.dataset, path=args.file)
+    if args.action == "list":
+        if not entries:
+            print("No evaluations recorded yet (es.record_history(result, model=...)).")
+            return 0
+        for e in entries[-args.last :]:
+            shown = {k: v for k, v in e["metrics"].items() if not k.endswith(("_ci_low", "_ci_high"))}
+            vals = ", ".join(f"{k}={v:.4g}" for k, v in list(shown.items())[:6])
+            print(f"{e['time']}  {e['model']:<16} {e['dataset']:<14} {vals}")
+        return 0
+    if len(entries) < 2:
+        print("Need at least two recorded evaluations to check for a regression.")
+        return 0
+
+    class _Latest:
+        def __init__(self, m: dict) -> None:  # type: ignore[type-arg]
+            self.metrics = {
+                k: {"value": v, "low": m.get(f"{k}_ci_low"), "high": m.get(f"{k}_ci_high")}
+                for k, v in m.items()
+                if not k.endswith(("_ci_low", "_ci_high"))
+            }
+
+    out = check_regression(_Latest(entries[-1]["metrics"]), baseline=entries[-2], tolerance=args.tolerance)
+    for r in out["regressed"]:
+        print(f"REGRESSION {r['metric']}: {r['previous']:.4g} → {r['current']:.4g}", file=sys.stderr)
+    for r in out["improved"]:
+        print(f"improved   {r['metric']}: {r['previous']:.4g} → {r['current']:.4g}")
+    return 1 if out["regressed"] else 0
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    from ..workflow import serve
+
+    serve(args.host, args.port)
+    return 0
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     from .._update import check_for_update
 
@@ -731,6 +771,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--check", action="store_true", help="only report whether a newer release exists")
     p.add_argument("--force", action="store_true", help="run pip even if this is already the latest release")
     p.set_defaults(func=cmd_upgrade)
+
+    p = sub.add_parser("history", help="list recorded evaluations, or check the latest one for regressions")
+    p.add_argument("action", choices=["list", "check"])
+    p.add_argument("--model", help="only this model")
+    p.add_argument("--dataset", help="only this data set")
+    p.add_argument("--file", help="history file (default .evalsuite/history.jsonl or $EVALSUITE_HISTORY)")
+    p.add_argument("--last", type=int, default=20, help="how many entries to list (default 20)")
+    p.add_argument("--tolerance", type=float, default=0.0, help="ignore regressions smaller than this")
+    p.set_defaults(func=cmd_history)
+
+    p = sub.add_parser("serve", help="run a small JSON HTTP service: POST /evaluate, GET /metrics, GET /health")
+    p.add_argument("--host", default="127.0.0.1", help="interface to bind (default 127.0.0.1; 0.0.0.0 in Docker)")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_serve)
 
     p = sub.add_parser(
         "cache", help="show or clear EvalSuite's cache of downloaded data (cleared automatically too)"

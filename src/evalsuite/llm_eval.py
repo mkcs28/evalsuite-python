@@ -61,7 +61,7 @@ def _call_openai(model: str, prompt: str, system: Optional[str], params: Mapping
     try:
         import openai  # type: ignore[import-not-found, unused-ignore]
     except ImportError as exc:
-        raise OptionalDependencyError("openai", "llm", "run_model") from exc
+        raise OptionalDependencyError("openai", "openai", "run_model") from exc
     client = openai.OpenAI()
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
     resp = client.chat.completions.create(model=model, messages=messages, **params)
@@ -77,7 +77,7 @@ def _call_anthropic(model: str, prompt: str, system: Optional[str], params: Mapp
     try:
         import anthropic  # type: ignore[import-not-found, unused-ignore]
     except ImportError as exc:
-        raise OptionalDependencyError("anthropic", "llm", "run_model") from exc
+        raise OptionalDependencyError("anthropic", "anthropic", "run_model") from exc
     client = anthropic.Anthropic()
     kw = dict(params)
     kw.setdefault("max_tokens", 1024)

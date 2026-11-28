@@ -314,6 +314,15 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         segmentation_confusion,
         segmentation_report,
     )
+    from .workflow import (
+        check_regression,
+        load_history,
+        log_to_mlflow,
+        log_to_wandb,
+        metrics_dict,
+        record_history,
+        serve,
+    )
 
 # Submodules available as attributes (``es.stats``, ``es.plot``, ...).
 _SUBMODULES = (
@@ -488,6 +497,15 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "run_model",
     ),
     ".dataframe": ("register_accessors",),
+    ".workflow": (
+        "check_regression",
+        "load_history",
+        "log_to_mlflow",
+        "log_to_wandb",
+        "metrics_dict",
+        "record_history",
+        "serve",
+    ),
     ".fairness": (
         "FairnessReport",
         "fairness_report",
@@ -873,6 +891,7 @@ __all__ = [
     "calibration_report",
     "calibration_slope",
     "check_for_update",
+    "check_regression",
     "chi_square_test",
     "chrf",
     "cider",
@@ -1001,7 +1020,10 @@ __all__ = [
     "list_metrics",
     "llmsys",
     "load_benchmark",
+    "load_history",
     "log_loss",
+    "log_to_mlflow",
+    "log_to_wandb",
     "lost_in_the_middle",
     "lr_negative",
     "lr_positive",
@@ -1022,6 +1044,7 @@ __all__ = [
     "median_absolute_error",
     "meteor",
     "metric_info",
+    "metrics_dict",
     "miou",
     "model_score",
     "moverscore",
@@ -1074,6 +1097,7 @@ __all__ = [
     "recall",
     "recall_at_k",
     "reclassification",
+    "record_history",
     "recovery_success_rate",
     "red_team_success_rate",
     "refusal_rate",
@@ -1115,6 +1139,7 @@ __all__ = [
     "self_preference_bias",
     "sensitivity",
     "sentence_bleu",
+    "serve",
     "shapiro_wilk_test",
     "smape",
     "specificity",
