@@ -694,3 +694,50 @@ def critical_difference(result: Any, *, ax: Optional[Axes] = None, title: Option
     if title:
         ax.set_title(title, pad=28)
     return ax
+
+
+def forest(
+    rows: Any,
+    *,
+    reference: Optional[float] = None,
+    ax: Optional[Axes] = None,
+    title: Optional[str] = None,
+    xlabel: str = "Estimate",
+    metric: Optional[str] = None,
+) -> Axes:
+    """Forest plot: one estimate with its confidence interval per row (subgroups, sites, models).
+
+    ``rows`` is a mapping label → (estimate, low, high), a list of dicts with ``label`` / ``value`` / ``low`` /
+    ``high``, or a :class:`~evalsuite.FairnessReport` (``metric=`` picks the per-group measure: ``"tpr"``, the
+    default, ``"fpr"``, ``"ppv"``, ``"selection_rate"``, ``"accuracy"`` or ``"roc_auc"``). ``reference`` draws a
+    vertical line (e.g. the overall value, or a null of 0 / 1)."""
+    items: list[tuple[str, float, float, float]] = []
+    if isinstance(rows, Mapping):
+        for k, v in rows.items():
+            est, lo, hi = (float(x) for x in v)
+            items.append((str(k), est, lo, hi))
+    elif hasattr(rows, "groups") and isinstance(getattr(rows, "groups", None), (list, tuple)):
+        key = metric or "tpr"
+        for g in rows.groups:
+            if g.get(key) is not None and g.get(f"{key}_low") is not None:
+                items.append((str(g["group"]), float(g[key]), float(g[f"{key}_low"]), float(g[f"{key}_high"])))
+        xlabel = key.replace("_", " ")
+    else:
+        for r in rows:
+            items.append((str(r["label"]), float(r["value"]), float(r["low"]), float(r["high"])))
+    if not items:
+        raise InputValidationError("forest() needs at least one row with an estimate and a confidence interval.")
+    ax = _axes(ax, (6.0, 0.45 * len(items) + 1.2))
+    ys = np.arange(len(items))[::-1]
+    for y, (_label, est, lo, hi) in zip(ys, items):
+        ax.plot([lo, hi], [y, y], color="0.25", lw=1.4)
+        ax.plot([est], [y], marker="s", color="0.1", ms=6)
+    ax.set_yticks(ys)
+    ax.set_yticklabels([f"{lab}  {est:.3g} ({lo:.3g}–{hi:.3g})" for lab, est, lo, hi in items])
+    if reference is not None:
+        ax.axvline(reference, color="0.5", ls="--", lw=1)
+    ax.set_xlabel(xlabel)
+    ax.spines[["top", "right"]].set_visible(False)
+    if title:
+        ax.set_title(title)
+    return ax
