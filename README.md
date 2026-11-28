@@ -13,11 +13,16 @@ evaluation into one consistent, validated, documented framework.
 > **On an older version? Upgrade once:** `pip install -U evalsuite-python`. From 1.1.2 on, EvalSuite tells you
 > when a newer release is out (`evalsuite upgrade`).
 
-> **Status: stable (1.2.1).** [Example notebooks](notebooks/README.md) (Colab) ·
+> **Status: stable (1.3.0).** [Example notebooks](notebooks/README.md) (Colab) ·
 > [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
 
 **What's new**
 
+- **1.3** — a calibration suite (Platt, isotonic, temperature, beta and histogram recalibration; bootstrap
+  intervals in `calibration_report`), multi-label and ranking reports (trec_eval-exact nDCG, AP, MRR with
+  intervals and randomization tests), forecasting (MASE, RMSSE, pinball loss, interval score, CRPS,
+  Diebold–Mariano), a feature-by-feature drift report, agreement studies (all six ICC forms, Bland–Altman,
+  Lin's CCC) and Bayesian model comparison (probability that A beats B, region of practical equivalence).
 - **1.2.1** — `import evalsuite` loads only what you use (about 30 ms, no NumPy until needed); faster cluster
   bootstrap, concordance index (compiled core), judge and fairness reports; a deep clean of the 1.2 modules.
 - **1.2** — LLM evaluation and research-grade statistics: benchmark presets (GSM8K, MMLU, ARC, TruthfulQA,
@@ -198,7 +203,14 @@ es.calibration_report(y_true, y_prob)  # Brier, ECE, MCE, intercept, slope, Hosm
 es.calibration_slope(y_true, y_prob)  # ideal 1; < 1 means predictions are too extreme
 es.calibration_intercept(y_true, y_prob)  # ideal 0 (calibration-in-the-large)
 es.hosmer_lemeshow(y_true, y_prob, n_groups=10)
+es.calibration_report(y_true, y_prob, n_resamples=1000)  # the same, with bootstrap intervals
+
+cal = es.recalibrate(y_true[:100], y_prob[:100], method="isotonic")  # or platt, temperature, beta, histogram
+calibrated = cal(y_prob[100:])  # fit on held-out data, apply to new predictions
 ```
+
+Recalibration maps match scikit-learn (Platt, isotonic) and `betacal`; temperature scaling also takes a
+multiclass probability matrix.
 
 ## Statistical tests
 
@@ -404,6 +416,70 @@ es.time_dependent_auc(time, event, risk, [20, 40, 60])  # cumulative/dynamic AUC
 `brier_score_survival` and `integrated_brier_score` take predicted survival probabilities. All agree with
 scikit-survival to 1e-15 (Harrell's C is about 17× faster).
 
+## Multi-label and ranking
+
+```python
+rng = np.random.default_rng(0)
+Y = (rng.random((300, 5)) < 0.3).astype(int)
+scores = np.clip(0.4 * Y + rng.random((300, 5)), 0, 1)
+ml = es.multilabel_report(Y, y_score=scores)  # subset accuracy, Hamming, micro/macro F1, LRAP, ranking loss, AUC
+print(ml.summary())
+
+qrels = {"q1": {"d1": 2, "d2": 1}, "q2": {"d3": 1}}
+runs = {"bm25": {"q1": ["d2", "d9", "d1"], "q2": ["d3"]}, "dense": {"q1": ["d1", "d2"], "q2": ["d7", "d3"]}}
+rank = es.ranking_report(qrels, runs, k=10)  # nDCG, AP, MRR, P@k, R@k with CIs; randomization tests vs baseline
+```
+
+Multi-label values match scikit-learn; per-query ranking measures match `trec_eval` exactly.
+
+## Forecasting
+
+```python
+rng = np.random.default_rng(1)
+history = np.cumsum(rng.normal(size=120))
+actual = history[-1] + np.cumsum(rng.normal(size=12))
+forecast_a, forecast_b = actual + rng.normal(0, 0.5, 12), np.full(12, history[-1])
+es.mase(actual, forecast_a, y_train=history, m=1)  # < 1 beats the naive forecast
+es.interval_score(actual, forecast_a - 1.5, forecast_a + 1.5, level=0.9)
+es.crps(actual, mean=forecast_a, sd=1.0)
+es.diebold_mariano(actual, forecast_a, forecast_b, h=1)  # Harvey–Leybourne–Newbold corrected
+es.forecast_report(actual, {"naive": forecast_b, "model": forecast_a}, y_train=history)
+```
+
+## Drift
+
+```python
+rng = np.random.default_rng(2)
+reference = {"age": rng.normal(50, 10, 2000), "site": rng.choice(["a", "b"], 2000)}
+current = {"age": rng.normal(55, 10, 2000), "site": rng.choice(["a", "b", "c"], 2000)}
+drift = es.drift_report(reference, current)  # KS / chi-square, PSI, Wasserstein / Jensen–Shannon, missing rates
+print(drift.drifted())  # Holm-adjusted and material: ['site', 'age']
+```
+
+DataFrames (pandas, Polars, Arrow), dicts of columns and arrays all work.
+
+## Agreement studies
+
+```python
+rng = np.random.default_rng(3)
+truth = rng.normal(100, 15, 40)
+ratings = np.column_stack([truth + rng.normal(0, 5, 40) for _ in range(3)])  # subjects × raters
+es.icc(ratings)["ICC2"]  # all six Shrout–Fleiss forms with F tests and CIs (as pingouin / psych)
+es.bland_altman(ratings[:, 0], ratings[:, 1])  # bias, limits of agreement with CIs, proportional bias
+es.lins_ccc(ratings[:, 0], ratings[:, 1])
+```
+
+## Bayesian comparison
+
+```python
+b = es.bayes_compare(y_true, pred_lr, pred_gb, metric="accuracy", rope=0.01)
+print(b.p_a_better, b.p_rope, b.p_b_better, b.decision())  # e.g. 0.97 0.03 0.00 'A better'
+es.bayes_correlated_ttest(fold_scores_a, fold_scores_b, rope=0.01)  # k-fold CV scores (Benavoli et al. 2017)
+```
+
+Probabilities instead of p-values: how likely A is better, practically equivalent within the ROPE, or worse.
+The correlated t-test matches `baycomp`.
+
 ## LLM judges, rubrics and RAG
 
 ```python
@@ -443,7 +519,7 @@ scripts, no external requests).
 ## Evaluation in pull requests
 
 ```yaml
-- uses: mkcs28/evalsuite-python@v1.2.1
+- uses: mkcs28/evalsuite-python@v1.3.0
   with:
     predictions: predictions.csv
     y-true: label

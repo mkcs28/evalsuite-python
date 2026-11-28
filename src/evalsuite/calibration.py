@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -29,7 +29,7 @@ from .classification.metrics import (
     calibration_curve,
     expected_calibration_error,
 )
-from .core.exceptions import InputValidationError, StatisticalTestError, UnsupportedTaskError
+from .core.exceptions import EvalSuiteError, InputValidationError, StatisticalTestError, UnsupportedTaskError
 from .core.export import PathLike, csv_text, html_document, html_table, save_as
 from .core.registry import register
 from .core.result import MetricResult, _fmt, _json_safe, _latex_escape, _latex_table
@@ -275,25 +275,36 @@ class CalibrationReport:
     values: Any
     curve: Any
     params: Any = field(default_factory=dict)
+    intervals: Any = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "values", MappingProxyType(dict(self.values)))
         object.__setattr__(self, "params", MappingProxyType(dict(self.params)))
+        object.__setattr__(self, "intervals", MappingProxyType(dict(self.intervals)))
+
+    def _cell(self, key: str, digits: int) -> str:
+        v = _fmt(self.values[key], digits)
+        if key in self.intervals:
+            lo, hi = self.intervals[key]
+            v += f" ({_fmt(lo, digits)} to {_fmt(hi, digits)})"
+        return v
 
     def __getitem__(self, name: str) -> float:
         return float(self.values[name])
 
     def _rows(self, digits: int) -> list[list[str]]:
-        return [[label, _fmt(self.values[k], digits), ideal] for k, label, ideal in _REPORT_ROWS]
+        return [[label, self._cell(k, digits), ideal] for k, label, ideal in _REPORT_ROWS]
 
     def summary(self, *, digits: int = 4) -> str:
         p = self.params
+        ci = f", {p['ci_level'] * 100:g}% bootstrap CIs" if self.intervals else ""
         lines = [
-            f"EvalSuite calibration (n={p['n']}, {p['n_bins']} {p['strategy']} bins, HL {p['n_groups']} groups)"
+            f"EvalSuite calibration (n={p['n']}, {p['n_bins']} {p['strategy']} bins, "
+            f"HL {p['n_groups']} groups{ci})"
         ]
         width = max(len(label) for _, label, _ in _REPORT_ROWS)
         for k, label, ideal in _REPORT_ROWS:
-            lines.append(f"  {label:<{width}}  {_fmt(self.values[k], digits)}   (ideal {ideal})")
+            lines.append(f"  {label:<{width}}  {self._cell(k, digits)}   (ideal {ideal})")
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -306,6 +317,7 @@ class CalibrationReport:
             _json_safe(
                 {
                     "values": dict(self.values),
+                    "intervals": {k: list(v) for k, v in self.intervals.items()},
                     "curve": {"prob_true": prob_true, "prob_pred": prob_pred, "bin_weight": weight},
                     "params": dict(self.params),
                 }
@@ -370,8 +382,14 @@ def calibration_report(
     strategy: Literal["uniform", "quantile"] = "uniform",
     n_groups: int = 10,
     pos_label: Any = None,
+    n_resamples: Optional[int] = None,
+    level: float = 0.95,
+    random_state: Optional[int] = None,
 ) -> CalibrationReport:
-    """Every calibration measure for binary predicted risks in one object (see :class:`CalibrationReport`)."""
+    """Every calibration measure for binary predicted risks in one object (see :class:`CalibrationReport`).
+
+    With ``n_resamples`` (e.g. 1000), percentile bootstrap confidence intervals are added for the Brier score,
+    ECE, MCE, calibration intercept and slope (``report.intervals``)."""
     kw: dict[str, Any] = {"n_bins": n_bins, "strategy": strategy, "pos_label": pos_label}
     hl = hosmer_lemeshow(y_true, y_prob, n_groups=n_groups, pos_label=pos_label)
     values = {
@@ -385,8 +403,31 @@ def calibration_report(
     }
     curve = calibration_curve(y_true, y_prob, **kw)
     n = int(np.asarray(y_true).shape[0])
-    return CalibrationReport(
-        values,
-        curve,
-        {"n": n, "n_bins": n_bins, "strategy": strategy, "n_groups": n_groups, "hl_df": hl.params["df"]},
-    )
+    params = {"n": n, "n_bins": n_bins, "strategy": strategy, "n_groups": n_groups, "hl_df": hl.params["df"]}
+    intervals: dict[str, tuple[float, float]] = {}
+    if n_resamples is not None:
+        if n_resamples < 50 or not 0 < level < 1:
+            raise InputValidationError("n_resamples must be at least 50 and level in (0, 1).")
+        yt, yp = np.asarray(y_true), np.asarray(y_prob, dtype=np.float64)
+        rng = np.random.default_rng(random_state)
+        fns: dict[str, Callable[[Any, Any], Any]] = {
+            "brier_score": lambda a, b: brier_score(a, b, pos_label=pos_label),
+            "expected_calibration_error": lambda a, b: expected_calibration_error(a, b, **kw),
+            "maximum_calibration_error": lambda a, b: maximum_calibration_error(a, b, **kw),
+            "calibration_intercept": lambda a, b: calibration_intercept(a, b, pos_label=pos_label),
+            "calibration_slope": lambda a, b: calibration_slope(a, b, pos_label=pos_label),
+        }
+        draws: dict[str, list[float]] = {k: [] for k in fns}
+        for _ in range(n_resamples):
+            idx = rng.integers(0, n, n)
+            for k, fn in fns.items():
+                try:
+                    draws[k].append(float(fn(yt[idx], yp[idx])))
+                except EvalSuiteError:
+                    continue
+        a = (1 - level) / 2
+        for k, v in draws.items():
+            if len(v) >= n_resamples // 2:
+                intervals[k] = (float(np.quantile(v, a)), float(np.quantile(v, 1 - a)))
+        params.update(ci_level=level, ci_method="percentile bootstrap", n_resamples=n_resamples)
+    return CalibrationReport(values, curve, params, intervals)
