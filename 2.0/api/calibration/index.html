@@ -1,0 +1,1928 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mkcs28.github.io/evalsuite-python/2.0/api/calibration/">
+      
+      
+        <link rel="prev" href="../classification/">
+      
+      
+        <link rel="next" href="../clinical/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Calibration and recalibration - EvalSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#calibration-and-recalibration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="EvalSuite" class="md-header__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EvalSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Calibration and recalibration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="EvalSuite" class="md-nav__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    EvalSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deprecation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecation policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification and regression metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.CalibrationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CalibrationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.brier_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        brier_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.expected_calibration_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expected_calibration_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.maximum_calibration_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maximum_calibration_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.logistic_fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        logistic_fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_slope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_slope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_intercept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_intercept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.hosmer_lemeshow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hosmer_lemeshow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.recalibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="recalibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.recalibration.Calibrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.recalibration.recalibrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibrate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.conformal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="conformal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalSets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConformalSets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConformalSets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalSets.labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalIntervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConformalIntervals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_quantile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_quantile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clinical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparisons, agreement and Bayesian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports, workflow and cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.CalibrationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CalibrationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.brier_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        brier_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.expected_calibration_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        expected_calibration_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.maximum_calibration_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maximum_calibration_error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.logistic_fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        logistic_fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_slope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_slope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_intercept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_intercept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.hosmer_lemeshow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hosmer_lemeshow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.calibration.calibration_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calibration_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.recalibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="recalibration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.recalibration.Calibrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.recalibration.recalibrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibrate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.conformal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="conformal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalSets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConformalSets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConformalSets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalSets.labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.ConformalIntervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConformalIntervals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_quantile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_quantile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.conformal.conformal_regression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conformal_regression
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="calibration-and-recalibration">Calibration and recalibration</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.calibration" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.calibration</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Calibration of predicted probabilities: maximum calibration error, calibration slope and intercept
+(logistic recalibration) and the Hosmer–Lemeshow goodness-of-fit test.</p>
+<p>The calibration curve, expected calibration error and Brier score live in :mod:<code>evalsuite.classification</code>
+and are re-exported here for convenience.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.calibration.CalibrationReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CalibrationReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Calibration of one model's predicted risks: Brier score, ECE, MCE, intercept, slope and Hosmer–Lemeshow,
+plus the binned calibration curve (<code>curve</code>: prob_true, prob_pred, bin_weight).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.brier_score" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">brier_score</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">brier_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Brier score.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.calibration_curve" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">calibration_curve</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">calibration_curve</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">strategy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'uniform'</span><span class="p">,</span> <span class="s1">'quantile'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'uniform'</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">FloatArray</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Reliability diagram data for binary probabilities: <code>(prob_true, prob_pred, bin_weight)</code> per non-empty
+bin, where <code>prob_true</code> is the observed positive rate and <code>prob_pred</code> the mean predicted probability.</p>
+<p><code>strategy="uniform"</code> uses equal-width bins on [0, 1]; <code>"quantile"</code> uses equal-count bins. Matches
+scikit-learn's <code>calibration_curve</code> (unweighted), and also accepts sample weights.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.expected_calibration_error" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">expected_calibration_error</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">expected_calibration_error</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">strategy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'uniform'</span><span class="p">,</span> <span class="s1">'quantile'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'uniform'</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Expected calibration error for binary probabilities (bins as in :func:<code>calibration_curve</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.maximum_calibration_error" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">maximum_calibration_error</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">maximum_calibration_error</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">strategy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'uniform'</span><span class="p">,</span> <span class="s1">'quantile'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'uniform'</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Maximum calibration error over the non-empty bins of :func:<code>calibration_curve</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.logistic_fit" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">logistic_fit</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">logistic_fit</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span> <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span> <span class="n">w</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Weighted maximum-likelihood logistic regression by Newton–Raphson.</p>
+<p><code>offset=True</code> fits <code>logit P(y=1) = a + x</code> (returns <code>[a]</code>); otherwise <code>logit P(y=1) = a + b·x</code>
+(returns <code>[a, b]</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.calibration_slope" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">calibration_slope</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">calibration_slope</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Calibration slope (Cox 1958). Probabilities are clipped to [1e-15, 1 − 1e-15] before the logit.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.calibration_intercept" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">calibration_intercept</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">calibration_intercept</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Calibration intercept (calibration-in-the-large) with the logit of the predictions as an offset.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.hosmer_lemeshow" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">hosmer_lemeshow</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">hosmer_lemeshow</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Hosmer–Lemeshow goodness-of-fit test for predicted risks.</p>
+<p>Observations are sorted by predicted risk and split into <code>n_groups</code> groups of (nearly) equal size
+("deciles of risk"). The statistic Σ (O − E)² / (E (1 − E/nₖ)) is compared with χ² on <code>n_groups − 2</code>
+degrees of freedom (use <code>n_groups</code> degrees of freedom for an external validation set by reading
+<code>params["statistic"]</code>). A large p-value does not show that calibration is good, especially in small
+samples; report the calibration curve, slope and intercept as well.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.calibration.calibration_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">calibration_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">calibration_report</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">strategy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'uniform'</span><span class="p">,</span> <span class="s1">'quantile'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'uniform'</span><span class="p">,</span> <span class="n">n_groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CalibrationReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Every calibration measure for binary predicted risks in one object (see :class:<code>CalibrationReport</code>).</p>
+<p>With <code>n_resamples</code> (e.g. 1000), percentile bootstrap confidence intervals are added for the Brier score,
+ECE, MCE, calibration intercept and slope (<code>report.intervals</code>).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.recalibration" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.recalibration</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Recalibration: fit a map from a model's probabilities to calibrated ones on held-out data, then apply it.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+cal = es.recalibrate(y_val, p_val, method="isotonic")   # "platt", "temperature", "beta", "histogram"
+p_test_cal = cal(p_test)                               # or cal.transform(p_test)
+es.calibration_report(y_test, p_test_cal, n_resamples=1000)  # check it on separate data, with CIs</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Methods: Platt scaling (Platt 1999, with Platt's smoothed targets, on the logit of the probabilities),
+isotonic regression (Zadrozny &amp; Elkan 2002; pool-adjacent-violators, clipped outside the fitted range),
+temperature scaling (Guo et al. 2017; one parameter, also for multiclass probability matrices), beta calibration
+(Kull, Silva Filho &amp; Flach 2017; three parameters) and histogram binning (equal-mass bins). Fit on data the model
+was not trained on, and evaluate on different data again.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.recalibration.Calibrator" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Calibrator</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A fitted recalibration map. Call it (or <code>transform</code>) on new probabilities.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.recalibration.recalibrate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">recalibrate</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">recalibrate</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'isotonic'</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">classes</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Calibrator</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Fit a recalibration map on held-out labels and probabilities (see the module docstring for methods).</p>
+<p>For <code>method="temperature"</code> <code>y_prob</code> may be an n × k probability matrix: integer labels index the columns,
+other labels map to the sorted labels unless <code>classes=</code> gives the label of each column.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.conformal" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.conformal</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Conformal prediction: prediction sets and intervals with a finite-sample coverage guarantee.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+sets = es.conformal_classification(y_cal, p_cal, p_test, alpha=0.1)            # 90% prediction sets
+sets.sets[0], sets.mean_size
+es.conformal_classification(y_cal, p_cal, p_test, y_test=y_test).coverage      # check on labelled data
+iv = es.conformal_regression(y_cal, yhat_cal, yhat_test, alpha=0.1)            # 90% intervals
+iv.lower, iv.upper</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Split conformal prediction (Vovk et al. 2005; Lei et al. 2018; Angelopoulos &amp; Bates 2023): a held-out calibration
+set gives the score threshold q̂ = the ⌈(n + 1)(1 − α)⌉-th smallest calibration score, and for a new exchangeable
+example P(y ∈ set) ≥ 1 − α, whatever the model. Classification scores: <code>"lac"</code> (1 − probability of the true
+class; smallest sets), <code>"aps"</code> (adaptive prediction sets, Romano et al. 2020; sets that grow with uncertainty)
+and <code>"raps"</code> (regularised APS, Angelopoulos et al. 2021). Regression: <code>"absolute"</code> residuals, <code>"normalized"</code>
+residuals divided by a per-example scale (e.g. a predicted SD) and <code>"cqr"</code> (conformalized quantile regression,
+Romano et al. 2019) from lower / upper quantile predictions. <code>by=</code> gives Mondrian (group-conditional) conformal
+prediction: a threshold per group, so coverage holds within every group (classes, sites, subgroups).</p>
+<p>With labelled test data, the result reports empirical coverage with a Wilson interval, the coverage per group and
+per set size, and set sizes / interval widths — the checks reviewers ask for.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.conformal.ConformalSets" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConformalSets</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Conformal prediction sets for classification.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.conformal.ConformalSets.labels" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">labels</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">labels</span><span class="p">(</span><span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The labels in the prediction set of test example <code>i</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.conformal.ConformalIntervals" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConformalIntervals</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Conformal prediction intervals for regression.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.conformal.conformal_quantile" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">conformal_quantile</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">conformal_quantile</span><span class="p">(</span><span class="n">scores</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The split-conformal threshold: the ⌈(n + 1)(1 − α)⌉-th smallest score (infinity when that exceeds n, i.e.
+the calibration set is too small for this α).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.conformal.conformal_classification" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">conformal_classification</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">conformal_classification</span><span class="p">(</span><span class="n">y_cal</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_cal</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_test</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'aps'</span><span class="p">,</span> <span class="n">y_test</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">classes</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">by_test</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span> <span class="n">k_reg</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConformalSets</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Split-conformal prediction sets from class probabilities (see the module docstring).</p>
+<p><code>y_cal</code> / <code>p_cal</code> are held-out calibration labels and probabilities (n × k); <code>p_test</code> the probabilities
+to build sets for. <code>by</code> / <code>by_test</code> (or <code>by="class"</code>) give group-conditional thresholds. With <code>y_test</code>
+the result also reports coverage overall, per group and per set size.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.conformal.conformal_regression" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">conformal_regression</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">conformal_regression</span><span class="p">(</span><span class="n">y_cal</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">pred_cal</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">pred_test</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'absolute'</span><span class="p">,</span> <span class="n">scale_cal</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">scale_test</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">y_test</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">by_test</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConformalIntervals</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Split-conformal prediction intervals (see the module docstring).</p>
+<p><code>"absolute"</code>: <code>pred_*</code> are point predictions; interval pred ± q̂. <code>"normalized"</code>: also give
+<code>scale_cal</code> / <code>scale_test</code> (positive per-example scales such as predicted SDs); interval pred ± q̂·scale.
+<code>"cqr"</code>: <code>pred_*</code> are n × 2 arrays of lower and upper quantile predictions (e.g. the α/2 and 1 − α/2
+quantiles); interval [lo − q̂, hi + q̂]. <code>by</code> / <code>by_test</code> give a threshold per group.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

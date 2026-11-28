@@ -1,0 +1,2555 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mkcs28.github.io/evalsuite-python/2.0/api/data/">
+      
+      
+        <link rel="prev" href="../comparisons/">
+      
+      
+        <link rel="next" href="../llm/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Data quality, drift and forecasting - EvalSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#data-quality-drift-and-forecasting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="EvalSuite" class="md-header__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EvalSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Data quality, drift and forecasting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="EvalSuite" class="md-nav__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    EvalSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deprecation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecation policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification and regression metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clinical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparisons, agreement and Bayesian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.data_quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data_quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="data_quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LeakageReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LeakageReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="LeakageReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LeakageReport.leaked_rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leaked_rows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LabelIssues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LabelIssues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.DatasetCard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DatasetCard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.leakage_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leakage_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.label_issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        label_issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.dataset_card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dataset_card
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="drift">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.DriftReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DriftReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DriftReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.DriftReport.drifted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drifted
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.drift_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecasting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="forecasting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.ForecastReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ForecastReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ForecastReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.ForecastReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.mase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.rmsse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rmsse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.pinball_loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pinball_loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.interval_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interval_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.msis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        msis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.interval_coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interval_coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.crps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        crps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.diebold_mariano" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diebold_mariano
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.forecast_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecast_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.multilabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multilabel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="multilabel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.MultilabelReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MultilabelReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MultilabelReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.MultilabelReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.RankingReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RankingReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RankingReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.RankingReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.multilabel_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multilabel_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.ranking_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ranking_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports, workflow and cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.data_quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data_quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="data_quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LeakageReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LeakageReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="LeakageReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LeakageReport.leaked_rows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leaked_rows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.LabelIssues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LabelIssues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.DatasetCard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DatasetCard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.leakage_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leakage_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.label_issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        label_issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.data_quality.dataset_card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dataset_card
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="drift">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.DriftReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DriftReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DriftReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.DriftReport.drifted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drifted
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.drift.drift_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.forecasting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecasting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="forecasting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.ForecastReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ForecastReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ForecastReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.ForecastReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.mase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.rmsse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rmsse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.pinball_loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pinball_loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.interval_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interval_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.msis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        msis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.interval_coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interval_coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.crps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        crps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.diebold_mariano" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diebold_mariano
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.forecasting.forecast_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecast_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.multilabel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multilabel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="multilabel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.MultilabelReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MultilabelReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MultilabelReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.MultilabelReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.RankingReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RankingReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RankingReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.RankingReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.multilabel_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multilabel_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.multilabel.ranking_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ranking_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="data-quality-drift-and-forecasting">Data quality, drift and forecasting</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.data_quality" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.data_quality</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Data quality before evaluation: leakage between splits, likely label errors, and a summary card of a data set.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+es.leakage_report(train_df, test_df, target="label", id_column="patient_id")
+es.label_issues(y, pred_probs)            # likely mislabelled examples (confident learning)
+es.dataset_card(test_df, target="label", groups=["sex", "site"])</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p><code>leakage_report</code> finds test rows that also appear in training (exact duplicates after normalising numbers and
+text), near-duplicates (numeric rows within <code>near_tol</code> standardised units of a training row; texts whose
+word-shingle Jaccard similarity is at least <code>text_threshold</code>, found with MinHash), shared identifiers (the same
+patient or document in both splits) and features that predict the target almost perfectly (a sign that the
+answer leaked into the inputs). <code>label_issues</code> implements confident learning (Northcutt, Jiang &amp; Chuang 2021):
+an example is flagged when its out-of-sample probability for another class clears that class's average
+self-confidence threshold. <code>dataset_card</code> summarises size, missing values, class balance, feature types,
+subgroup counts and duplicates.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.data_quality.LeakageReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">LeakageReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Overlap between a training and a test set. <code>findings</code> lists each check with the affected test rows.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="evalsuite.data_quality.LeakageReport.leaked_rows" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">leaked_rows</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="n">leaked_rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Test rows affected by any duplicate or shared-identifier finding (sorted).</p>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.data_quality.LabelIssues" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">LabelIssues</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Examples whose given label looks wrong, ranked by how unlikely the label is under the model.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.data_quality.DatasetCard" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">DatasetCard</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A summary of a data set for a paper's methods section or a model card.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.data_quality.leakage_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">leakage_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">leakage_report</span><span class="p">(</span><span class="n">train</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">test</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">id_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">text_columns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">columns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">near_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.001</span><span class="p">,</span> <span class="n">text_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span> <span class="n">shingle</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">target_auc</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.99</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LeakageReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Check a train / test split for leakage (see the module docstring). <code>columns</code> restricts the feature
+columns compared (default: all shared columns except <code>target</code> and <code>id_column</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.data_quality.label_issues" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">label_issues</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">label_issues</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">pred_probs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">classes</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LabelIssues</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Likely label errors by confident learning (Northcutt et al. 2021). <code>pred_probs</code> must be out-of-sample
+(e.g. cross-validated) class probabilities, n × k; columns are integer labels, or <code>classes=</code> gives the label
+of each column. Returned examples are sorted from the most to the least suspicious.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.data_quality.dataset_card" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">dataset_card</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">dataset_card</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">groups</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DatasetCard</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Size, column types, missing values, numeric summaries, class balance of <code>target</code>, counts per subgroup
+(<code>groups</code>) and duplicate rows.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.drift" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.drift</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Data drift between a reference set (training or validation data) and current data, feature by feature.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+rep = es.drift_report(train_df, live_df)              # DataFrames, dicts of columns or 2-D arrays
+rep.drifted()                                         # features that changed significantly and materially
+print(rep.summary()); rep.to_html()</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Numeric features: two-sample Kolmogorov–Smirnov test, population stability index (PSI, reference-quantile bins)
+and Wasserstein distance in reference standard deviations. Categorical features (strings, booleans, or
+<code>categorical=[...]</code>): chi-square test of homogeneity, PSI over categories and Jensen–Shannon distance.
+Missing-value rates are compared with a two-proportion z-test. P-values are Holm-adjusted across features. A
+feature is flagged when its adjusted p-value is below <code>alpha</code> <em>and</em> the shift is material (PSI ≥
+<code>psi_threshold</code> or distance ≥ <code>distance_threshold</code>: 0.1 reference SDs, or a Jensen–Shannon distance of 0.1),
+so a large data set does not flag trivial shifts; a significant change of at least one point in the missing-value
+rate is flagged too. Model scores and labels can be checked the
+same way (<code>es.drift_report({"score": ref_scores}, {"score": live_scores})</code>).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.drift.DriftReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">DriftReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Per-feature drift results. <code>features</code> rows carry the test, statistic, raw and Holm-adjusted p-values,
+PSI, a distance, missing-rate change and whether the feature drifted.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.drift.DriftReport.drifted" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">drifted</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">drifted</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Names of the drifted features, largest PSI first.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.drift.drift_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">drift_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">drift_report</span><span class="p">(</span><span class="n">reference</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">current</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">features</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">categorical</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">psi_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0001</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DriftReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compare every shared feature of <code>reference</code> and <code>current</code> (see the module docstring). <code>features</code>
+selects and orders features (or names the columns of 2-D arrays); <code>categorical</code> forces features to be
+treated as categories (for example integer codes).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.forecasting" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.forecasting</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Forecast evaluation: scaled errors, quantile and interval scores, CRPS, and the Diebold–Mariano test.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+es.mase(y_test, y_hat, y_train=y_train, m=12)          # &lt; 1: better than the seasonal naive forecast
+es.interval_score(y_test, lower, upper, level=0.9)     # width plus penalties for misses
+es.crps(y_test, ensemble=samples)                      # or crps(y_test, mean=mu, sd=sigma)
+es.diebold_mariano(y_test, y_hat_a, y_hat_b, h=1)      # are A's forecasts more accurate than B's?
+es.forecast_report(y_test, {"ets": a, "arima": b}, y_train=y_train, m=12)</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Definitions: MASE and RMSSE follow Hyndman &amp; Koehler (2006) and the M5 competition, scaled by the in-sample
+(seasonal) naive forecast; the interval score and MSIS follow Gneiting &amp; Raftery (2007) and the M4 competition;
+CRPS for ensembles uses the energy form (as <code>properscoring</code>) and for normal forecasts the closed form; the
+Diebold–Mariano (1995) test uses the Harvey, Leybourne &amp; Newbold (1997) small-sample correction with a t
+reference distribution.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.forecasting.ForecastReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ForecastReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Accuracy of several forecasts of one series, with Diebold–Mariano tests against a baseline.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.forecasting.ForecastReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.mase" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">mase</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">mase</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_train</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean absolute scaled error: MAE divided by the in-sample MAE of the seasonal naive forecast with period
+<code>m</code> (1 for the plain random walk). Below 1 beats the naive forecast.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.rmsse" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">rmsse</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rmsse</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_train</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Root mean squared scaled error (M5 competition): sqrt(MSE / in-sample MSE of the seasonal naive
+forecast).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.pinball_loss" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">pinball_loss</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pinball_loss</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">quantile_preds</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">quantiles</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean pinball (quantile) loss. <code>quantile_preds</code> is n × q (one column per quantile in <code>quantiles</code>) or a
+vector for a single quantile. <code>params["per_quantile"]</code> holds each quantile's loss (as scikit-learn's
+<code>mean_pinball_loss</code>); the value is their mean.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.interval_score" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">interval_score</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">interval_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lower</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">upper</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean interval (Winkler) score of central <code>level</code> prediction intervals (Gneiting &amp; Raftery 2007):
+width + (2/α)·(lower − y) when y &lt; lower + (2/α)·(y − upper) when y &gt; upper, α = 1 − level. Lower is better.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.msis" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">msis</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">msis</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lower</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">upper</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_train</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean scaled interval score (M4 competition): the interval score divided by the in-sample MAE of the
+seasonal naive forecast.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.interval_coverage" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">interval_coverage</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">interval_coverage</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lower</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">upper</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Share of observations inside their prediction intervals, with a Wilson interval; with the nominal
+<code>level</code> the binomial test of coverage = level is added (<code>params["p_value"]</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.crps" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">crps</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">crps</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ensemble</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean continuous ranked probability score. Give <code>ensemble</code> (n × m sample paths / members) for the
+empirical CRPS E|X − y| − ½E|X − X'|, or <code>mean</code> and <code>sd</code> for normal forecasts (closed form). Lower is
+better; for a point forecast it reduces to the absolute error.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.diebold_mariano" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">diebold_mariano</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">diebold_mariano</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">pred_a</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">pred_b</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'squared'</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">,</span> <span class="n">harvey</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Diebold–Mariano test of equal predictive accuracy of two forecasts of the same series. <code>loss</code> is
+<code>"squared"</code> or <code>"absolute"</code>; <code>h</code> is the forecast horizon (the loss differential's autocorrelation is
+allowed up to lag h − 1). The value is the DM statistic (negative: A's losses are smaller); <code>params</code> holds
+the p-value and the mean loss difference. <code>alternative="less"</code> tests that A is more accurate.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.forecasting.forecast_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">forecast_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">forecast_report</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_train</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">baseline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'squared'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ForecastReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>MAE, RMSE, sMAPE (and MASE with <code>y_train</code>) for each forecast, and a Holm-adjusted Diebold–Mariano test
+of each against <code>baseline</code> (the first forecast by default).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.multilabel" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.multilabel</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Multi-label classification and ranked retrieval / recommendation reports, with confidence intervals.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+es.multilabel_report(Y_true, Y_pred, Y_score)        # n × labels 0/1 matrices (+ scores for ranking metrics)
+es.ranking_report(qrels, {"bm25": run_a, "dense": run_b}, k=10)</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p><code>multilabel_report</code>: subset accuracy, Hamming loss, micro / macro / sample-averaged precision, recall and F1,
+Jaccard, and with scores label-ranking average precision, coverage error, ranking loss and micro / macro ROC AUC
+(definitions as scikit-learn), each with a percentile bootstrap interval over examples, plus a per-label table.</p>
+<p><code>ranking_report</code>: per-query nDCG@k, AP@k, reciprocal rank, precision@k and recall@k (trec_eval conventions:
+linear gains, log2 discount, AP and recall over all relevant documents in the judgements), averaged over queries
+with bootstrap intervals, and paired randomization tests (Smucker, Allan &amp; Carterette 2007) of every system
+against a baseline with Holm adjustment.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.multilabel.MultilabelReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MultilabelReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Multi-label metrics with bootstrap intervals (<code>metrics[name] = {value, low, high}</code>) and per-label rows.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.multilabel.MultilabelReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.multilabel.RankingReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RankingReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Retrieval / recommendation metrics per system with intervals and tests against a baseline.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.multilabel.RankingReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.multilabel.multilabel_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">multilabel_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">multilabel_report</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">y_score</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MultilabelReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Multi-label evaluation (see the module docstring). Give <code>y_pred</code> (0/1), <code>y_score</code> (probabilities or
+scores; predictions are then <code>y_score &gt;= threshold</code> unless <code>y_pred</code> is given), or both.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.multilabel.ranking_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">ranking_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ranking_report</span><span class="p">(</span><span class="n">qrels</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">runs</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="o">*</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">baseline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">primary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'ndcg'</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">n_permutations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RankingReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Evaluate ranked runs against relevance judgements (see the module docstring).</p>
+<p><code>qrels</code> maps query → {doc: relevance (0 = not relevant)}; each run maps query → ranked list of docs or
+{doc: score}. Queries in <code>qrels</code> with no relevant document are skipped; a query a run does not answer scores
+0. <code>primary</code> (ndcg, ap, rr, precision, recall) is the measure tested against <code>baseline</code> (first run).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

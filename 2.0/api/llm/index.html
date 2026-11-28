@@ -1,0 +1,2625 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mkcs28.github.io/evalsuite-python/2.0/api/llm/">
+      
+      
+        <link rel="prev" href="../data/">
+      
+      
+        <link rel="next" href="../reports/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>LLM and AI systems - EvalSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#llm-and-ai-systems" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="EvalSuite" class="md-header__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EvalSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LLM and AI systems
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="EvalSuite" class="md-nav__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    EvalSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deprecation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecation policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification and regression metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clinical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparisons, agreement and Bayesian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        llm_eval
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="llm_eval">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.AgentReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AgentReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.ConversationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConversationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.CostQualityReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CostQualityReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CostQualityReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.CostQualityReport.pareto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pareto
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.ContaminationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContaminationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.run_model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.agent_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.conversation_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversation_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.cost_quality_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cost_quality_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.contamination_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        contamination_check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.judging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        judging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="judging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.JudgeReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JudgeReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JudgeReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.JudgeReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.RubricReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RubricReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RubricReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.RubricReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.judge_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        judge_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.rubric_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rubric_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.rag_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rag_report
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rag_report">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.RAGReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAGReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RAGReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.RAGReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.rag_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rag_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        llm_benchmarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="llm_benchmarks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks--run-your-model-on-itemprompt-store-id-itemid-prediction-output-per-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ... run your model on item["prompt"], store {"id": item["id"], "prediction": output} per model ...
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.BenchmarkSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BenchmarkSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.format_multiple_choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        format_multiple_choice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.load_benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.harness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="harness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.harness.Leaderboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leaderboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.harness.leaderboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leaderboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports, workflow and cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        llm_eval
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="llm_eval">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.AgentReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AgentReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.ConversationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConversationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.CostQualityReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CostQualityReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CostQualityReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.CostQualityReport.pareto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pareto
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.ContaminationReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContaminationReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.run_model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.agent_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.conversation_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversation_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.cost_quality_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cost_quality_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_eval.contamination_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        contamination_check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.judging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        judging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="judging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.JudgeReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JudgeReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JudgeReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.JudgeReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.RubricReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RubricReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RubricReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.RubricReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.judge_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        judge_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.judging.rubric_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rubric_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.rag_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rag_report
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rag_report">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.RAGReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAGReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RAGReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.RAGReport.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.rag_report.rag_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rag_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        llm_benchmarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="llm_benchmarks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks--run-your-model-on-itemprompt-store-id-itemid-prediction-output-per-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ... run your model on item["prompt"], store {"id": item["id"], "prediction": output} per model ...
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.BenchmarkSpec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BenchmarkSpec
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.format_multiple_choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        format_multiple_choice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.llm_benchmarks.load_benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.harness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="harness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.harness.Leaderboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Leaderboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.harness.leaderboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leaderboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="llm-and-ai-systems">LLM and AI systems</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.llm_eval" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.llm_eval</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Run language models and evaluate LLM systems: cached model calls, agent runs, conversations, quality per cost,
+and benchmark contamination.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+runs = es.run_model(prompts, "openai:gpt-4o-mini")         # or "anthropic:claude-…", or any callable
+es.agent_report(episodes)                                  # success, steps, tool use, cost, with CIs
+es.conversation_report(dialogues)                          # per-turn and per-dialogue scores
+es.cost_quality_report({"a": runs_a, "b": runs_b})          # quality, cost and latency per model
+es.contamination_check(benchmark_items, training_texts)     # n-gram overlap with training data</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p><code>run_model</code> calls the provider's official SDK (<code>pip install openai</code> / <code>anthropic</code>; keys come from the usual
+environment variables and are never stored) or any Python callable, with retries, a small thread pool and an
+on-disk cache in EvalSuite's cache folder (<code>evalsuite cache info</code>), so re-running an evaluation costs nothing.
+Responses record latency and token counts for cost reports. Intervals in the reports are Wilson intervals for
+rates and cluster-bootstrap percentile intervals (by dialogue / episode) for means.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.llm_eval.AgentReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AgentReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="evalsuite.llm_eval._Report">_Report</span></code></p>
+
+
+
+        <p>Agent evaluation per system: success rate, steps, tool use, cost and latency with intervals.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.llm_eval.ConversationReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConversationReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="evalsuite.llm_eval._Report">_Report</span></code></p>
+
+
+
+        <p>Per-turn and per-dialogue scores with dialogue-level (cluster) bootstrap intervals.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.llm_eval.CostQualityReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CostQualityReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="evalsuite.llm_eval._Report">_Report</span></code></p>
+
+
+
+        <p>Quality, cost and latency per model, and quality per unit cost.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.llm_eval.CostQualityReport.pareto" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">pareto</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pareto</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Models not beaten on both quality and cost by another model.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.llm_eval.ContaminationReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ContaminationReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="evalsuite.llm_eval._Report">_Report</span></code></p>
+
+
+
+        <p>Benchmark items whose text overlaps a training corpus.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_eval.run_model" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">run_model</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">run_model</span><span class="p">(</span><span class="n">prompts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">model</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Any</span><span class="p">]],</span> <span class="o">*</span><span class="p">,</span> <span class="n">system</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">concurrency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Run <code>model</code> on every prompt and return one record per prompt: <code>id</code>, <code>prompt</code>, <code>prediction</code> (the
+output text), <code>latency_s</code>, <code>input_tokens</code>, <code>output_tokens</code> and <code>cached</code>. <code>model</code> is
+<code>"openai:&lt;model&gt;"</code>, <code>"anthropic:&lt;model&gt;"</code>, or a callable taking a prompt and returning text (or a dict
+with <code>output</code> and optional token counts). <code>prompts</code> may be strings or records with <code>prompt</code> (and <code>id</code>)
+such as :func:<code>load_benchmark</code> returns. <code>params</code> (<code>temperature</code>, <code>max_tokens</code>, …) go to the provider and
+are part of the cache key.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_eval.agent_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">agent_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">agent_report</span><span class="p">(</span><span class="n">episodes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]],</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AgentReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Summarise agent episodes, one system (a list of episodes) or several (mapping name → list). Each episode
+is a dict with <code>success</code> (bool) and optionally <code>steps</code> (int), <code>tool_calls</code> / <code>expected_tool_calls</code>
+(lists of <code>{"name", "arguments"}</code> for tool-call F1), <code>invalid_tool_calls</code> (int), <code>cost</code> and
+<code>latency_s</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_eval.conversation_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">conversation_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">conversation_report</span><span class="p">(</span><span class="n">dialogues</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConversationReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Evaluate multi-turn conversations. Each dialogue is a dict with <code>turns</code>: a list of per-turn scores
+(numbers in [0, 1], e.g. judge or rubric scores of each assistant reply) or of dicts with <code>score</code>; and
+optionally <code>success</code> (did the whole conversation achieve its goal). Reports the mean turn score, the share of
+dialogues with every turn acceptable (score ≥ 0.5), the worst-turn mean, goal success, and the mean score by
+turn position (does quality drift over long conversations?).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_eval.cost_quality_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cost_quality_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">cost_quality_report</span><span class="p">(</span><span class="n">runs</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]],</span> <span class="o">*</span><span class="p">,</span> <span class="n">prices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CostQualityReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Per model: mean quality (each record's <code>correct</code> (bool) or <code>score</code>), cost per item and latency, with
+intervals. Cost comes from each record's <code>cost</code>, or from <code>input_tokens</code> / <code>output_tokens</code> and
+<code>prices[model] = (price per 1M input tokens, price per 1M output tokens)</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_eval.contamination_check" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">contamination_check</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">contamination_check</span><span class="p">(</span><span class="n">items</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">corpus</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">13</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ContaminationReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Share of each benchmark item's word <code>n</code>-grams that also occur in <code>corpus</code> (an iterable of training
+texts; streamed, so it can be large). Items are strings or records with <code>prompt</code> / <code>question</code> /
+<code>text</code> (and <code>id</code>). 13-grams follow the GPT-3 / GPT-4 contamination analyses; items shorter than n words are
+checked as a whole. An item is flagged when the overlap is at least <code>threshold</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.judging" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.judging</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>LLM-as-judge evaluation in one report: who wins, and whether the judge can be trusted.</p>
+<p><code>judge_report(records)</code> takes pairwise judgements (one record per comparison) and returns:</p>
+<ul>
+<li><strong>Win rates</strong> of every model with Wilson intervals, the pairwise win matrix and Bradley–Terry ratings with
+  bootstrap intervals (comparisons resampled).</li>
+<li><strong>Position bias</strong>: how often the verdict survives swapping the order (<code>verdict_swapped</code>), and whether the
+  inconsistent verdicts favour the response shown first (two-sided binomial test).</li>
+<li><strong>Length bias</strong>: how often the longer response wins decisive comparisons (binomial test against 0.5).</li>
+<li><strong>Self-preference</strong>: when the judge is itself one of the models (<code>judge</code>), how much more often it picks its
+  own outputs than other judges or humans do on the same comparisons.</li>
+<li><strong>Agreement with humans</strong> (<code>human</code> verdicts): raw agreement (Wilson) and Cohen's kappa (bootstrap interval).</li>
+</ul>
+<p><code>rubric_report(records)</code> summarises rubric scores (one record per item × criterion × model, optionally per
+rater): the mean per model and criterion with t intervals, inter-rater reliability (Krippendorff's alpha) and
+correlation with human scores.</p>
+<p>Every bias is reported with its test and is flagged only when significant, so a report does not cry wolf on
+small samples.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.judging.JudgeReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">JudgeReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Result of :func:<code>judge_report</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.judging.JudgeReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.judging.RubricReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RubricReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Result of :func:<code>rubric_report</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.judging.RubricReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.judging.judge_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">judge_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">judge_report</span><span class="p">(</span><span class="n">records</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JudgeReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pairwise LLM-judge evaluation. Each record: <code>model_a</code>, <code>model_b</code>, <code>verdict</code> (<code>"A"</code>, <code>"B"</code> or
+<code>"tie"</code>, naming the response by identity) and optionally <code>verdict_swapped</code> (the verdict when the two
+responses were shown in the other order, again by identity), <code>length_a</code> / <code>length_b</code> (or
+<code>response_a</code> / <code>response_b</code> to measure them), <code>judge</code> (the judge model's name) and <code>human</code> (a human
+verdict on the same comparison).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.judging.rubric_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">rubric_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rubric_report</span><span class="p">(</span><span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">|</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'interval'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RubricReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Rubric scores: records with <code>id</code> (item), <code>model</code>, <code>criterion</code>, <code>score</code> and optionally <code>rater</code>
+(several raters per item and criterion give inter-rater reliability; <code>scale</code> is Krippendorff's level) and
+<code>human</code> (a human score for the same item, model and criterion).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.rag_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.rag_report</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>End-to-end RAG evaluation: retrieval, grounding and answer quality in one report, with every failure traced
+to the stage that caused it.</p>
+<p><code>rag_report(records, k=5)</code> takes one record per question:</p>
+<ul>
+<li><code>retrieved</code> — ranked document ids; <code>relevant</code> — the ids that answer the question (optional);</li>
+<li><code>answer</code> — the system's answer; <code>reference</code> — the gold answer (a string or a list of acceptable answers);</li>
+<li><code>grounded</code> (true / false) or <code>support</code> (per-claim 0 / 1 or scores in [0, 1], e.g. from an NLI model or an
+  LLM judge) — whether the answer is supported by the retrieved context (optional).</li>
+</ul>
+<p>It reports hit rate, recall and MRR at <code>k</code>, exact match and token F1, the grounded rate, each with an
+interval, and classifies every question:</p>
+<ul>
+<li><code>correct</code> — right answer, supported by the context (or no grounding data given);</li>
+<li><code>retrieval_failure</code> — wrong answer and no relevant document in the top <code>k</code>: fix the retriever;</li>
+<li><code>generation_failure</code> — wrong answer although a relevant document was retrieved: fix the prompt / model;</li>
+<li><code>unsupported_correct</code> — right answer that the context does not support (memorised or lucky);</li>
+<li><code>wrong_unknown_cause</code> — wrong answer without relevance labels to tell retrieval from generation.</li>
+</ul>
+<p>The breakdown (with Wilson intervals) says where to invest, and <code>examples</code> lists the ids in each class.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.rag_report.RAGReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RAGReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Result of :func:<code>rag_report</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.rag_report.RAGReport.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The Markdown tables as an HTML fragment (escaped), e.g. for :func:<code>evalsuite.html_report</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.rag_report.rag_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">rag_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rag_report</span><span class="p">(</span><span class="n">records</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">answer_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">support_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RAGReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>See the module documentation. An answer counts as correct when its exact match is 1 or its token F1 is at
+least <code>answer_threshold</code>; with <code>support</code> scores, it is grounded when their mean is at least
+<code>support_threshold</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.llm_benchmarks" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.llm_benchmarks</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Ready-made LLM benchmarks: the scorer, references, categories and prompts of common evaluation sets.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+items = es.load_benchmark("gsm8k", limit=200)          # needs <code>pip install datasets</code></p>
+<h3 id="evalsuite.llm_benchmarks--run-your-model-on-itemprompt-store-id-itemid-prediction-output-per-model">... run your model on item["prompt"], store {"id": item["id"], "prediction": output} per model ...</h3>
+<p>board = es.leaderboard({"model-a": runs_a, "model-b": runs_b}, benchmark="gsm8k", references=items)</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p><code>benchmark=</code> sets the scorer (GSM8K's final-number match, letter matching for multiple choice, pass@1 for code)
+and, with <code>references</code> from :func:<code>load_benchmark</code>, per-subject categories. Datasets are downloaded from the
+Hugging Face Hub by the optional <code>datasets</code> package and are never bundled. Runs that already contain
+<code>reference</code> (or <code>correct</code>) need no download at all.</p>
+<p>HumanEval completions must be executed to be scored. EvalSuite never runs model-generated code: run them in your
+own sandbox (for example the official <code>human-eval</code> harness) and pass <code>passed</code> (true / false) per item, or
+<code>n_samples</code> and <code>n_correct</code> for an unbiased pass@k estimate.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.llm_benchmarks.BenchmarkSpec" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">BenchmarkSpec</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>How a benchmark is scored and where its data lives.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_benchmarks.format_multiple_choice" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">format_multiple_choice</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">format_multiple_choice</span><span class="p">(</span><span class="n">question</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">choices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">instruction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>A standard multiple-choice prompt: the question, lettered options and "Answer:".</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.llm_benchmarks.load_benchmark" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">load_benchmark</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">load_benchmark</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">split</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Items of a benchmark as records with <code>id</code>, <code>prompt</code>, <code>reference</code> (and <code>choices</code> / <code>category</code>
+where they exist), ready to prompt a model and to pass as <code>references</code> to :func:<code>evalsuite.leaderboard</code>.
+Downloads from the Hugging Face Hub with the optional <code>datasets</code> package
+(<code>pip install "evalsuite-python[benchmarks]"</code>) into EvalSuite's cache (<code>evalsuite cache info</code>), unless
+<code>cache_dir</code> is given.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.harness" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.harness</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>A statistically careful LLM evaluation harness.</p>
+<p>Point it at each model's outputs (JSONL files, lists of records or DataFrames) and it scores them, puts an
+interval on every number and only ranks models apart when the difference is significant:</p>
+<ul>
+<li>every model's score with a Wilson (or bootstrap) confidence interval;</li>
+<li>paired tests between models on the items they share (exact McNemar for correct / incorrect, a paired
+  bootstrap for graded scores), with Holm-adjusted p-values;</li>
+<li>rank groups: a model's rank is 1 + the number of models significantly better than it, so statistical ties
+  share a rank;</li>
+<li>per-category breakdowns with intervals;</li>
+<li>checks: unmatched or missing items, extraction failures, contamination (n-gram overlap of each item with a
+  training corpus you provide, and scores on clean versus overlapping items), and judge position bias when the
+  records carry verdicts in both presentation orders.</li>
+</ul>
+<p>Each record is a mapping with an <code>id</code> and either a <code>correct</code> / <code>score</code> value from your own grader, or a
+<code>prediction</code> (model output) scored against the <code>reference</code> (gold answer) with <code>scorer</code>. Optional fields:
+<code>category</code>, <code>prompt</code> (for the contamination check), <code>verdict</code> and <code>verdict_swapped</code> (judge verdicts
+"A" / "B" / "tie" with the two answers in the original and the swapped order).</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+runs = {
+...     "model-a": [{"id": i, "prediction": "4", "reference": "4"} for i in range(30)],
+...     "model-b": [{"id": i, "prediction": "4" if i % 3 else "5", "reference": "4"} for i in range(30)],
+... }
+lb = es.leaderboard(runs, scorer="exact_match")
+best = lb.rows[0]
+best.get("model"), best.get("rank")
+('model-a', 1)</p>
+</blockquote>
+</blockquote>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.harness.Leaderboard" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Leaderboard</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Scores with intervals, paired tests, rank groups, per-category results and data checks.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.harness.leaderboard" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">leaderboard</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">leaderboard</span><span class="p">(</span><span class="n">runs</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Records</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">scorer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">references</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Records</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">benchmark</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">correction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'holm'</span><span class="p">,</span> <span class="n">train_corpus</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">ngram</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">13</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Leaderboard</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Score several models' outputs and rank them with intervals and paired tests (see the module docs).</p>
+<p><code>runs</code> maps model names to records (a JSONL / JSON path, a list of dicts or a DataFrame). <code>references</code>
+optionally supplies the gold answers separately (records with <code>id</code> and <code>reference</code>). <code>scorer</code> is one
+of "exact_match" (SQuAD-normalised), "contains", "gsm8k", "boxed", "choice", "last_line", "numeric", or a
+callable (prediction, reference) -&gt; score in [0, 1]; records with a <code>correct</code> or <code>score</code> field are used
+as given. <code>train_corpus</code> (iterable of texts) enables the contamination check.
+<code>benchmark</code> (<code>"gsm8k"</code>, <code>"mmlu"</code>, <code>"arc"</code>, <code>"arc-easy"</code>, <code>"truthfulqa"</code>, <code>"humaneval"</code>) picks
+that
+benchmark's scorer (unless <code>scorer</code> is given); pass <code>references=es.load_benchmark(name)</code> for its gold
+answers and categories. For HumanEval, records carry <code>passed</code> (or <code>n_samples</code> / <code>n_correct</code>) from your
+own sandboxed execution; the score is pass@1.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

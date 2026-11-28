@@ -1,0 +1,2624 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mkcs28.github.io/evalsuite-python/2.0/api/clinical/">
+      
+      
+        <link rel="prev" href="../calibration/">
+      
+      
+        <link rel="next" href="../comparisons/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Clinical and survival - EvalSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#clinical-and-survival" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="EvalSuite" class="md-header__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EvalSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Clinical and survival
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="EvalSuite" class="md-nav__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    EvalSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deprecation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecation policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification and regression metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.clinical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clinical
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="clinical">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DecisionCurve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DecisionCurve
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DecisionCurve">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DecisionCurve.useful_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        useful_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DiagnosticReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DiagnosticReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.diagnostic_odds_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diagnostic_odds_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.lr_negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lr_negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.lr_positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lr_positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.net_benefit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        net_benefit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.ppv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ppv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensitivity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.youden_j" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        youden_j
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.decision_curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        decision_curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.diagnostic_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diagnostic_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.survival" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        survival
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="survival">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.SurvivalCurve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SurvivalCurve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.kaplan_meier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kaplan_meier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.concordance_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concordance_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.time_dependent_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_dependent_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.brier_score_survival" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        brier_score_survival
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.integrated_brier_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        integrated_brier_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.reclassification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reclassification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="reclassification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.ReclassificationResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReclassificationResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.ExternalValidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExternalValidation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.reclassification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reclassification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.external_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        external_validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.cards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReportCard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReportCard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard.paragraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paragraph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard.to_docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_docx
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.report_card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        report_card
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.fairness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="fairness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.fairness.FairnessReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FairnessReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.fairness.fairness_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparisons, agreement and Bayesian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports, workflow and cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.clinical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clinical
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="clinical">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DecisionCurve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DecisionCurve
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DecisionCurve">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DecisionCurve.useful_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        useful_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.DiagnosticReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DiagnosticReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.diagnostic_odds_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diagnostic_odds_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.lr_negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lr_negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.lr_positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lr_positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.net_benefit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        net_benefit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.ppv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ppv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensitivity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.youden_j" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        youden_j
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.decision_curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        decision_curve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.clinical.diagnostic_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        diagnostic_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.survival" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        survival
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="survival">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.SurvivalCurve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SurvivalCurve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.kaplan_meier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kaplan_meier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.concordance_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concordance_index
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.time_dependent_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_dependent_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.brier_score_survival" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        brier_score_survival
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.survival.integrated_brier_score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        integrated_brier_score
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.reclassification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reclassification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="reclassification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.ReclassificationResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReclassificationResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.ExternalValidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExternalValidation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.reclassification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reclassification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.reclassification.external_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        external_validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.cards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReportCard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReportCard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard.paragraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paragraph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.ReportCard.to_docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_docx
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.cards.report_card" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        report_card
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.fairness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="fairness">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.fairness.FairnessReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FairnessReport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.fairness.fairness_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="clinical-and-survival">Clinical and survival</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.clinical" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.clinical</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Clinical evaluation: diagnostic accuracy measures with confidence intervals, and decision curve analysis.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.clinical.DecisionCurve" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">DecisionCurve</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Net benefit of one or more models, of treating everyone and of treating no one, per threshold.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.clinical.DecisionCurve.useful_range" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">useful_range</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">useful_range</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Threshold intervals where the model beats both treating everyone and treating no one.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.clinical.DiagnosticReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">DiagnosticReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Every diagnostic accuracy measure for one binary test, each with a confidence interval.</p>
+<p>Index it by name: <code>report["lr_positive"]</code> is a :class:<code>ConfidenceInterval</code>. <code>counts</code> holds the 2×2
+table (<code>tp</code>, <code>fp</code>, <code>fn</code>, <code>tn</code>).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.diagnostic_odds_ratio" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">diagnostic_odds_ratio</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">diagnostic_odds_ratio</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">correction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Diagnostic odds ratio. <code>correction=0.5</code> adds 0.5 to every cell when any cell is zero (Haldane–Anscombe),
+which keeps the estimate finite; the default 0 reports <code>inf</code> or NaN with a warning instead.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.lr_negative" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lr_negative</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lr_negative</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Negative likelihood ratio. <code>inf</code> (with a warning) when specificity is 0 and sensitivity &lt; 1.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.lr_positive" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lr_positive</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lr_positive</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Positive likelihood ratio. <code>inf</code> (with a warning) when specificity is 1 and sensitivity &gt; 0.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.net_benefit" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">net_benefit</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">net_benefit</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Net benefit at one threshold probability (treat when predicted risk ≥ threshold).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.ppv" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">ppv</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ppv</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">zero_division</span><span class="p">:</span> <span class="n">ZeroDivision</span> <span class="o">=</span> <span class="s1">'warn'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Positive predictive value (precision of the positive class).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.sensitivity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sensitivity</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sensitivity</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">zero_division</span><span class="p">:</span> <span class="n">ZeroDivision</span> <span class="o">=</span> <span class="s1">'warn'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Sensitivity (recall of the positive class).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.youden_j" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">youden_j</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">youden_j</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Youden's J statistic (informedness) for a binary test.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.decision_curve" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">decision_curve</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">decision_curve</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">thresholds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DecisionCurve</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Decision curve analysis (Vickers &amp; Elkin 2006).</p>
+<p><code>y_prob</code> is one array of predicted risks, or a dict <code>{"model name": risks}</code> to compare models.
+<code>thresholds</code> defaults to 0.01, 0.02, …, 0.99. Treat-all net benefit is prevalence − (1 − prevalence) ·
+pₜ / (1 − pₜ); treat-none is 0.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.clinical.diagnostic_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">diagnostic_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">diagnostic_report</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">proportion_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'wilson'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DiagnosticReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Sensitivity, specificity, PPV, NPV, likelihood ratios, diagnostic odds ratio, Youden's J, accuracy and
+prevalence for a binary test, each with a confidence interval.</p>
+<p>Intervals: proportions use <code>proportion_method</code> (Wilson by default, or <code>"clopper-pearson"</code>); likelihood
+ratios use the log method of Simel et al. (1991); the diagnostic odds ratio uses Woolf's log method with
+0.5 added to every cell when one is zero; Youden's J uses the Wald interval from the independent
+sensitivity and specificity variances, clipped to [−1, 1].</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.survival" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.survival</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Time-to-event (survival) evaluation with right-censored data.</p>
+<ul>
+<li>:func:<code>concordance_index</code> — Harrell's C (<code>ipcw=False</code>) or Uno's IPCW C (<code>ipcw=True</code>), with a bootstrap
+  interval on request.</li>
+<li>:func:<code>time_dependent_auc</code> — cumulative/dynamic ROC AUC at each time point (Uno et al. 2007; Hung &amp; Chiang
+  2010), and its mean over time.</li>
+<li>:func:<code>brier_score_survival</code> / :func:<code>integrated_brier_score</code> — Graf et al. (1999) IPCW Brier score at each
+  time point and integrated over a time range.</li>
+<li>:func:<code>kaplan_meier</code> — the Kaplan–Meier estimate (and of the censoring distribution, <code>reverse=True</code>).</li>
+</ul>
+<p>Conventions follow scikit-survival, and the results agree with it (tests in <code>tests/test_survival.py</code>):
+<code>event</code> is True / 1 for an observed event and False / 0 for censoring; <code>risk</code> is a risk score (higher means
+earlier events); survival-probability <code>estimate</code> columns correspond to <code>times</code>. Inverse-probability-of-
+censoring weights come from the Kaplan–Meier estimate of the censoring distribution fitted on
+<code>train_time</code> / <code>train_event</code> (default: the evaluation data).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.survival.SurvivalCurve" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">SurvivalCurve</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A step function: <code>prob[k]</code> holds from <code>time[k]</code> until the next time point.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.survival.kaplan_meier" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">kaplan_meier</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">kaplan_meier</span><span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reverse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SurvivalCurve</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Kaplan–Meier survival curve; <code>reverse=True</code> estimates the censoring distribution G(t) (at tied times,
+events leave the risk set before censorings, as in scikit-survival).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.survival.concordance_index" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">concordance_index</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">concordance_index</span><span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">risk</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ipcw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">tau</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">train_time</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">train_event</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">tied_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-08</span><span class="p">,</span> <span class="n">ci</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Concordance index for risk scores: the share of comparable pairs whose higher-risk member fails first
+(ties in risk count 1/2). <code>ipcw=False</code>: Harrell's C. <code>ipcw=True</code>: Uno's C, pairs weighted by 1 / G(t_i)²
+(censoring KM from <code>train_*</code>), optionally truncated at <code>tau</code>. <code>ci="bootstrap"</code> adds a percentile
+interval over resampled subjects.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.survival.time_dependent_auc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">time_dependent_auc</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">time_dependent_auc</span><span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">risk</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">times</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">train_time</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">train_event</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">tied_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-08</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Cumulative/dynamic AUC at each of <code>times</code>: how well the risk scores separate subjects with an event by
+time t (cases, IPCW-weighted) from those still event-free after t (controls). <code>risk</code> is one score per subject
+or one column per time point. <code>value</code> is the mean AUC weighted by the Kaplan–Meier drop over the times;
+<code>params["auc"]</code> the per-time values.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.survival.brier_score_survival" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">brier_score_survival</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">brier_score_survival</span><span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">estimate</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">times</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">train_time</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">train_event</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>IPCW Brier score (Graf et al. 1999) of predicted survival probabilities <code>estimate[:, k]</code> = P(T &gt; times[k])
+at each time point; <code>value</code> is the mean over times, <code>params["brier"]</code> the per-time values.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.survival.integrated_brier_score" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">integrated_brier_score</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">integrated_brier_score</span><span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">estimate</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">times</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">train_time</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">train_event</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MetricResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Integrated Brier score: the IPCW Brier score integrated over <code>times</code> (trapezoidal rule) and divided by
+the time range. Needs at least two time points. Lower is better; 0.25 is the score of predicting 0.5.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.reclassification" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.reclassification</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Clinical model updates: does a new risk model reclassify patients better, and does a model transport to a new
+site?</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+es.reclassification(y, p_old, p_new, cutoffs=[0.05, 0.2])   # NRI (categorical and continuous) and IDI
+es.external_validation(y_dev, p_dev, y_ext, p_ext)          # development vs external site, and recalibration</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Net reclassification improvement (Pencina et al., Stat Med 2008): among events, the share moved to a higher risk
+category minus the share moved lower; among non-events, the share moved lower minus higher; the NRI is their sum.
+The continuous (category-free) NRI counts any increase or decrease (Pencina et al. 2011). The integrated
+discrimination improvement (IDI) is the gain in mean predicted risk among events minus that among non-events.
+P-values use Pencina's asymptotic z tests; intervals are percentile bootstrap (paired, stratified by outcome).</p>
+<p><code>external_validation</code> reports discrimination (DeLong CIs and the unpaired difference), calibration-in-the-large,
+calibration slope, observed / expected ratio and Brier score at both sites, and how much intercept-only and
+logistic recalibration on the external data would recover (Steyerberg, Clinical Prediction Models, ch. 19).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.reclassification.ReclassificationResult" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ReclassificationResult</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>NRI (categorical and continuous) and IDI with p-values and bootstrap intervals.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.reclassification.ExternalValidation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ExternalValidation</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Performance at the development and the external site, and what recalibration would recover.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.reclassification.reclassification" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">reclassification</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">reclassification</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_old</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_new</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">cutoffs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ReclassificationResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>NRI and IDI of a new risk model against an old one on the same patients (see the module docstring).
+<code>cutoffs</code> (e.g. <code>[0.05, 0.2]</code>) define risk categories for the categorical NRI and the reclassification
+tables; the continuous NRI and the IDI are always reported.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.reclassification.external_validation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">external_validation</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">external_validation</span><span class="p">(</span><span class="n">y_dev</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_dev</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_ext</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">p_ext</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExternalValidation</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compare a model's performance at development and at an external site (see the module docstring).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.cards" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.cards</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Reporting standards: the evaluation sections that journals and model cards ask for, generated from data.</p>
+<p><code>report_card(y_true, y_prob, standard="tripod-ai")</code> computes what TRIPOD+AI (Collins et al., BMJ 2024) asks a
+prediction-model paper to report about performance (sample size and outcome events; discrimination; calibration
+in the large, slope and plot-free summaries; classification at a threshold; clinical utility by net benefit;
+performance in subgroups) with confidence intervals, writes it up as a results paragraph and a table, and lists
+which checklist items are covered and which need your own text. <code>standard="stard"</code> (STARD 2015, diagnostic
+accuracy studies) and <code>standard="consort-ai"</code> (CONSORT-AI, trials of AI interventions) fill in those checklists'
+results items the same way. <code>standard="model-card"</code> produces the sections of
+a model card (Mitchell et al., FAT* 2019) with the quantitative analyses filled in and the narrative sections
+taken from <code>context</code>.</p>
+<p>Export with <code>to_markdown()</code>, <code>to_latex()</code>, <code>to_html()</code> or <code>to_docx(path)</code> (python-docx).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.cards.ReportCard" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ReportCard</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Computed performance results plus the text of a reporting-standard section.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.cards.ReportCard.paragraph" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">paragraph</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">paragraph</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>A results paragraph in the style of a methods/results section.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.cards.ReportCard.to_docx" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_docx</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_docx</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Write a Word document with the paragraph, the table and (model card) the narrative sections.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.cards.report_card" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">report_card</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">report_card</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">standard</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'tripod-ai'</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">groups</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'subgroup'</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ReportCard</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Performance section for a reporting standard (<code>"tripod-ai"</code>, <code>"stard"</code> for diagnostic accuracy studies,
+<code>"consort-ai"</code> for trials of AI interventions, or <code>"model-card"</code>) from a binary outcome
+and predicted risks. <code>groups</code> adds a subgroup (fairness) table; <code>context</code> supplies the narrative sections
+of a model card (keys: model_details, intended_use, factors, metrics, evaluation_data, training_data,
+ethical_considerations, caveats). Intervals: DeLong for ROC AUC, Wilson for proportions, bootstrap (seeded)
+for calibration and the Brier score.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.fairness" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.fairness</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Fairness: performance by group, gaps between groups with confidence intervals, and corrected tests.</p>
+<p><code>fairness_report(y_true, y_pred, y_prob, groups=...)</code> reports, for every group (and every intersection of
+several attributes), the selection rate, true and false positive rates, positive predictive value and accuracy
+(Wilson intervals), plus ROC AUC (DeLong) and calibration-in-the-large with probabilities. It then gives the
+standard gap measures with bootstrap intervals that resample within each group:</p>
+<ul>
+<li>demographic parity difference (max − min selection rate) and ratio (min / max, the "four-fifths rule"),</li>
+<li>equalized odds difference (the larger of the TPR and FPR gaps; Hardt et al. 2016),</li>
+<li>equal opportunity difference (TPR gap) and predictive parity difference (PPV gap),</li>
+</ul>
+<p>and tests every group against a reference group (Fisher's exact test per metric, Holm-adjusted across all
+tests). Groups smaller than <code>min_group_size</code> are listed but not tested. The gap definitions match Fairlearn's.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.fairness.FairnessReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FairnessReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Per-group metrics, gap measures and tests (see :func:<code>fairness_report</code>).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.fairness.fairness_report" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">fairness_report</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fairness_report</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">groups</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">ndarray</span><span class="p">],</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">reference</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">intersectional</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">min_group_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FairnessReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Group fairness of a binary classifier.</p>
+<p><code>groups</code>: one protected-attribute value per observation, or a mapping of attribute name → values (several
+attributes are crossed into intersectional groups such as <code>sex=F &amp; age=65+</code>; with
+<code>intersectional=False</code> each attribute is analysed on its own and the reports' groups are listed per
+attribute). <code>y_pred</code> gives labels; with only <code>y_prob</code> labels are <code>y_prob &gt;= threshold</code>. <code>reference</code>:
+the group the others are tested against (default: the largest).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

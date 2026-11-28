@@ -1,0 +1,3356 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mkcs28.github.io/evalsuite-python/2.0/api/core/">
+      
+      
+        <link rel="prev" href="../../deprecation/">
+      
+      
+        <link rel="next" href="../classification/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Evaluate, compare, intervals - EvalSuite</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#evaluate-compare-intervals" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="EvalSuite" class="md-header__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EvalSuite
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Evaluate, compare, intervals
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="EvalSuite" class="md-nav__button md-logo" aria-label="EvalSuite" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    EvalSuite
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mkcs28/evalsuite-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deprecation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecation policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate, compare, intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        api
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="api">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.api.evaluate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        intervals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="intervals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.resample_indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resample_indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.resampled_distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resampled_distributions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.bootstrap_distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bootstrap_distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.bootstrap_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bootstrap_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.cluster_distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cluster_distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.proportion_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        proportion_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.accuracy_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        accuracy_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.delong_placements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delong_placements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.roc_auc_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        roc_auc_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="compare">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComparisonResult
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ComparisonResult">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.best" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        best
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_latex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_latex
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="paired">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.mcnemar_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mcnemar_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.delong_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delong_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.paired_bootstrap_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired_bootstrap_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hypothesis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="hypothesis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.t_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        t_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.paired_t_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired_t_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.mann_whitney_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mann_whitney_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.wilcoxon_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        wilcoxon_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.kruskal_wallis_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kruskal_wallis_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.friedman_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        friedman_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.shapiro_wilk_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shapiro_wilk_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.chi_square_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chi_square_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.fisher_exact_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fisher_exact_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        effect
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="effect">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cohens_d" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cohens_d
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.hedges_g" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hedges_g
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cliffs_delta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cliffs_delta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cramers_v" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cramers_v
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.adjust_pvalues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        adjust_pvalues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        planning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="planning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.SampleSize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SampleSize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_proportion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_proportion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_two_proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_two_proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_two_proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_two_proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_mean_difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_mean_difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_mean_difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_mean_difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification and regression metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calibration and recalibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clinical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical and survival
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparisons, agreement and Bayesian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data quality, drift and forecasting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM and AI systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports, workflow and cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        api
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="api">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.api.evaluate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        intervals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="intervals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.resample_indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resample_indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.resampled_distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resampled_distributions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.bootstrap_distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bootstrap_distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.bootstrap_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bootstrap_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.cluster_distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cluster_distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.proportion_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        proportion_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.accuracy_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        accuracy_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.delong_placements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delong_placements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.intervals.roc_auc_ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        roc_auc_ci
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="compare">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ComparisonResult
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ComparisonResult">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.best" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        best
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_latex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_latex
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.to_html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_html
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.ComparisonResult.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.compare.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="paired">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.mcnemar_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mcnemar_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.delong_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delong_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.paired.paired_bootstrap_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired_bootstrap_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hypothesis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="hypothesis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.t_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        t_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.paired_t_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        paired_t_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.mann_whitney_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mann_whitney_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.wilcoxon_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        wilcoxon_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.kruskal_wallis_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kruskal_wallis_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.friedman_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        friedman_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.shapiro_wilk_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shapiro_wilk_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.chi_square_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chi_square_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.hypothesis.fisher_exact_test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fisher_exact_test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        effect
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="effect">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cohens_d" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cohens_d
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.hedges_g" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hedges_g
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cliffs_delta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cliffs_delta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.cramers_v" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cramers_v
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.effect.adjust_pvalues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        adjust_pvalues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        planning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="planning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.SampleSize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SampleSize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_proportion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_proportion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_two_proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_two_proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_two_proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_two_proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_auc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_auc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.sample_size_mean_difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_size_mean_difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evalsuite.stats.planning.power_mean_difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power_mean_difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="evaluate-compare-intervals">Evaluate, compare, intervals</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.api" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.api</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>High-level API: <code>evaluate()</code>.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.api.evaluate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">evaluate</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">evaluate</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">average</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'auto'</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">zero_division</span><span class="p">:</span> <span class="n">ZeroDivision</span> <span class="o">=</span> <span class="s1">'warn'</span><span class="p">,</span> <span class="n">ci</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="s1">'analytic'</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">baseline_pred</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">baseline_prob</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">clusters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Evaluate predictions with a standard set of metrics (or the <code>metrics</code> you name), with confidence
+intervals and, given a baseline, paired significance tests against it.</p>
+<p>The task is inferred when omitted: probabilities or integer/string labels mean classification, non-integer
+numbers mean regression. Inputs are validated once and shared intermediate results (the confusion matrix)
+are computed once for all metrics.</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>import evalsuite as es
+r = es.evaluate([0, 1, 1, 0], [0, 1, 0, 0])
+round(r["accuracy"], 2)
+0.75</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Intervals (<code>level</code>, 95% by default) are in each metric's <code>params</code> (<code>ci_low</code>, <code>ci_high</code>,
+<code>ci_method</code>) and in every summary and export. <code>ci="analytic"</code> (default, no extra cost) gives closed-form
+intervals where a standard one exists: Wilson for accuracy / precision / recall / specificity / NPV, DeLong
+for binary ROC AUC, Student-t for mean losses (Brier, log loss, MAE, MSE, RMSE, mean bias).
+<code>ci="bootstrap"</code> gives paired percentile-bootstrap intervals for every metric (<code>n_resamples</code>, seeded by
+<code>random_state</code>); <code>ci=False</code> turns them off. <code>baseline_pred</code> / <code>baseline_prob</code> (e.g. the current model)
+add the difference, its interval and a paired test per metric (McNemar for accuracy, DeLong for ROC AUC,
+paired bootstrap otherwise; Holm-adjusted), as <code>baseline_*</code> params and <code>result.comparison</code>.
+<code>clusters</code> (one id per observation, e.g. the patient of each scan or the document of each question) makes
+every interval and baseline test a cluster bootstrap that resamples whole clusters; ordinary intervals are
+too narrow when observations within a cluster are correlated.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.intervals" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.intervals</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Confidence intervals: bootstrap (percentile, basic, BCa), Wilson and Clopper-Pearson, DeLong.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.resample_indices" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">resample_indices</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">resample_indices</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">strata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">resampling</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'numpy'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(n_resamples, n) indices drawn with replacement, optionally within strata (keeps class balance).</p>
+<p><code>resampling="native"</code> draws them in the compiled core (xoshiro256++, in parallel) from one seed taken from
+<code>rng</code>: reproducible for a given <code>random_state</code> and thread count–independent, but a different stream from
+NumPy's, so intervals differ (statistically equivalently) from the default.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.resampled_distributions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">resampled_distributions</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">resampled_distributions</span><span class="p">(</span><span class="n">calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">MetricCall</span><span class="p">],</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">rng</span><span class="p">:</span> <span class="n">Generator</span><span class="p">,</span> <span class="n">strata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">resampling</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="nb">int</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>:func:<code>bootstrap_distribution</code> of every call over the same :func:<code>resample_indices</code> (paired resamples).
+Plain NumPy resamples are drawn in chunks so memory stays bounded; the draws, and so every result, are
+identical to drawing them all at once.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.bootstrap_distribution" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">bootstrap_distribution</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">bootstrap_distribution</span><span class="p">(</span><span class="n">call</span><span class="p">:</span> <span class="n">MetricCall</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">int64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Metric value on each resample; resamples where the metric is undefined become NaN.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.bootstrap_ci" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">bootstrap_ci</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">bootstrap_ci</span><span class="p">(</span><span class="n">metric</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="n">BootstrapMethod</span> <span class="o">=</span> <span class="s1">'bca'</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stratify</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">jackknife_groups</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">resampling</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'numpy'</span><span class="p">,</span> <span class="n">clusters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfidenceInterval</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Bootstrap confidence interval for any metric.</p>
+<pre><code>``metric`` is a metric function (``es.f1``) or its name (``"f1"``). Pass ``y_pred`` for label/value
+metrics or ``y_prob`` for probability metrics; extra keyword arguments go to the metric (for example
+``average="macro"``). Resampling is stratified by class for classification targets unless
+``stratify=False``, so every resample contains every class. For classification metrics that accept
+``labels``, the full label set is fixed across resamples.
+
+``method``: ``"bca"`` (bias-corrected and accelerated; default, Efron 1987), ``"percentile"`` or
+``"basic"``. Set ``random_state`` for reproducible intervals. Resamples on which the metric is undefined
+are counted in ``params["failed_resamples"]``; more than 10% raises :class:`StatisticalTestError`.
+</code></pre>
+<p><code>resampling="native"</code> (opt-in) draws the resample indices in the compiled core instead of NumPy: faster on
+large inputs and still reproducible with <code>random_state</code>, but a different random stream from the default.</p>
+<p><code>clusters</code> (one id per observation: patient, document, site, conversation) resamples whole clusters
+instead of observations (cluster bootstrap; Field &amp; Welsh 2007), so correlated observations in a cluster are
+kept together. Ordinary intervals are too narrow when observations are clustered; the cluster interval is
+honest. BCa's acceleration then uses leave-one-cluster-out estimates.</p>
+<pre><code>References: Efron B. Better bootstrap confidence intervals. JASA. 1987;82(397):171-185.
+Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman &amp; Hall; 1993.
+</code></pre>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.cluster_distribution" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cluster_distribution</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">cluster_distribution</span><span class="p">(</span><span class="n">call</span><span class="p">:</span> <span class="n">MetricCall</span><span class="p">,</span> <span class="n">members</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">int64</span><span class="p">]],</span> <span class="n">picks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Metric value on each cluster resample (<code>picks[b]</code> lists the drawn clusters), NaN where undefined.</p>
+<p>Equal to concatenating the drawn clusters' observations and calling the metric, but much faster:
+confusion-matrix metrics add up per-cluster code counts (one small matrix product for all resamples), and
+binary ROC AUC / average precision weight each observation by how often its cluster was drawn.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.proportion_ci" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">proportion_ci</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">proportion_ci</span><span class="p">(</span><span class="n">successes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'wilson'</span><span class="p">,</span> <span class="s1">'clopper-pearson'</span><span class="p">,</span> <span class="s1">'normal'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'wilson'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfidenceInterval</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Confidence interval for a proportion <code>successes / n</code>.</p>
+<p><code>"wilson"</code> (default; good coverage even for small n or extreme proportions), <code>"clopper-pearson"</code>
+(exact, conservative) or <code>"normal"</code> (Wald; shown for comparison, not recommended).</p>
+<p>References: Wilson EB. JASA. 1927;22(158):209-212. Clopper CJ, Pearson ES. Biometrika. 1934;26(4):404-413.
+Brown LD, Cai TT, DasGupta A. Interval estimation for a binomial proportion. Stat Sci. 2001;16(2):101-133.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.accuracy_ci" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">accuracy_ci</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">accuracy_ci</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'wilson'</span><span class="p">,</span> <span class="s1">'clopper-pearson'</span><span class="p">,</span> <span class="s1">'normal'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'wilson'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfidenceInterval</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Analytic confidence interval for accuracy (a proportion of correct predictions).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.delong_placements" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delong_placements</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">delong_placements</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span> <span class="n">scores</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">float64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>AUCs and structural components for k score columns (Sun &amp; Xu fast DeLong).</p>
+<p>Returns (auc[k], v10[k, m], v01[k, n]) where m/n are the numbers of positives/negatives.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.intervals.roc_auc_ci" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">roc_auc_ci</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">roc_auc_ci</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConfidenceInterval</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>DeLong confidence interval for a binary ROC AUC (normal approximation, clipped to [0, 1]).</p>
+<p>Reference: DeLong ER, DeLong DM, Clarke-Pearson DL. Comparing the areas under two or more correlated
+receiver operating characteristic curves: a nonparametric approach. Biometrics. 1988;44(3):837-845.
+Sun X, Xu W. Fast implementation of DeLong's algorithm. IEEE Signal Process Lett. 2014;21(11):1389-1393.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.compare" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.compare</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>compare(): evaluate several models on the same test set with intervals and paired tests.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.stats.compare.ComparisonResult" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ComparisonResult</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Per-model estimates with confidence intervals, and pairwise tests with adjusted p-values.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.best" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">best</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">best</span><span class="p">(</span><span class="n">metric</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Model with the best point estimate (direction from the metric registry).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.to_dataframe" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_dataframe</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_dataframe</span><span class="p">(</span><span class="n">which</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'estimates'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p><code>"estimates"</code> (one row per model and metric) or <code>"tests"</code> (one row per comparison).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.to_markdown" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_markdown</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_markdown</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Models as rows, metrics as columns: <code>estimate (low–high)</code>; best value per metric in bold.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.to_latex" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_latex</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_latex</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">caption</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Publication table: models × metrics with confidence intervals; best value per metric in bold.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.to_csv" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_csv</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_csv</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">which</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'estimates'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>CSV of the estimates (<code>which="estimates"</code>) or the pairwise tests (<code>which="tests"</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.to_html" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_html</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">to_html</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Estimates table (best value per metric in bold) and the pairwise tests table.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="evalsuite.stats.compare.ComparisonResult.save" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">save</span>
+
+
+</h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">save</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">digits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Save as .json .csv .md .tex .html or .txt (chosen by the extension).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.compare.compare" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">compare</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compare</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">predictions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ArrayLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ArrayLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">baseline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">correction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'holm'</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stratify</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">metric_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">resampling</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'numpy'</span><span class="p">,</span> <span class="n">_allow_single</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComparisonResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compare models evaluated on the same test set.</p>
+<p><code>predictions</code> and/or <code>probabilities</code> map model names to that model's predicted labels/values or
+probabilities. Every model is resampled on the same bootstrap indices (paired), giving a percentile
+confidence interval per model and metric and a paired test per pair of models:</p>
+<ul>
+<li>accuracy: McNemar's test (exact when there are fewer than 25 discordant pairs);</li>
+<li>binary ROC AUC: DeLong's test;</li>
+<li>everything else: paired bootstrap test.</li>
+</ul>
+<p>Pairs are every model against <code>baseline</code> if given, otherwise all pairs. p-values are adjusted within
+each metric (<code>correction</code>: "holm", "bonferroni", "hochberg", "bh", "by"); <code>significant</code> uses the adjusted
+p-value and <code>alpha</code>. <code>metric_kwargs</code> passes options per metric, e.g. <code>{"f1": {"average": "macro"}}</code>.
+<code>resampling="native"</code> (opt-in) draws the bootstrap indices in the compiled core; see :func:<code>bootstrap_ci</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.paired" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.paired</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Paired tests for comparing two models evaluated on the same observations.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.paired.mcnemar_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">mcnemar_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">mcnemar_test</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred_a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred_b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">exact</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">correction</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>McNemar's test: do two classifiers have the same error rate on the same observations?</p>
+<p>Uses only discordant pairs: b = A right &amp; B wrong, c = A wrong &amp; B right. <code>exact=None</code> (default) uses
+the exact binomial test when b + c &lt; 25 and the chi-squared test otherwise (with Edwards' continuity
+correction unless <code>correction=False</code>). <code>estimate</code> is the accuracy difference A − B.</p>
+<p>References: McNemar Q. Psychometrika. 1947;12(2):153-157. Edwards AL. Psychometrika. 1948;13:185-187.
+Dietterich TG. Approximate statistical tests for comparing supervised classification learning
+algorithms. Neural Comput. 1998;10(7):1895-1923.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.paired.delong_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">delong_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">delong_test</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob_a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_prob_b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">pos_label</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>DeLong's test for two correlated ROC AUCs (same observations, two models). <code>estimate</code> is AUC_A − AUC_B
+and <code>ci</code> its confidence interval.</p>
+<p>Reference: DeLong ER, DeLong DM, Clarke-Pearson DL. Biometrics. 1988;44(3):837-845.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.paired.paired_bootstrap_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">paired_bootstrap_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">paired_bootstrap_test</span><span class="p">(</span><span class="n">metric</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">y_true</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">y_pred_a</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">y_pred_b</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">y_prob_a</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">y_prob_b</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sample_weight</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">n_resamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stratify</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'two-sided'</span><span class="p">,</span> <span class="s1">'greater'</span><span class="p">,</span> <span class="s1">'less'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">,</span> <span class="n">resampling</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'numpy'</span><span class="p">,</span> <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Paired bootstrap test for any metric: is metric(A) − metric(B) different from 0?</p>
+<p>Both models are evaluated on the same resampled observations. The p-value uses the shifted bootstrap
+distribution (difference re-centred on 0 under the null), with the +1 correction so it is never 0:
+p = (1 + #{|δ* − δ̂| ≥ |δ̂|}) / (B + 1) for a two-sided test. <code>ci</code> is the percentile interval of δ*.</p>
+<p><code>resampling="native"</code> (opt-in) draws the resample indices in the compiled core; see :func:<code>bootstrap_ci</code>.</p>
+<p>Reference: Efron B, Tibshirani RJ. An Introduction to the Bootstrap. Chapman &amp; Hall; 1993, ch. 16.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.hypothesis" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.hypothesis</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Hypothesis tests for comparing scores, groups and categorical outcomes.</p>
+<p>Each test returns a :class:<code>TestResult</code> with the statistic, p-value, an effect size in <code>estimate</code> (named in
+<code>params["effect_size"]</code>) and, where standard, a confidence interval. SciPy is the reference: the common tests
+compute the same statistics directly (one ranking pass, closed-form tails, cached Shapiro–Wilk weights) and are
+tested to match SciPy, falling back to SciPy where it uses a different algorithm (exact permutation tests,
+older Shapiro–Wilk); EvalSuite adds input validation, effect sizes and consistent results.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.t_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">t_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">t_test</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">equal_var</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Alternative</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Two-sample t-test for mean(a) − mean(b). Welch's test by default (<code>equal_var=False</code>), which does not
+assume equal variances; <code>equal_var=True</code> gives Student's test. <code>estimate</code> is the mean difference with a
+confidence interval; <code>params["cohens_d"]</code> is the standardised effect size.</p>
+<p>References: Welch BL. Biometrika. 1947;34(1-2):28-35. Student. Biometrika. 1908;6(1):1-25.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.paired_t_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">paired_t_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">paired_t_test</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Alternative</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Paired t-test for the mean of a − b (for example per-fold scores of two models on the same folds).
+<code>estimate</code> is the mean difference with a confidence interval; <code>params["cohens_dz"]</code> is d_z.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.mann_whitney_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">mann_whitney_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">mann_whitney_test</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Alternative</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mann–Whitney U (Wilcoxon rank-sum) test. <code>statistic</code> is U for <code>a</code>; <code>estimate</code> is the
+rank-biserial correlation r = 2U/(n₁n₂) − 1 (equal to Cliff's delta), and <code>params["auc"]</code> = U/(n₁n₂)
+= P(a &gt; b) + ½P(a = b).</p>
+<p>References: Mann HB, Whitney DR. Ann Math Stat. 1947;18(1):50-60. Kerby DS. Compr Psychol. 2014;3:11.IT.3.1.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.wilcoxon_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">wilcoxon_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">wilcoxon_test</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Alternative</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">,</span> <span class="n">zero_method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'wilcox'</span><span class="p">,</span> <span class="s1">'pratt'</span><span class="p">,</span> <span class="s1">'zsplit'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'wilcox'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Wilcoxon signed-rank test for paired samples (a − b). <code>estimate</code> is the matched-pairs rank-biserial
+correlation (T⁺ − T⁻) / (T⁺ + T⁻) over the non-zero differences.</p>
+<p>Reference: Wilcoxon F. Biometrics Bull. 1945;1(6):80-83.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.kruskal_wallis_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">kruskal_wallis_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">kruskal_wallis_test</span><span class="p">(</span><span class="o">*</span><span class="n">groups</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Kruskal–Wallis H test: do two or more independent groups come from the same distribution?
+<code>estimate</code> is epsilon-squared, H / ((n² − 1)/(n + 1)).</p>
+<p>References: Kruskal WH, Wallis WA. JASA. 1952;47(260):583-621. Tomczak M, Tomczak E. Trends Sport Sci.
+2014;1(21):19-25.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.friedman_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">friedman_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">friedman_test</span><span class="p">(</span><span class="o">*</span><span class="n">groups</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Friedman test for three or more related samples (for example several models scored on the same
+datasets or folds; each argument is one model's scores). <code>estimate</code> is Kendall's W = χ² / (n (k − 1)).</p>
+<p>References: Friedman M. JASA. 1937;32(200):675-701. Demšar J. Statistical comparisons of classifiers over
+multiple data sets. JMLR. 2006;7:1-30.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.shapiro_wilk_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">shapiro_wilk_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">shapiro_wilk_test</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Shapiro–Wilk test of normality (3 ≤ n ≤ 5000 for an accurate p-value).</p>
+<p>Reference: Shapiro SS, Wilk MB. Biometrika. 1965;52(3-4):591-611.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.chi_square_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">chi_square_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">chi_square_test</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">correction</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pearson's χ² test of independence for an r × c contingency table. Yates' continuity correction is
+applied to 2 × 2 tables unless <code>correction=False</code>. <code>estimate</code> is Cramér's V (from the uncorrected
+statistic, as in :func:<code>cramers_v</code>); <code>params["expected"]</code>
+holds the expected counts (the approximation is doubtful when many are below 5).</p>
+<p>Reference: Pearson K. Philos Mag. 1900;50(302):157-175. Cramér H. Mathematical Methods of Statistics. 1946.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.hypothesis.fisher_exact_test" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">fisher_exact_test</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fisher_exact_test</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alternative</span><span class="p">:</span> <span class="n">Alternative</span> <span class="o">=</span> <span class="s1">'two-sided'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Fisher's exact test for a 2 × 2 table. <code>estimate</code> is the sample odds ratio (a·d)/(b·c).</p>
+<p>Reference: Fisher RA. J R Stat Soc. 1922;85(1):87-94.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.effect" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.effect</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Effect sizes and multiple-comparison correction.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.effect.cohens_d" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cohens_d</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">cohens_d</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Cohen's d for mean(a) − mean(b).</p>
+<p>Independent samples: difference over the pooled standard deviation. <code>paired=True</code>: mean difference over
+the standard deviation of the differences (d_z), for per-fold or per-subject scores of two models.</p>
+<p>Reference: Cohen J. Statistical Power Analysis for the Behavioral Sciences. 2nd ed. Erlbaum; 1988.
+Lakens D. Calculating and reporting effect sizes. Front Psychol. 2013;4:863.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.effect.hedges_g" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">hedges_g</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">hedges_g</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Hedges' g: Cohen's d with the exact small-sample bias correction J(df) = Γ(df/2) / (√(df/2) Γ((df−1)/2)).</p>
+<p>Reference: Hedges LV. Distribution theory for Glass's estimator of effect size and related estimators.
+J Educ Stat. 1981;6(2):107-128.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.effect.cliffs_delta" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cliffs_delta</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">cliffs_delta</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Cliff's delta: P(a &gt; b) − P(a &lt; b) over all pairs; a non-parametric effect size in [−1, 1].</p>
+<p>Computed in O((n + m) log m). Reference: Cliff N. Dominance statistics: ordinal analyses to answer ordinal
+questions. Psychol Bull. 1993;114(3):494-509.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.effect.cramers_v" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cramers_v</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">cramers_v</span><span class="p">(</span><span class="n">table</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bias_correction</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Cramér's V for an r × c contingency table: √(χ² / (n · (min(r, c) − 1))), from the uncorrected
+Pearson χ². <code>bias_correction=True</code> applies Bergsma's correction, which reduces the upward bias in small
+samples.</p>
+<p>References: Cramér H. Mathematical Methods of Statistics. Princeton; 1946. Bergsma W. A bias-correction for
+Cramér's V and Tschuprow's T. J Korean Stat Soc. 2013;42(3):323-328.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.effect.adjust_pvalues" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">adjust_pvalues</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">adjust_pvalues</span><span class="p">(</span><span class="n">p_values</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s1">'bonferroni'</span><span class="p">,</span> <span class="s1">'holm'</span><span class="p">,</span> <span class="s1">'hochberg'</span><span class="p">,</span> <span class="s1">'bh'</span><span class="p">,</span> <span class="s1">'by'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'holm'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Adjust p-values for multiple comparisons (same order as the input).</p>
+<p><code>"holm"</code> (default; controls the family-wise error rate, uniformly more powerful than Bonferroni),
+<code>"bonferroni"</code>, <code>"hochberg"</code> (step-up; controls the family-wise error rate under independence or
+positive dependence, more powerful than Holm), <code>"bh"</code> (Benjamini-Hochberg false discovery rate) or
+<code>"by"</code> (Benjamini-Yekutieli, FDR under arbitrary dependence).</p>
+<p>References: Holm S. Scand J Stat. 1979;6(2):65-70. Hochberg Y. Biometrika. 1988;75(4):800-802.
+Benjamini Y, Hochberg Y. J R Stat Soc B. 1995;57(1):289-300. Benjamini Y, Yekutieli D. Ann Stat.
+2001;29(4):1165-1188.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="evalsuite.stats.planning" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">evalsuite.stats.planning</span>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Study planning: how many test items are needed for a given precision or to detect a given difference.</p>
+<ul>
+<li>:func:<code>sample_size_proportion</code> — items so that a proportion (accuracy, sensitivity, ...) has a confidence
+  interval no wider than <code>± half_width</code>.</li>
+<li>:func:<code>sample_size_two_proportions</code> — items to detect a difference between two models' accuracies, on the same
+  items (paired, McNemar; Connor 1987) or on separate samples (Fleiss, Levin &amp; Paik 2003).</li>
+<li>:func:<code>sample_size_auc</code> — positives and negatives for an ROC AUC interval of given width, or to show an AUC
+  above a reference value (Hanley &amp; McNeil 1982; Obuchowski 1998).</li>
+<li>:func:<code>sample_size_mean_difference</code> — pairs (or per-group observations) to detect a difference in a mean
+  score or loss (paired or two-sample t approximation).</li>
+<li><code>power_*</code> counterparts give the power achieved with a fixed sample.</li>
+</ul>
+<p>All formulas are the standard normal-approximation ones and are documented with their references; sample sizes
+are rounded up.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="evalsuite.stats.planning.SampleSize" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">SampleSize</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A planned sample size with the assumptions behind it.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.sample_size_proportion" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sample_size_proportion</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sample_size_proportion</span><span class="p">(</span><span class="n">p</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">half_width</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SampleSize</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Items so that a proportion near <code>p</code> is estimated within <code>± half_width</code> (normal approximation,
+n = z² p (1 − p) / w²). Use p = 0.5 when nothing is known (the most conservative choice).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.sample_size_two_proportions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sample_size_two_proportions</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sample_size_two_proportions</span><span class="p">(</span><span class="n">p1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">discordance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">two_sided</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SampleSize</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Items needed to detect accuracy <code>p1</code> vs <code>p2</code>.</p>
+<p><code>paired=True</code> (default; both models answer the same items, McNemar's test, Connor 1987):
+n = (z_α √ψ + z_β √(ψ − δ²))² / δ², with ψ the share of items the models disagree on (<code>discordance</code>).
+Without <code>discordance</code>, ψ assumes independent errors, p1(1 − p2) + p2(1 − p1), which is conservative when
+the models are correlated (they usually are; a pilot estimate of ψ gives a smaller n).
+<code>paired=False</code>: two separate samples, n per group (Fleiss, Levin &amp; Paik 2003).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.power_two_proportions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">power_two_proportions</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">power_two_proportions</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">discordance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">two_sided</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Power to detect <code>p1</code> vs <code>p2</code> with <code>n</code> items (paired) or <code>n</code> per group (unpaired).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.sample_size_auc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sample_size_auc</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sample_size_auc</span><span class="p">(</span><span class="n">auc</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">prevalence</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">half_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">auc0</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SampleSize</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Total items (positives + negatives at <code>prevalence</code>) for an ROC AUC near <code>auc</code>.</p>
+<p>Give <code>half_width</code> for an interval no wider than <code>± half_width</code>, or <code>auc0</code> to show that the AUC exceeds a
+reference value (one-sided, at <code>alpha</code> with <code>power</code>; variance under both hypotheses, Obuchowski 1998).
+Variances follow Hanley &amp; McNeil (1982).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.power_auc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">power_auc</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">power_auc</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">auc</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">auc0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">prevalence</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Power of a one-sided test that the AUC exceeds <code>auc0</code> with <code>n</code> items at <code>prevalence</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.sample_size_mean_difference" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sample_size_mean_difference</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sample_size_mean_difference</span><span class="p">(</span><span class="n">delta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">power</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">two_sided</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SampleSize</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Items to detect a difference <code>delta</code> in a mean score (a loss, a rating, a per-item metric).</p>
+<p><code>paired=True</code>: <code>sd</code> is the standard deviation of the per-item differences; n = ((z_α + z_β) σ / δ)²,
+refined with the t distribution. <code>paired=False</code>: <code>sd</code> is the per-group standard deviation; n per group =
+2 ((z_α + z_β) σ / δ)², refined likewise.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="evalsuite.stats.planning.power_mean_difference" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">power_mean_difference</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">power_mean_difference</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> <span class="n">paired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">two_sided</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Power of a paired (or two-sample, <code>n</code> per group) t-test to detect <code>delta</code> (noncentral t).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>
