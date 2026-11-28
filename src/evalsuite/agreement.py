@@ -21,6 +21,7 @@ from typing import Any, Optional
 import numpy as np
 
 from .core.exceptions import InputValidationError
+from .core.validation import numeric
 
 __all__ = ["ICCResult", "ICCForm", "BlandAltman", "icc", "bland_altman", "lins_ccc"]
 
@@ -136,7 +137,7 @@ def _table(ratings: Any, subjects: Any, raters: Any) -> np.ndarray:
         return x
     if subjects is None or raters is None:
         raise InputValidationError("Long format needs both subjects= and raters=.")
-    vals = np.asarray(ratings, dtype=np.float64).ravel()
+    vals = numeric(ratings, "ratings").ravel()
     s = np.asarray(subjects).ravel()
     r = np.asarray(raters).ravel()
     if not (vals.size == s.size == r.size):

@@ -16,14 +16,14 @@ else:
 
 from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike
-from ..core.validation import check_finite, to_numpy
+from ..core.validation import check_finite, numeric, to_numpy
 
 __all__ = ["adjust_pvalues", "cliffs_delta", "cohens_d", "cramers_v", "hedges_g"]
 
 
 def _samples(a: ArrayLike, b: ArrayLike) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    x = to_numpy(a, "a").astype(np.float64)
-    y = to_numpy(b, "b").astype(np.float64)
+    x = numeric(to_numpy(a, "a"), "a").copy()
+    y = numeric(to_numpy(b, "b"), "b").copy()
     check_finite(x, "a")
     check_finite(y, "b")
     return x, y
@@ -93,7 +93,7 @@ def cramers_v(table: ArrayLike, *, bias_correction: bool = False) -> float:
     References: Cramér H. Mathematical Methods of Statistics. Princeton; 1946. Bergsma W. A bias-correction for
     Cramér's V and Tschuprow's T. J Korean Stat Soc. 2013;42(3):323-328.
     """
-    t = np.asarray(table, dtype=np.float64)
+    t = numeric(table, "table")
     if t.ndim != 2 or min(t.shape) < 2:
         raise InputValidationError("Give a contingency table with at least 2 rows and 2 columns.")
     if np.any(~np.isfinite(t)) or np.any(t < 0):
@@ -133,7 +133,7 @@ def adjust_pvalues(
     Benjamini Y, Hochberg Y. J R Stat Soc B. 1995;57(1):289-300. Benjamini Y, Yekutieli D. Ann Stat.
     2001;29(4):1165-1188.
     """
-    p = to_numpy(p_values, "p_values").astype(np.float64, copy=False)
+    p = numeric(to_numpy(p_values, "p_values"), "p_values")
     check_finite(p, "p_values")
     if float(np.min(p)) < 0 or float(np.max(p)) > 1:
         raise InputValidationError("p-values must be between 0 and 1.")

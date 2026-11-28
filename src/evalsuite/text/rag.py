@@ -17,6 +17,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import per_item
 
 __all__ = [
@@ -149,7 +150,7 @@ def context_relevance(unit_relevance: Any, *, average: Optional[str] = "mean") -
 def latency_summary(latencies: Any, *, statistic: str = "p95", unit: str = "ms") -> MetricResult:
     """Latency summary; ``statistic`` (``"mean"``, ``"p50"``, ``"p90"``, ``"p95"`` or ``"p99"``) is the
     headline value and all of them are in ``params``."""
-    a = np.asarray(latencies, dtype=float).ravel()
+    a = numeric(latencies, "latencies").ravel()
     if a.size == 0 or not np.all(np.isfinite(a)) or np.any(a < 0):
         raise InputValidationError("latencies must be non-empty, finite and non-negative.")
     summary = {

@@ -93,6 +93,8 @@ def extract_json(text: str, *, mode: str = "strict") -> Any:
     first balanced ``{...}`` or ``[...]`` span. Raises ``ValueError`` when nothing parses."""
     if mode not in ("strict", "fenced", "lenient"):
         raise InputValidationError("mode must be 'strict', 'fenced' or 'lenient'.")
+    if not isinstance(text, str):
+        raise InputValidationError(f"extract_json takes one string; got {type(text).__name__}.")
     candidates = [text.strip()]
     if mode in ("fenced", "lenient"):
         m = _FENCE.search(text)
@@ -471,7 +473,7 @@ def _calls(x: Any, name: str) -> list[list[dict[str, Any]]]:
     items = list(x)
     out = []
     for i, ex in enumerate(items):
-        calls = [ex] if isinstance(ex, Mapping) else list(ex or [])
+        calls = [ex] if isinstance(ex, Mapping) else ([] if ex is None else list(ex))
         norm = []
         for j, c in enumerate(calls):
             if not isinstance(c, Mapping) or "name" not in c:

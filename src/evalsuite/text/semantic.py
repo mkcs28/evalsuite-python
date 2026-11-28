@@ -23,6 +23,7 @@ from numpy.typing import NDArray
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import per_item
 
 __all__ = ["bertscore", "embedding_similarity", "mauve", "model_score", "moverscore"]
@@ -58,7 +59,7 @@ def _matrices(x: Any, name: str) -> list[NDArray[np.float64]]:
     out = []
     dim = None
     for i, m in enumerate(items):
-        a = np.asarray(m, dtype=np.float64)
+        a = numeric(m, name)
         if a.ndim != 2 or a.shape[0] == 0:
             raise InputValidationError(f"{name}[{i}] must be a non-empty 2-D array (tokens × dim); got {a.shape}.")
         if not np.all(np.isfinite(a)):
@@ -72,7 +73,7 @@ def _matrices(x: Any, name: str) -> list[NDArray[np.float64]]:
 
 
 def _vectors(x: Any, name: str) -> NDArray[np.float64]:
-    a = np.asarray(x, dtype=np.float64)
+    a = numeric(x, name)
     if a.ndim == 1:
         a = a[None, :]
     if a.ndim != 2 or a.shape[0] == 0 or a.shape[1] == 0:

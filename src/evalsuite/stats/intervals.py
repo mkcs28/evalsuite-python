@@ -20,7 +20,7 @@ else:
 from .._native import array_view, core
 from ..core.exceptions import EvalSuiteError, InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike
-from ..core.validation import to_numpy
+from ..core.validation import numeric, to_numpy
 from ._resolve import MetricCall, resolve_metric
 from .results import ConfidenceInterval
 
@@ -656,7 +656,7 @@ def binary_scores(
     y_true: ArrayLike, y_prob: ArrayLike, pos_label: Any
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     yt = to_numpy(y_true, "y_true")
-    s = to_numpy(y_prob, "y_prob").astype(np.float64)
+    s = numeric(to_numpy(y_prob, "y_prob"), "y_prob").copy()
     if s.shape[0] != yt.shape[0]:
         raise InputValidationError(
             "y_true and y_prob must contain the same number of observations. "

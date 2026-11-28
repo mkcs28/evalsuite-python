@@ -118,6 +118,7 @@ def test_readme_example_runs(heading: str, code: str, tmp_path, monkeypatch) -> 
     if heading.lower().startswith("integrations"):
         pytest.skip("needs the optional frameworks (scikit-learn, Hugging Face, Keras, MLflow, W&B) and models")
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("EVALSUITE_CACHE", str(tmp_path / "cache"))  # never touch the real cache
     ns = _namespace(tmp_path)
     if heading.lower().startswith("llm leaderboards"):
         (tmp_path / "runs").mkdir()

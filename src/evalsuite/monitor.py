@@ -23,6 +23,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 
 from .core.exceptions import InputValidationError
+from .core.validation import numeric
 
 _OPS: dict[str, Callable[[float, float], bool]] = {
     "<": lambda a, b: a < b,
@@ -36,8 +37,8 @@ def population_stability_index(reference: Any, current: Any, *, bins: int = 10, 
     """PSI between two samples of scores, with bins at the reference's quantiles:
     Σ (c − r) · ln(c / r) over bins, shares floored at ``eps``. Rule of thumb: < 0.1 stable, 0.1–0.25 moderate
     shift, > 0.25 major shift."""
-    r = np.asarray(reference, dtype=float).ravel()
-    c = np.asarray(current, dtype=float).ravel()
+    r = numeric(reference, "reference").ravel()
+    c = numeric(current, "current").ravel()
     if r.size < 2 or c.size < 1 or not (np.all(np.isfinite(r)) and np.all(np.isfinite(c))):
         raise InputValidationError("PSI needs finite reference (>= 2) and current (>= 1) values.")
     if bins < 2:
@@ -56,8 +57,8 @@ def ks_drift(reference: Any, current: Any) -> tuple[float, float]:
     """Two-sample Kolmogorov–Smirnov statistic and p-value (SciPy's exact / asymptotic choice)."""
     from scipy import stats
 
-    r = np.asarray(reference, dtype=float).ravel()
-    c = np.asarray(current, dtype=float).ravel()
+    r = numeric(reference, "reference").ravel()
+    c = numeric(current, "current").ravel()
     if r.size < 1 or c.size < 1:
         raise InputValidationError("ks_drift needs non-empty samples.")
     res = stats.ks_2samp(r, c)

@@ -29,6 +29,24 @@ __all__ = [
 TargetType = Literal["binary", "multiclass", "multilabel", "continuous"]
 
 
+def numeric(x: Any, name: str) -> NDArray[Any]:
+    """``np.asarray(x, dtype=float64)`` with an :class:`InputValidationError` naming ``name`` when ``x`` holds
+    values that are not numbers (strings, None, objects)."""
+    try:
+        return np.asarray(x, dtype=np.float64)
+    except (TypeError, ValueError):
+        sample = next((v for v in np.asarray(x, dtype=object).ravel() if not _is_number(v)), None)
+        raise InputValidationError(f"{name} must contain numbers; found {sample!r}.") from None
+
+
+def _is_number(v: Any) -> bool:
+    try:
+        float(v)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def to_numpy(x: ArrayLike, name: str, *, allow_2d: bool = False) -> NDArray[Any]:
     """Convert array-likes (lists, NumPy arrays, pandas objects) to a NumPy array without copying
     when possible. Raises :class:`InputValidationError` for None, scalars, empty input or bad shapes."""
@@ -118,6 +136,8 @@ def _has_fraction(y: NDArray[Any]) -> bool:
     """Whether any value is non-integral. Real-valued targets almost always show it in the first few values,
     so a short leading chunk is checked before the whole array."""
     flat = y.ravel()
+    if flat.dtype.kind == "f" and not np.all(np.isfinite(flat)):
+        return True  # NaN / infinity: not integer labels (finiteness is checked and reported elsewhere)
     head = flat[:1024]
     if not np.all(np.mod(head, 1) == 0):
         return True
@@ -188,7 +208,7 @@ def validate_probabilities(
 ) -> FloatArray:
     """Probabilities in [0, 1]. For multiclass (2-D), one column per class and rows summing to 1.
     Multilabel probabilities are independent per label (``rows_sum_to_one=False``)."""
-    p = to_numpy(y_prob, name, allow_2d=True).astype(np.float64, copy=False)
+    p = numeric(to_numpy(y_prob, name, allow_2d=True), name)
     check_finite(p, name)
     if p.shape[0] != n:
         raise InputValidationError(

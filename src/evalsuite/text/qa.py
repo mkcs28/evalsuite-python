@@ -36,6 +36,8 @@ def normalize_answers(texts: list[str]) -> list[str]:
 
 def normalize_answer(text: str) -> str:
     """SQuAD normalization: lowercase, drop punctuation and the articles a/an/the, collapse whitespace."""
+    if not isinstance(text, str):
+        raise InputValidationError(f"normalize_answer takes one string; got {type(text).__name__}.")
     text = text.lower()
     text = "".join(ch for ch in text if ch not in _PUNCT)
     text = _ARTICLES.sub(" ", text)

@@ -17,6 +17,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import bools, by_group, floats, group_agreement, rate, same_length, seq
 
 __all__ = [
@@ -106,7 +107,7 @@ def language_id_accuracy(true_languages: Any, predicted_languages: Any) -> Metri
 
 
 def _unit(x: Any, name: str) -> np.ndarray:
-    a = np.asarray(x, dtype=np.float64)
+    a = numeric(x, "x")
     if a.ndim != 2 or a.shape[0] < 2:
         raise InputValidationError(f"{name} must be a 2-D array with at least two rows (one per sentence).")
     if not np.all(np.isfinite(a)):

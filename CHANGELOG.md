@@ -6,6 +6,41 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-28
+
+Smoother, cleaner and easier to keep tidy. Results are unchanged.
+
+### Added
+
+- **Cache management.** One cache folder (`EVALSUITE_CACHE`, else the platform cache directory) for downloaded
+  benchmark data (`load_benchmark` now downloads there by default) and the update-check record.
+  `es.cache_info()` / `es.clear_cache(older_than=, max_size=, dry_run=)` and `evalsuite cache info|clear`.
+- **Automatic cache clearing**, at most once a day in a background thread after import: entries unused for 90
+  days, then the least recently used until the cache is below 2 GB (`EVALSUITE_CACHE_MAX_AGE`,
+  `EVALSUITE_CACHE_MAX_SIZE`, `EVALSUITE_CACHE_AUTO_CLEAN=0`). Whole entries only, renamed out of the way before
+  deletion so an interrupted run never leaves half a download; folders without EvalSuite's marker file are
+  never touched.
+
+### Fixed
+
+- Package-wide fuzz of every public function: non-numeric values (strings, None) in numeric arguments raised a
+  raw `ValueError("could not convert string to float")` in about 30 functions; they now raise
+  `InputValidationError` naming the argument and the offending value.
+- Clear errors for wrong argument types: `compare` given an array instead of a dict of models, `ranking_report`
+  given arrays, sample-size functions given arrays, `list_metrics` given a non-string, `normalize_answer`,
+  `extract_json` and `format_multiple_choice` given non-strings, tool-call metrics given numeric matrices.
+- `evaluate` with infinite or NaN labels no longer emits a NumPy `RuntimeWarning` before its error.
+- The type checker reports no issues.
+
+### Changed
+
+- Wheels exclude `__pycache__`, `.pyc` files and any stray local build of the compiled core. Wheel sizes are
+  unchanged (about 0.75–1.06 MB per platform, 0.41 MB pure Python): the package already shipped no tests,
+  notebooks, benchmark data or duplicate files.
+- A test checks that each feature area (text, LLM systems, vision, clinical, survival, forecasting, drift,
+  judging, RAG, fairness, multi-label, agreement, Bayesian, recalibration, calibration, reports, cache, CLI)
+  imports without SciPy, pandas, Matplotlib, scikit-learn or PyTorch.
+
 ## [1.3.5] - 2026-11-28
 
 A deep clean of the 1.3 modules and bounded-memory resampling. Results are unchanged except where a bug is

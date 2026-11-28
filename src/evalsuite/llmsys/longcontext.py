@@ -15,6 +15,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import bools, floats, group_agreement, lists_of, ragged_numbers, rate, same_length, seq
 
 __all__ = [
@@ -124,7 +125,7 @@ def retrieval_accuracy_by_length(correct: Any, context_lengths: Any, *, threshol
 )
 def needle_in_haystack(correct: Any, context_lengths: Any, depths: Any) -> MetricResult:
     """``depths``: where the needle was placed, as a fraction of the context in [0, 1]."""
-    c = floats(np.asarray(seq(correct, "correct"), dtype=float), "correct", lo=0, hi=1)
+    c = floats(numeric(seq(correct, "correct"), "correct"), "correct", lo=0, hi=1)
     L = floats(context_lengths, "context_lengths", lo=0)
     d = floats(depths, "depths", lo=0, hi=1)
     same_length(("correct", c), ("context_lengths", L), ("depths", d))
@@ -163,7 +164,7 @@ def needle_in_haystack(correct: Any, context_lengths: Any, depths: Any) -> Metri
 )
 def position_accuracy(correct: Any, positions: Any, *, n_bins: int = 5) -> MetricResult:
     """``positions``: relative position of the relevant passage in [0, 1] (0 = start)."""
-    c = floats(np.asarray(seq(correct, "correct"), dtype=float), "correct", lo=0, hi=1)
+    c = floats(numeric(seq(correct, "correct"), "correct"), "correct", lo=0, hi=1)
     p = floats(positions, "positions", lo=0, hi=1)
     same_length(("correct", c), ("positions", p))
     if isinstance(n_bins, bool) or not isinstance(n_bins, int) or n_bins < 2:
@@ -191,7 +192,7 @@ def position_accuracy(correct: Any, positions: Any, *, n_bins: int = 5) -> Metri
     higher_is_better=False,
 )
 def lost_in_the_middle(correct: Any, positions: Any, *, edge: float = 0.2) -> MetricResult:
-    c = floats(np.asarray(seq(correct, "correct"), dtype=float), "correct", lo=0, hi=1)
+    c = floats(numeric(seq(correct, "correct"), "correct"), "correct", lo=0, hi=1)
     p = floats(positions, "positions", lo=0, hi=1)
     same_length(("correct", c), ("positions", p))
     if not 0 < edge < 0.5:

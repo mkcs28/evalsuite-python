@@ -99,6 +99,10 @@ def register(
 
 def list_metrics(category: Optional[str] = None) -> list[str]:
     """Sorted metric ids, optionally filtered by category (``"classification"``, ``"regression"``)."""
+    if category is not None and not isinstance(category, str):
+        from .exceptions import InputValidationError
+
+        raise InputValidationError(f"category must be a name such as 'classification'; got {category!r}.")
     _load_all()
     return sorted(k for k, v in _REGISTRY.items() if category is None or v.category == category)
 

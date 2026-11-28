@@ -19,6 +19,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import bools, floats, group_agreement, lists_of, rate, same_length, seq
 
 __all__ = [
@@ -448,12 +449,9 @@ def prompt_sensitivity(correct_by_template: Any) -> MetricResult:
     under every template; or a 2-D array (templates × examples)."""
     if isinstance(correct_by_template, Mapping):
         names = [str(k) for k in correct_by_template]
-        mat = [
-            floats(np.asarray(v, dtype=float), f"correct_by_template[{k!r}]")
-            for k, v in correct_by_template.items()
-        ]
+        mat = [floats(numeric(v, "v"), f"correct_by_template[{k!r}]") for k, v in correct_by_template.items()]
     else:
-        arr = np.asarray(correct_by_template, dtype=float)
+        arr = numeric(correct_by_template, "correct_by_template")
         if arr.ndim != 2:
             raise InputValidationError(
                 "correct_by_template must be a mapping or a 2-D array (templates × examples)."
@@ -495,7 +493,7 @@ def prompt_sensitivity(correct_by_template: Any) -> MetricResult:
     higher_is_better=True,
 )
 def truncation_sensitivity(correct: Any, context_lengths: Any) -> MetricResult:
-    c = floats(np.asarray(seq(correct, "correct"), dtype=float), "correct")
+    c = floats(numeric(seq(correct, "correct"), "correct"), "correct")
     lens = floats(context_lengths, "context_lengths", lo=1)
     same_length(("correct", c), ("context_lengths", lens))
     levels = np.unique(lens)

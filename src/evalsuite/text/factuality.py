@@ -18,6 +18,7 @@ import numpy as np
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ..llmsys._common import ragged_numbers
 from ._common import per_item
 
@@ -200,7 +201,7 @@ def groundedness(support_scores: Any, *, average: Optional[str] = "macro") -> Me
             sums.append(float(total))
             counts.append(m)
     for i, a in enumerate(answers if native is None else ()):
-        arr = np.asarray(list(a), dtype=float)
+        arr = numeric(list(a), "support_scores")
         if arr.size and (not np.all(np.isfinite(arr)) or arr.min() < 0 or arr.max() > 1):
             raise InputValidationError(f"support_scores[{i}] must be finite values in [0, 1].")
         sums.append(float(arr.sum()))
@@ -424,13 +425,13 @@ def answer_relevance(
 ) -> MetricResult:
     """Answer relevance from embeddings: ``question_embeddings`` is ``(n, dim)``; ``generated_question_embeddings``
     holds, per answer, a ``(k, dim)`` array of embeddings of questions an LLM regenerated from the answer."""
-    q = np.asarray(question_embeddings, dtype=float)
+    q = numeric(question_embeddings, "question_embeddings")
     gens = list(generated_question_embeddings)
     if q.ndim != 2 or len(gens) != q.shape[0] or q.shape[0] == 0:
         raise InputValidationError("question_embeddings must be (n, dim) with one generated set per question.")
     scores = np.empty(q.shape[0])
     for i, g in enumerate(gens):
-        ga = np.atleast_2d(np.asarray(g, dtype=float))
+        ga = np.atleast_2d(numeric(g, "g"))
         if ga.shape[1] != q.shape[1] or ga.shape[0] == 0:
             raise InputValidationError(f"generated_question_embeddings[{i}] must be (k, {q.shape[1]}).")
         qn, gn = np.linalg.norm(q[i]), np.linalg.norm(ga, axis=1)

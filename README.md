@@ -13,11 +13,15 @@ evaluation into one consistent, validated, documented framework.
 > **On an older version? Upgrade once:** `pip install -U evalsuite-python`. From 1.1.2 on, EvalSuite tells you
 > when a newer release is out (`evalsuite upgrade`).
 
-> **Status: stable (1.3.5).** [Example notebooks](notebooks/README.md) (Colab) ·
+> **Status: stable (1.4.0).** [Example notebooks](notebooks/README.md) (Colab) ·
 > [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
 
 **What's new**
 
+- **1.4** — a cache you can see and clear (`evalsuite cache info` / `clear`), cleared automatically (unused for
+  90 days or beyond 2 GB); a package-wide fuzz: non-numeric input now raises a clear `InputValidationError`
+  naming the argument in every function, and wrong argument types are explained; every feature area loads
+  without SciPy, pandas or Matplotlib until used.
 - **1.3.5** — a deep clean of the 1.3 modules (ranking counts a document once and rejects NaN scores, temperature
   scaling maps string labels to the right columns, clearer errors on degenerate data, `to_html` on every report)
   and bounded memory: bootstrap intervals on 100,000 rows peak at about 90 MB instead of 1.6 GB, with identical
@@ -523,7 +527,7 @@ scripts, no external requests).
 ## Evaluation in pull requests
 
 ```yaml
-- uses: mkcs28/evalsuite-python@v1.3.5
+- uses: mkcs28/evalsuite-python@v1.4.0
   with:
     predictions: predictions.csv
     y-true: label
@@ -567,6 +571,19 @@ computed with EvalSuite's metrics, so plots and tables always agree. Several mod
 Every result (`evaluate`, `classification_report`, `compare`, single metrics) exports to `summary()`,
 `to_json()`, `to_csv()`, `to_dataframe()`, `to_markdown()`, `to_latex()` and `to_html()`, and `save(path)` picks
 the format from the extension. HTML pages are standalone (inline CSS, no scripts) and escape all text.
+
+## Cache
+
+```python
+es.cache_info()  # where EvalSuite keeps downloaded benchmark data, and how much
+es.clear_cache(older_than="30d")  # or es.clear_cache() for everything
+```
+
+`evalsuite cache info` and `evalsuite cache clear [--older-than 30d] [--max-size 1GB] [--dry-run]` do the same
+from the shell. The cache is also cleared automatically, at most once a day in the background: entries unused
+for 90 days go, then the least recently used until it is under 2 GB. Change this with `EVALSUITE_CACHE_MAX_AGE`
+and `EVALSUITE_CACHE_MAX_SIZE`, turn it off with `EVALSUITE_CACHE_AUTO_CLEAN=0`, and move the folder with
+`EVALSUITE_CACHE`. Only folders EvalSuite created are ever touched.
 
 ## Command line
 

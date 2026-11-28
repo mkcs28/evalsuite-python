@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 from .core.exceptions import InputValidationError, StatisticalTestError
+from .core.validation import numeric
 
 __all__ = ["Calibrator", "recalibrate"]
 
@@ -113,7 +114,7 @@ class Calibrator:
         return self.transform(y_prob)
 
     def transform(self, y_prob: Any) -> np.ndarray:
-        p = np.asarray(y_prob, dtype=np.float64)
+        p = numeric(y_prob, "y_prob")
         if not np.all(np.isfinite(p)) or np.any((p < 0) | (p > 1)):
             raise InputValidationError("Probabilities must be finite and within [0, 1].")
         m = self.method
@@ -153,7 +154,7 @@ class Calibrator:
 
 def _binary_inputs(y_true: Any, y_prob: Any, sample_weight: Any, pos_label: Any) -> tuple[np.ndarray, ...]:
     y = np.asarray(y_true)
-    p = np.asarray(y_prob, dtype=np.float64)
+    p = numeric(y_prob, "y_prob")
     if y.ndim != 1 or p.ndim != 1 or y.size != p.size:
         raise InputValidationError(f"y_true and y_prob must be 1-D of equal length; got {y.shape} and {p.shape}.")
     if y.size < 2:
@@ -193,7 +194,7 @@ def recalibrate(
 
     if method not in _METHODS:
         raise InputValidationError(f"method must be one of {', '.join(_METHODS)}; got {method!r}.")
-    p_all = np.asarray(y_prob, dtype=np.float64)
+    p_all = numeric(y_prob, "y_prob")
     if method == "temperature" and p_all.ndim == 2:
         y = np.asarray(y_true)
         if p_all.shape[0] != y.size or not np.all(np.isfinite(p_all)):

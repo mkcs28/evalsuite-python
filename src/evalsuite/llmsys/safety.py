@@ -19,6 +19,7 @@ from .._native import core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import bools, by_group, floats, lists_of, ragged_numbers, rate, same_length, seq, wilson
 
 __all__ = [
@@ -298,7 +299,7 @@ def stereotype_preference(
 
 
 def _unit(x: Any, name: str) -> np.ndarray:
-    a = np.asarray(x, dtype=np.float64)
+    a = numeric(x, "x")
     if a.ndim != 2 or a.shape[0] < 1:
         raise InputValidationError(f"{name} must be a 2-D array (one embedding per row).")
     if not np.all(np.isfinite(a)):

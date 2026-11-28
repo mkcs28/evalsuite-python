@@ -31,6 +31,7 @@ from ..core.exceptions import InputValidationError
 from ..core.export import PathLike, csv_text, html_document, html_table, save_as
 from ..core.registry import register
 from ..core.result import MetricResult, _fmt, _json_safe, _latex_escape, _latex_table
+from ..core.validation import numeric
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -63,7 +64,7 @@ _COCO_IOUS = np.linspace(0.5, 0.95, 10)
 
 # ---- boxes -----------------------------------------------------------------------------------------
 def _to_xyxy(boxes: Any, fmt: BoxFormat, name: str) -> NDArray[np.float64]:
-    b = np.asarray(boxes, dtype=np.float64)
+    b = numeric(boxes, "boxes")
     if b.size == 0:
         return np.zeros((0, 4))
     if b.ndim != 2 or b.shape[1] != 4:
@@ -83,7 +84,7 @@ def _to_xyxy(boxes: Any, fmt: BoxFormat, name: str) -> NDArray[np.float64]:
         raise InputValidationError("box_format must be 'xyxy', 'xywh' or 'cxcywh'.")
     if np.any(out[:, 2] < out[:, 0]) or np.any(out[:, 3] < out[:, 1]):
         raise InputValidationError(f"{name} has boxes with negative width or height (check box_format).")
-    return np.asarray(out, dtype=np.float64)
+    return numeric(out, "out")
 
 
 def _count(n: int, noun: str) -> str:
