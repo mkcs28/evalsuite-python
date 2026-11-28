@@ -8,6 +8,7 @@ pip install evalsuite-python
 
 ```python
 import evalsuite as es
+
 result = es.evaluate(y_true, y_pred, y_prob=y_prob)
 print(result.summary())
 ```
