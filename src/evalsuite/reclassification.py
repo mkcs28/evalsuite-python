@@ -90,6 +90,10 @@ class ReclassificationResult:
     table: Optional[dict[str, Any]]
     settings: dict[str, Any]
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __getitem__(self, name: str) -> dict[str, Any]:
         for r in self.rows:
             if r["name"] == name:
@@ -234,6 +238,10 @@ class ExternalValidation:
     rows: tuple[dict[str, Any], ...]
     recalibration: dict[str, Any]
     settings: dict[str, Any]
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     def summary(self, *, digits: int = 3) -> str:
         d = digits

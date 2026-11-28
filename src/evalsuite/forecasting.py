@@ -286,6 +286,10 @@ class ForecastReport:
     rows: tuple[dict[str, Any], ...]
     settings: Mapping[str, Any]
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def best(self, metric: str = "mase") -> str:
         key = metric if any(metric in r for r in self.rows) else "mae"
         return str(min(self.rows, key=lambda r: r[key])["model"])

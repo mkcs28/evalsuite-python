@@ -106,6 +106,10 @@ class ReportCard:
 
     # ----------------------------------------------------------------------------------------------- text
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def paragraph(self, *, digits: int = 3) -> str:
         """A results paragraph in the style of a methods/results section."""
         s, d = self.settings, digits

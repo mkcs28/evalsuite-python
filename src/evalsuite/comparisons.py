@@ -227,6 +227,10 @@ class NemenyiResult:
     n_datasets: int
     alpha: float
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def ranking(self) -> list[tuple[str, float]]:
         return sorted(zip(self.models, self.average_ranks), key=lambda x: x[1])
 

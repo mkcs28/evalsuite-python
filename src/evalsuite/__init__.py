@@ -184,6 +184,17 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         format_multiple_choice,
         load_benchmark,
     )
+    from .llm_eval import (
+        AgentReport,
+        ContaminationReport,
+        ConversationReport,
+        CostQualityReport,
+        agent_report,
+        contamination_check,
+        conversation_report,
+        cost_quality_report,
+        run_model,
+    )
     from .llmsys import *
     from .monitor import (
         Alert,
@@ -461,6 +472,17 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "ReclassificationResult",
         "external_validation",
         "reclassification",
+    ),
+    ".llm_eval": (
+        "AgentReport",
+        "ContaminationReport",
+        "ConversationReport",
+        "CostQualityReport",
+        "agent_report",
+        "contamination_check",
+        "conversation_report",
+        "cost_quality_report",
+        "run_model",
     ),
     ".fairness": (
         "FairnessReport",
@@ -748,6 +770,7 @@ _LAZY: dict[str, str] = {name: mod for mod, names in _EXPORTS.items() for name i
 _LAZY.update({"UpdateInfo": "._update", "check_for_update": "._update", "upgrade": "._update"})
 
 __all__ = [
+    "AgentReport",
     "Alert",
     "AutoReport",
     "BENCHMARKS",
@@ -761,6 +784,9 @@ __all__ = [
     "ConfidenceInterval",
     "ConformalIntervals",
     "ConformalSets",
+    "ContaminationReport",
+    "ConversationReport",
+    "CostQualityReport",
     "DatasetCard",
     "DecisionCurve",
     "DetectionReport",
@@ -810,6 +836,7 @@ __all__ = [
     "adjusted_r2",
     "adversarial_robustness",
     "agent_cost_per_task",
+    "agent_report",
     "answer_correctness",
     "answer_relevance",
     "api_call_success_rate",
@@ -868,11 +895,14 @@ __all__ = [
     "conformal_regression",
     "confusion_matrix",
     "constraint_satisfaction_rate",
+    "contamination_check",
     "context_precision",
     "context_recall",
     "context_relevance",
     "context_utilization",
     "contradiction_rate",
+    "conversation_report",
+    "cost_quality_report",
     "coverage_at_risk",
     "coverage_rate",
     "cramers_v",
@@ -1066,6 +1096,7 @@ __all__ = [
     "rse",
     "rubric_report",
     "rubric_score",
+    "run_model",
     "runtime_efficiency",
     "sample_size_auc",
     "sample_size_mean_difference",

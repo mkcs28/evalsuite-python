@@ -161,6 +161,10 @@ class LeakageReport:
     settings: Mapping[str, Any]
 
     @property
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def leaked_rows(self) -> list[int]:
         """Test rows affected by any duplicate or shared-identifier finding (sorted)."""
         rows: set[int] = set()
@@ -379,6 +383,10 @@ class LabelIssues:
     confident_joint: np.ndarray
     n: int
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def summary(self) -> str:
         lines = [
             f"Label issues (confident learning): {self.indices.size} of {self.n} examples "
@@ -471,6 +479,10 @@ class DatasetCard:
     target: Optional[dict[str, Any]]
     groups: dict[str, dict[str, int]]
     duplicates: int
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     def summary(self) -> str:
         lines = [f"Data set: {self.n} rows, {len(self.columns)} columns, {self.duplicates} duplicate rows"]

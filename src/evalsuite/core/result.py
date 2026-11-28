@@ -78,6 +78,10 @@ class MetricResult:
     params: Mapping[str, Any] = field(default_factory=dict)
     labels: Optional[tuple[Any, ...]] = None
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __post_init__(self) -> None:
         if isinstance(self.value, np.ndarray):
             arr = np.array(self.value, dtype=np.float64)
@@ -222,6 +226,10 @@ class EvaluationResult(Mapping[str, MetricResult]):
     #: Paired comparison with the baseline (``evaluate(..., baseline_pred=...)``), or the bootstrap used for the
     #: intervals (``ci="bootstrap"``); a :class:`~evalsuite.ComparisonResult`.
     comparison: Optional[Any] = None
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metrics", MappingProxyType(dict(self.metrics)))

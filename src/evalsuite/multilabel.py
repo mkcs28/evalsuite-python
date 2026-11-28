@@ -154,6 +154,10 @@ class MultilabelReport:
     labels: tuple[dict[str, Any], ...]
     settings: Mapping[str, Any]
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __getitem__(self, name: str) -> float:
         return float(self.metrics[name]["value"])
 
@@ -335,6 +339,10 @@ class RankingReport:
     systems: tuple[dict[str, Any], ...]
     per_query: Mapping[str, Mapping[str, Mapping[str, float]]]
     settings: Mapping[str, Any]
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     def best(self, metric: str = "ndcg") -> str:
         return str(max(self.systems, key=lambda s: s[metric]["value"])["system"])

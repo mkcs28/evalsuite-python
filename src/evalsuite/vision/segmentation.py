@@ -846,6 +846,10 @@ class SegmentationReport:
     rows: tuple[Any, ...]
     params: Any = field(default_factory=dict)
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "values", MappingProxyType(dict(self.values)))
         object.__setattr__(self, "rows", tuple(MappingProxyType(dict(r)) for r in self.rows))

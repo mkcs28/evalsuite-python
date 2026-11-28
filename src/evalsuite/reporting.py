@@ -32,6 +32,10 @@ class ClassificationReport:
     n_samples: int
     params: Any = field(default_factory=dict)
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "rows", tuple(MappingProxyType(dict(r)) for r in self.rows))
         object.__setattr__(self, "summary_rows", tuple(MappingProxyType(dict(r)) for r in self.summary_rows))

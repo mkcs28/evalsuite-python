@@ -48,6 +48,10 @@ class BayesComparison:
     samples: np.ndarray = field(repr=False)
 
     @property
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def p_rope_or_better(self) -> float:
         """Probability that A is not practically worse than B (non-inferiority)."""
         return self.p_a_better + self.p_rope
