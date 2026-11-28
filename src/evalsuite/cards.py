@@ -4,7 +4,9 @@
 prediction-model paper to report about performance (sample size and outcome events; discrimination; calibration
 in the large, slope and plot-free summaries; classification at a threshold; clinical utility by net benefit;
 performance in subgroups) with confidence intervals, writes it up as a results paragraph and a table, and lists
-which checklist items are covered and which need your own text. ``standard="model-card"`` produces the sections of
+which checklist items are covered and which need your own text. ``standard="stard"`` (STARD 2015, diagnostic
+accuracy studies) and ``standard="consort-ai"`` (CONSORT-AI, trials of AI interventions) fill in those checklists'
+results items the same way. ``standard="model-card"`` produces the sections of
 a model card (Mitchell et al., FAT* 2019) with the quantitative analyses filled in and the narrative sections
 taken from ``context``.
 
@@ -40,6 +42,33 @@ _TRIPOD_ITEMS = [
     ("12", "Description of how missing data were handled", None),
     ("8", "Definition and timing of the outcome", None),
 ]
+
+_STARD_ITEMS = [
+    ("20", "Baseline characteristics: numbers with and without the target condition", "n"),
+    ("23", "Cross tabulation of the index test results by the reference standard (2×2 table)", "threshold"),
+    ("24", "Estimates of diagnostic accuracy and their precision (sensitivity, specificity, 95% CIs)", "threshold"),
+    ("24b", "Discrimination across thresholds (ROC AUC) with confidence interval", "roc_auc"),
+    ("24c", "Accuracy in clinically relevant subgroups", "subgroups"),
+    ("19", "Flow of participants (diagram)", None),
+    ("21a", "Distribution of severity of disease in those with the target condition", None),
+    ("25", "Adverse events from performing the index test or the reference standard", None),
+]
+
+_CONSORT_AI_ITEMS = [
+    ("17a", "Results for each outcome with the estimated effect size and its precision (95% CI)", "roc_auc"),
+    ("17a-ii", "Classification performance at the operating threshold used in the trial", "threshold"),
+    ("17a-iii", "Calibration of the AI system's risk estimates", "calibration"),
+    ("19-AI", "Analysis of performance errors and how they were identified (e.g. by subgroup)", "subgroups"),
+    ("5-AI(iii)", "How poor quality or unavailable input data were assessed and handled", None),
+    ("5-AI(vi)", "Human–AI interaction and the expertise required of users", None),
+    ("25-AI", "Whether and how the AI intervention and its code can be accessed", None),
+]
+
+_STANDARDS = {
+    "tripod-ai": ("Model performance (TRIPOD+AI)", _TRIPOD_ITEMS),
+    "stard": ("Diagnostic accuracy (STARD 2015)", _STARD_ITEMS),
+    "consort-ai": ("AI intervention performance (CONSORT-AI)", _CONSORT_AI_ITEMS),
+}
 
 _CARD_SECTIONS = [
     ("model_details", "Model details"),
@@ -148,9 +177,17 @@ class ReportCard:
                 else:
                     out.append(self.sections.get(key, "_To be completed._") + "\n")
             return "\n".join(out).rstrip() + "\n"
-        out.append("## Model performance (TRIPOD+AI)\n")
+        out.append(f"## {_STANDARDS[self.standard][0]}\n")
         out.append(self.paragraph(digits=digits) + "\n")
         out.append(self._md_table(digits, pct))
+        conf = self.settings.get("confusion")
+        if self.standard == "stard" and conf:
+            out.append(
+                "\n| Index test \\ Reference | Positive | Negative | Total |\n| --- | ---: | ---: | ---: |\n"
+                f"| Positive | {conf['tp']} | {conf['fp']} | {conf['tp'] + conf['fp']} |\n"
+                f"| Negative | {conf['fn']} | {conf['tn']} | {conf['fn'] + conf['tn']} |\n"
+                f"| Total | {conf['tp'] + conf['fn']} | {conf['fp'] + conf['tn']} | {sum(conf.values())} |"
+            )
         if self.subgroups:
             out.append("\n" + self._md_subgroups(digits))
         out.append("\n### Checklist\n")
@@ -233,7 +270,7 @@ class ReportCard:
             raise OptionalDependencyError("python-docx", "docx", "ReportCard.to_docx") from exc
         doc = docx.Document()
         doc.add_heading(
-            "Model card" if self.standard == "model-card" else "Model performance (TRIPOD+AI)", level=1
+            "Model card" if self.standard == "model-card" else _STANDARDS[self.standard][0], level=1
         )
         if self.standard == "model-card":
             for key, title in _CARD_SECTIONS:
@@ -269,7 +306,8 @@ def report_card(
     n_resamples: int = 1000,
     random_state: Optional[int] = 0,
 ) -> ReportCard:
-    """Performance section for a reporting standard (``"tripod-ai"`` or ``"model-card"``) from a binary outcome
+    """Performance section for a reporting standard (``"tripod-ai"``, ``"stard"`` for diagnostic accuracy studies,
+    ``"consort-ai"`` for trials of AI interventions, or ``"model-card"``) from a binary outcome
     and predicted risks. ``groups`` adds a subgroup (fairness) table; ``context`` supplies the narrative sections
     of a model card (keys: model_details, intended_use, factors, metrics, evaluation_data, training_data,
     ethical_considerations, caveats). Intervals: DeLong for ROC AUC, Wilson for proportions, bootstrap (seeded)
@@ -286,8 +324,8 @@ def report_card(
         roc_auc_ci,
     )
 
-    if standard not in ("tripod-ai", "model-card"):
-        raise InputValidationError("standard must be 'tripod-ai' or 'model-card'.")
+    if standard not in (*_STANDARDS, "model-card"):
+        raise InputValidationError("standard must be 'tripod-ai', 'stard', 'consort-ai' or 'model-card'.")
     if not 0 < threshold < 1:
         raise InputValidationError("threshold must be in (0, 1).")
     yt = np.asarray(y_true)
@@ -394,7 +432,7 @@ def report_card(
             "covered": bool(covered.get(k, False)) if k else False,
             "needs_text": k is None,
         }
-        for item, text, k in _TRIPOD_ITEMS
+        for item, text, k in _STANDARDS.get(standard, _STANDARDS["tripod-ai"])[1]
     ]
     ctx = dict(context or {})
     sections = {key: ctx[key] for key, _ in _CARD_SECTIONS if key in ctx}
@@ -423,5 +461,6 @@ def report_card(
             "n_resamples": n_resamples,
             "random_state": random_state,
             "roc_auc": float(roc_auc(y, y_prob=p)),
+            "confusion": {"tp": tp, "fp": fp, "fn": fn_, "tn": tn},
         },
     )
