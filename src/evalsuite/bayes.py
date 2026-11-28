@@ -124,6 +124,35 @@ def _decide(diff: np.ndarray, rope: tuple[float, float], better_sign: float) -> 
     return p_a, p_rope, float(1.0 - p_a - p_rope)
 
 
+def _curve_fast_path(
+    fn: Callable[..., Any], y: np.ndarray, a: np.ndarray, b: np.ndarray, kwargs: dict[str, Any]
+) -> Optional[Callable[[np.ndarray], np.ndarray]]:
+    """For binary ROC AUC and average precision: a function of the weight matrix (draws × examples) giving the
+    posterior differences, from :func:`evalsuite.stats.intervals._weighted_curves`; None for other metrics."""
+    from .classification.metrics import average_precision, roc_auc
+    from .stats._resolve import MetricCall
+    from .stats.intervals import _weighted_curves
+
+    if fn not in (roc_auc, average_precision):
+        return None
+    try:
+        ia = MetricCall(fn, y, None, a, None, dict(kwargs))._curve_inputs()
+        ib = MetricCall(fn, y, None, b, None, dict(kwargs))._curve_inputs()
+    except EvalSuiteError:
+        return None
+    if ia is None or ib is None:
+        return None
+    rows = np.arange(y.shape[0])
+    is_auc = fn is roc_auc
+
+    def run(weights: np.ndarray) -> np.ndarray:
+        va = _weighted_curves(is_auc, ia[1], ia[2], None, rows, weights)
+        vb = _weighted_curves(is_auc, ib[1], ib[2], None, rows, weights)
+        return np.asarray(va - vb)
+
+    return run
+
+
 def bayes_compare(
     y_true: Any,
     pred_a: Any,
@@ -181,7 +210,13 @@ def bayes_compare(
     rng = np.random.default_rng(random_state)
     diff = np.empty(n_samples)
     failed = 0
-    for s in range(n_samples):
+    fast = _curve_fast_path(fn, y, a, b, metric_kwargs) if prob and "sample_weight" not in metric_kwargs else None
+    if fast is not None:  # ROC AUC / average precision: all draws at once from one sort per model
+        weights = np.vstack([rng.gamma(1.0, 1.0, n) for _ in range(n_samples)])
+        weights *= n / weights.sum(axis=1, keepdims=True)
+        diff = fast(weights)
+        failed = int(np.sum(~np.isfinite(diff)))
+    for s in range(n_samples if fast is None else 0):
         w = rng.gamma(1.0, 1.0, n)
         w *= n / w.sum()
         try:

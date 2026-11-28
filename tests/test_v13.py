@@ -284,3 +284,42 @@ def test_ranking_report_trec_conventions():
     json.loads(rep.to_json())
     with pytest.raises(es.InputValidationError, match="primary"):
         es.ranking_report(qrels, {"a": run_a}, primary="nope")
+
+
+# ------------------------------------------------------------------------------------ speed and inputs
+
+
+def test_bayes_curve_fast_path_equals_weighted_loop(monkeypatch):
+    from evalsuite import bayes
+
+    rng = np.random.default_rng(5)
+    y = rng.integers(0, 2, 200)
+    pa, pb = np.round(rng.random(200), 2), np.round(rng.random(200), 2)
+    for metric in ("roc_auc", "average_precision"):
+        fast = es.bayes_compare(y, pa, pb, metric=metric, n_samples=200, random_state=1)
+        with monkeypatch.context() as m:
+            m.setattr(bayes, "_curve_fast_path", lambda *a: None)
+            slow = es.bayes_compare(y, pa, pb, metric=metric, n_samples=200, random_state=1)
+        np.testing.assert_allclose(fast.samples, slow.samples, atol=1e-12)
+
+
+def test_multilabel_bootstrap_resamples_examples():
+    rng = np.random.default_rng(2)
+    Y = (rng.random((60, 4)) < 0.3).astype(int)
+    S = np.clip(Y * 0.4 + rng.random((60, 4)), 0, 1)
+    rep = es.multilabel_report(Y, y_score=S, n_resamples=300, random_state=0)
+    for name, m in rep.metrics.items():
+        assert m["low"] <= m["high"], name
+    assert rep.metrics["micro_f1"]["low"] < rep["micro_f1"] < rep.metrics["micro_f1"]["high"]
+
+
+@pytest.mark.parametrize("lib", ["polars", "pyarrow"])
+def test_dataframe_libraries_as_inputs(lib):
+    mod = pytest.importorskip(lib)
+    if lib == "polars":
+        series, table = mod.Series, lambda d: mod.DataFrame(d)
+    else:
+        series, table = mod.array, mod.table
+    assert es.accuracy(series([0, 1, 1, 0]), series([0, 1, 0, 0])).value == 0.75
+    data = {"a": [1.0, 2.0, 3.0, 4.0, 5.0], "b": ["x", "y", "x", "y", "x"]}
+    assert es.drift_report(table(data), table(data)).drifted() == []

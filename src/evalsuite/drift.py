@@ -32,7 +32,9 @@ __all__ = ["DriftReport", "drift_report"]
 
 
 def _columns(data: Any, names: Optional[Sequence[str]]) -> dict[str, np.ndarray]:
-    if hasattr(data, "columns") and hasattr(data, "__getitem__") and not isinstance(data, np.ndarray):
+    if hasattr(data, "column_names") and hasattr(data, "column"):  # pyarrow Table / RecordBatch
+        cols = {str(c): np.asarray(data.column(c).to_numpy(zero_copy_only=False)) for c in data.column_names}
+    elif hasattr(data, "columns") and hasattr(data, "__getitem__") and not isinstance(data, np.ndarray):
         cols = {str(c): np.asarray(data[c]) for c in data.columns}  # pandas / polars
     elif isinstance(data, Mapping):
         cols = {str(k): np.asarray(v) for k, v in data.items()}
@@ -234,8 +236,12 @@ def drift_report(
 
     if not 0 < alpha < 1:
         raise InputValidationError("alpha must be in (0, 1).")
-    ref = _columns(reference, features if not hasattr(reference, "columns") else None)
-    cur = _columns(current, features if not hasattr(current, "columns") else None)
+
+    def tabular(x: Any) -> bool:
+        return hasattr(x, "columns") or hasattr(x, "column_names") or isinstance(x, Mapping)
+
+    ref = _columns(reference, None if tabular(reference) else features)
+    cur = _columns(current, None if tabular(current) else features)
     names = [f for f in (features or list(ref)) if f in ref]
     missing_cols = [f for f in names if f not in cur]
     if missing_cols:

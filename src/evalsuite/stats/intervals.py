@@ -279,7 +279,7 @@ def _weighted_curves(
     score: NDArray[np.float64],
     weight: Optional[NDArray[np.float64]],
     cluster_of: NDArray[np.int64],
-    mult: NDArray[np.int64],
+    mult: NDArray[Any],
 ) -> NDArray[np.float64]:
     """Binary ROC AUC or average precision of every cluster resample, from how often each cluster was drawn
     (``mult``, resamples × clusters): a drawn cluster's observations count with that multiplicity, which is the

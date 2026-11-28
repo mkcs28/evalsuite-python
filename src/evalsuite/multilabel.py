@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import math
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -48,72 +49,101 @@ def _prf(tp: np.ndarray, fp: np.ndarray, fn: np.ndarray) -> tuple[np.ndarray, np
     return p, r, f
 
 
-def _label_metrics(Y: np.ndarray, P: np.ndarray) -> dict[str, float]:
-    tp = (Y & P).sum(axis=0).astype(float)
-    fp = (~Y & P).sum(axis=0).astype(float)
-    fn = (Y & ~P).sum(axis=0).astype(float)
-    mp, mr, mf = _prf(tp.sum(keepdims=True), fp.sum(keepdims=True), fn.sum(keepdims=True))
-    lp, lr, lf = _prf(tp, fp, fn)
+def _per_sample(Y: np.ndarray, P: np.ndarray, S: Optional[np.ndarray]) -> dict[str, np.ndarray]:
+    """Per-example quantities whose (weighted) mean is a sample-averaged metric."""
+    n, L = Y.shape
     stp = (Y & P).sum(axis=1).astype(float)
     sfp = (~Y & P).sum(axis=1).astype(float)
     sfn = (Y & ~P).sum(axis=1).astype(float)
     _, _, sf = _prf(stp, sfp, sfn)
     union = (Y | P).sum(axis=1)
-    jac = np.where(union > 0, stp / np.where(union > 0, union, 1), 1.0)
-    return {
-        "subset_accuracy": float(np.mean(np.all(Y == P, axis=1))),
-        "hamming_loss": float(np.mean(Y != P)),
-        "micro_precision": float(mp[0]),
-        "micro_recall": float(mr[0]),
-        "micro_f1": float(mf[0]),
-        "macro_precision": float(lp.mean()),
-        "macro_recall": float(lr.mean()),
-        "macro_f1": float(lf.mean()),
-        "samples_f1": float(sf.mean()),
-        "jaccard_samples": float(jac.mean()),
-    }
-
-
-def _auc(y: np.ndarray, s: np.ndarray) -> float:
-    """ROC AUC of scores (any real values) by the Mann–Whitney rank sum, ties counting one half."""
-    from scipy.stats import rankdata
-
-    npos = int(y.sum())
-    nneg = y.size - npos
-    if npos == 0 or nneg == 0:
-        return math.nan
-    return float((rankdata(s)[y].sum() - npos * (npos + 1) / 2) / (npos * nneg))
-
-
-def _rank_metrics(Y: np.ndarray, S: np.ndarray) -> dict[str, float]:
-    n, L = Y.shape
-    lrap = np.empty(n)
-    cov = np.empty(n)
-    rl = np.empty(n)
-    for i in range(n):
-        y, s = Y[i], S[i]
-        rel = np.flatnonzero(y)
-        # coverage error: depth needed to cover all true labels (ties count against the model)
-        cov[i] = float((s >= s[rel].min()).sum()) if rel.size else 0.0
-        if rel.size == 0 or rel.size == L:
-            lrap[i] = 1.0
-            rl[i] = 0.0
-            continue
-        rank_all = (s[None, :] >= s[rel][:, None]).sum(axis=1)
-        rank_rel = (s[rel][None, :] >= s[rel][:, None]).sum(axis=1)
-        lrap[i] = float(np.mean(rank_rel / rank_all))
-        irr = np.flatnonzero(~y)
-        wrong = (s[rel][:, None] <= s[irr][None, :]).sum()
-        rl[i] = float(wrong) / (rel.size * irr.size)
     out = {
-        "label_ranking_average_precision": float(lrap.mean()),
-        "coverage_error": float(cov.mean()),
-        "ranking_loss": float(rl.mean()),
+        "subset_accuracy": np.all(Y == P, axis=1).astype(float),
+        "hamming_loss": np.mean(Y != P, axis=1),
+        "samples_f1": sf,
+        "jaccard_samples": np.where(union > 0, stp / np.where(union > 0, union, 1), 1.0),
     }
-    aucs = [_auc(Y[:, j], S[:, j]) for j in range(L) if 0 < Y[:, j].sum() < n]
-    out["macro_roc_auc"] = float(np.mean(aucs)) if aucs else math.nan
-    out["micro_roc_auc"] = _auc(Y.ravel(), S.ravel())
+    if S is None:
+        return out
+    nrel = Y.sum(axis=1)
+    lrap = np.ones(n)
+    cov = np.zeros(n)
+    rl = np.zeros(n)
+    step = max(1, int(4_000_000 // max(1, L * L)))
+    for a in range(0, n, step):
+        y, sc = Y[a : a + step], S[a : a + step]
+        ge = sc[:, None, :] >= sc[:, :, None]  # [i, l, m]: score of m ≥ score of l
+        rank_all = ge.sum(axis=2)
+        rank_rel = (ge & y[:, None, :]).sum(axis=2)
+        nr = nrel[a : a + step]
+        ok = (nr > 0) & (nr < L)
+        ratio = np.where(y, rank_rel / rank_all, 0.0).sum(axis=1)
+        lrap[a : a + step] = np.where(ok, ratio / np.where(nr > 0, nr, 1), 1.0)
+        low = np.where(y, sc, np.inf).min(axis=1)
+        cov[a : a + step] = np.where(nr > 0, (sc >= low[:, None]).sum(axis=1), 0.0)
+        wrong = (ge & y[:, :, None] & ~y[:, None, :]).sum(axis=(1, 2))  # relevant l scored ≤ irrelevant m
+        rl[a : a + step] = np.where(ok, wrong / np.where(ok, nr * (L - nr), 1), 0.0)
+    out.update(label_ranking_average_precision=lrap, coverage_error=cov, ranking_loss=rl)
     return out
+
+
+def _all_metrics(Y: np.ndarray, P: np.ndarray, S: Optional[np.ndarray], M: np.ndarray) -> dict[str, np.ndarray]:
+    """Every metric on each row of multiplicities ``M`` (resamples × examples): a resample counts example i
+    M[b, i] times, which equals evaluating the resampled rows."""
+    from .stats.intervals import _weighted_curves
+
+    n, L = Y.shape
+    Mf = M.astype(np.float64)
+    tot = Mf.sum(axis=1)
+    out: dict[str, np.ndarray] = {}
+    for k, v in _per_sample(Y, P, S).items():
+        out[k] = (Mf @ v) / tot
+    tp = Mf @ (Y & P).astype(float)
+    fp = Mf @ (~Y & P).astype(float)
+    fn = Mf @ (Y & ~P).astype(float)
+    mp, mr, mf = _prf(tp.sum(axis=1), fp.sum(axis=1), fn.sum(axis=1))
+    lp, lr, lf = _prf(tp, fp, fn)
+    out.update(
+        micro_precision=mp,
+        micro_recall=mr,
+        micro_f1=mf,
+        macro_precision=lp.mean(axis=1),
+        macro_recall=lr.mean(axis=1),
+        macro_f1=lf.mean(axis=1),
+    )
+    if S is not None:
+        rows = np.arange(n)
+        per_label = [
+            _weighted_curves(True, Y[:, j].astype(float), S[:, j], None, rows, M)
+            for j in range(L)
+            if 0 < Y[:, j].sum() < n
+        ]
+        with np.errstate(invalid="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            out["macro_roc_auc"] = (
+                np.nanmean(np.vstack(per_label), axis=0) if per_label else np.full(M.shape[0], math.nan)
+            )
+        out["micro_roc_auc"] = _weighted_curves(
+            True, Y.ravel().astype(float), S.ravel(), None, np.repeat(rows, L), M
+        )
+    order = [
+        "subset_accuracy",
+        "hamming_loss",
+        "micro_precision",
+        "micro_recall",
+        "micro_f1",
+        "macro_precision",
+        "macro_recall",
+        "macro_f1",
+        "samples_f1",
+        "jaccard_samples",
+        "label_ranking_average_precision",
+        "coverage_error",
+        "ranking_loss",
+        "macro_roc_auc",
+        "micro_roc_auc",
+    ]
+    return {k: out[k] for k in order if k in out}
 
 
 @dataclass(frozen=True)
@@ -209,21 +239,21 @@ def multilabel_report(
     if len(names) != L:
         raise InputValidationError(f"{len(names)} label names for {L} columns.")
 
-    def all_metrics(idx: Optional[np.ndarray]) -> dict[str, float]:
-        y = Y if idx is None else Y[idx]
-        out = _label_metrics(y, P if idx is None else P[idx])
-        if S is not None:
-            out.update(_rank_metrics(y, S if idx is None else S[idx]))
-        return out
-
-    point = all_metrics(None)
+    point = {k: float(v[0]) for k, v in _all_metrics(Y, P, S, np.ones((1, n), dtype=np.int64)).items()}
     rng = np.random.default_rng(random_state)
-    draws = {k: np.empty(n_resamples) for k in point}
-    for b in range(n_resamples):
-        got = all_metrics(np.asarray(rng.integers(0, n, n)))
-        for k in point:
-            draws[k][b] = got.get(k, math.nan)
-    metrics = {k: {"value": v, **dict(zip(("low", "high"), _ci(draws[k], level)))} for k, v in point.items()}
+    draws: dict[str, list[np.ndarray]] = {k: [] for k in point}
+    step = max(1, min(n_resamples, int(2_000_000 // max(1, n))))
+    done = 0
+    while done < n_resamples:
+        rows = min(step, n_resamples - done)
+        idx = rng.integers(0, n, size=(rows, n))
+        mult = np.zeros((rows, n), dtype=np.int64)
+        np.add.at(mult, (np.repeat(np.arange(rows), n), idx.ravel()), 1)
+        for k, v in _all_metrics(Y, P, S, mult).items():
+            draws[k].append(v)
+        done += rows
+    boot = {k: np.concatenate(v) for k, v in draws.items()}
+    metrics = {k: {"value": v, **dict(zip(("low", "high"), _ci(boot[k], level)))} for k, v in point.items()}
     tp = (Y & P).sum(axis=0).astype(float)
     fp = (~Y & P).sum(axis=0).astype(float)
     fn = (Y & ~P).sum(axis=0).astype(float)
