@@ -245,13 +245,13 @@ def multilabel_report(
     step = max(1, min(n_resamples, int(2_000_000 // max(1, n))))
     done = 0
     while done < n_resamples:
-        rows = min(step, n_resamples - done)
-        idx = rng.integers(0, n, size=(rows, n))
-        mult = np.zeros((rows, n), dtype=np.int64)
-        np.add.at(mult, (np.repeat(np.arange(rows), n), idx.ravel()), 1)
+        chunk = min(step, n_resamples - done)
+        idx = rng.integers(0, n, size=(chunk, n))
+        mult = np.zeros((chunk, n), dtype=np.int64)
+        np.add.at(mult, (np.repeat(np.arange(chunk), n), idx.ravel()), 1)
         for k, v in _all_metrics(Y, P, S, mult).items():
             draws[k].append(v)
-        done += rows
+        done += chunk
     boot = {k: np.concatenate(v) for k, v in draws.items()}
     metrics = {k: {"value": v, **dict(zip(("low", "high"), _ci(boot[k], level)))} for k, v in point.items()}
     tp = (Y & P).sum(axis=0).astype(float)

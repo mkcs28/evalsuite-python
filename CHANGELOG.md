@@ -6,6 +6,39 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-28
+
+### Added
+
+- **Calibration suite.** `recalibrate(y, p, method=...)` fits Platt scaling, isotonic regression, temperature
+  scaling (binary or multiclass probability matrices), beta calibration or histogram binning on held-out data
+  and returns a calibrator to apply to new predictions. `calibration_report(..., n_resamples=)` adds percentile
+  bootstrap intervals for the Brier score, ECE, MCE, calibration intercept and slope. Platt and isotonic match
+  scikit-learn.
+- **Multi-label and ranking.** `multilabel_report` (subset accuracy, Hamming loss, micro / macro / sample F1,
+  precision, recall, Jaccard, label-ranking average precision, coverage error, ranking loss, micro / macro ROC
+  AUC, per-label table, bootstrap intervals; values match scikit-learn). `ranking_report` (nDCG@k, AP@k, RR,
+  P@k, R@k per query, matching trec_eval; bootstrap intervals over queries; paired randomization tests against a
+  baseline with Holm adjustment).
+- **Forecasting.** `mase`, `rmsse`, `pinball_loss`, `interval_score`, `msis`, `interval_coverage`, `crps`
+  (ensemble or normal), `diebold_mariano` (Harvey–Leybourne–Newbold correction) and `forecast_report`.
+  Validated against sktime, scikit-learn, properscoring and the dieboldmariano package.
+- **Drift.** `drift_report(reference, current)`: per feature Kolmogorov–Smirnov or chi-square tests,
+  population stability index, Wasserstein (in reference SDs) or Jensen–Shannon distance, missing-rate changes;
+  Holm-adjusted and flagged only when the shift is material. Accepts pandas, Polars and Arrow tables, dicts and
+  arrays.
+- **Agreement studies.** `icc` (all six Shrout–Fleiss / McGraw–Wong forms with F tests and exact or
+  Satterthwaite intervals; wide or long data; matches pingouin), `bland_altman` (bias, limits of agreement with
+  intervals, proportional bias, plot) and `lins_ccc`.
+- **Bayesian comparison.** `bayes_compare` (Bayesian bootstrap posterior of a metric difference; P(A better),
+  P(practically equivalent), P(B better)) and `bayes_correlated_ttest` for cross-validation scores (Benavoli et
+  al. 2017; matches baycomp).
+
+### Changed
+
+- Multi-label metrics and their bootstrap are vectorized (about 12× faster than a per-example loop);
+  Bayesian ROC AUC / average-precision draws are computed all at once.
+
 ## [1.2.1] - 2026-11-26
 
 Faster to import, faster to resample, and a deep clean of the 1.2 modules.
