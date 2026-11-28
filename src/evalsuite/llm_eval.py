@@ -135,7 +135,7 @@ def run_model(
 
         def caller(pr: str) -> dict[str, Any]:
             out = fn(pr)
-            return out if isinstance(out, Mapping) else {"output": str(out)}
+            return dict(out) if isinstance(out, Mapping) else {"output": str(out)}
     else:
         raise InputValidationError("model must be a provider string or a callable.")
     if concurrency < 1 or retries < 0:
@@ -335,7 +335,7 @@ def agent_report(
         if all("cost" in e for e in eps):
             cost = np.array([float(e["cost"]) for e in eps])
             row["total_cost"] = float(cost.sum())
-            row["cost_per_success"] = float(cost.sum() / succ.sum()) if succ.any() else math.inf
+            row["cost_per_success"] = float(cost.sum()) / int(succ.sum()) if succ.any() else math.inf
         if all("latency_s" in e for e in eps):
             lat = np.array([float(e["latency_s"]) for e in eps])
             row["median_latency_s"] = float(np.median(lat))
@@ -552,11 +552,11 @@ class ContaminationReport(_Report):
     rows: tuple[dict[str, Any], ...]
     settings: Mapping[str, Any]
 
-    @property
     def _repr_html_(self) -> str:
         """Rich display in Jupyter and other notebooks."""
         return str(self.to_html())
 
+    @property
     def contaminated(self) -> list[Any]:
         return [r["id"] for r in self.rows if r["contaminated"]]
 

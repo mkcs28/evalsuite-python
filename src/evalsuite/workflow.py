@@ -238,7 +238,7 @@ def _handler_class(base: Any) -> Any:
 
     from .version import __version__
 
-    class Handler(base):  # type: ignore[misc, valid-type]
+    class Handler(base):  # type: ignore[misc, valid-type, unused-ignore]
         server_version = f"EvalSuite/{__version__}"
 
         def _send(self, code: int, payload: Any) -> None:

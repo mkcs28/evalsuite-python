@@ -107,11 +107,11 @@ class ConformalSets:
     by_group: Optional[dict[str, dict[str, Any]]] = None
     by_size: Optional[dict[int, dict[str, Any]]] = None
 
-    @property
     def _repr_html_(self) -> str:
         """Rich display in Jupyter and other notebooks."""
         return str(self.to_html())
 
+    @property
     def sizes(self) -> np.ndarray:
         return np.asarray(self.sets.sum(axis=1))
 
@@ -336,11 +336,11 @@ class ConformalIntervals:
     coverage: Optional[dict[str, Any]] = None
     by_group: Optional[dict[str, dict[str, Any]]] = None
 
-    @property
     def _repr_html_(self) -> str:
         """Rich display in Jupyter and other notebooks."""
         return str(self.to_html())
 
+    @property
     def widths(self) -> np.ndarray:
         return np.asarray(self.upper - self.lower)
 

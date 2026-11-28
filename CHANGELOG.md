@@ -6,6 +6,41 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-28
+
+A major feature release. Existing results are unchanged; every addition is new API.
+
+### Added
+- **Conformal prediction**: `conformal_classification` (LAC, APS, RAPS; per-class or per-group coverage) and
+  `conformal_regression` (absolute, normalized, CQR), with coverage, set-size and width reports.
+- **`evalsuite report data.csv`** / `auto_report`: detects the task and columns and writes a full HTML report.
+- **Data quality**: `leakage_report` (exact / near duplicates, shared IDs, MinHash text near-duplicates, target
+  leakage), `label_issues` (confident learning, matches cleanlab), `dataset_card`.
+- **Checklists**: STARD (with the 2×2 table) and CONSORT-AI, auto-filled like TRIPOD+AI.
+- **Statistics**: `noninferiority_test`, `equivalence_test` (TOST), `nemenyi_test` (matches scikit-posthocs),
+  `ipw_metric`; plots `critical_difference` and `forest`.
+- **Clinical**: `reclassification` (categorical and continuous NRI, IDI) and `external_validation`.
+- **LLM and AI systems**: `run_model` (OpenAI, Anthropic or any callable; on-disk cache, concurrency, retries;
+  keys only from environment variables), `agent_report`, `conversation_report`, `cost_quality_report` with a
+  Pareto front, `contamination_check`.
+- **Workflow**: `log_to_mlflow`, `log_to_wandb`, `record_history` / `check_regression` (`evalsuite history`),
+  `evalsuite serve`, `df.evalsuite` for pandas and Polars, a Dockerfile.
+- **Ease of use**: did-you-mean suggestions for misspelt functions and metrics, `_repr_html_` on every report,
+  `EvalSuiteDeprecationWarning` and a deprecation policy.
+- **Trust and reach**: documentation site (MkDocs), conda recipe, build provenance attestation and CycloneDX
+  SBOM on releases, OpenSSF Scorecard; Hypothesis property tests.
+- The per-metric benchmark now covers the 1.3 and 2.0 functions against pingouin, cleanlab, scikit-posthocs,
+  baycomp, properscoring and scikit-learn.
+
+### Changed
+- Faster, with identical results: isotonic recalibration (pool-adjacent-violators in the compiled core; about 2×
+  at 100,000 rows), `nemenyi_test` (about 5×) and `bayes_correlated_ttest` (about 5×; posterior draws are made
+  only when `.samples` is used).
+
+### Fixed
+- `label_issues` now matches cleanlab's confident learning exactly (an example whose most likely class is its
+  given label is never flagged; with several confident classes the most likely one is suggested).
+
 ## [1.4.0] - 2026-11-28
 
 Smoother, cleaner and easier to keep tidy. Results are unchanged.

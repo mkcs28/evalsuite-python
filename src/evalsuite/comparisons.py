@@ -18,10 +18,11 @@ evaluating only on cases that happened to be labelled when labelling depends on 
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 
@@ -288,6 +289,13 @@ class NemenyiResult:
         return _markdown_tables(self.to_markdown(digits=digits))
 
 
+@functools.lru_cache(maxsize=64)
+def _studentized_range_ppf(prob: float, k: int) -> float:
+    from scipy import stats
+
+    return float(stats.studentized_range.ppf(prob, k, np.inf))
+
+
 def nemenyi_test(
     scores: Any,
     *,
@@ -321,14 +329,17 @@ def nemenyi_test(
         raise InputValidationError("scores must be finite (drop data sets with missing results).")
     if not 0 < alpha < 1:
         raise InputValidationError("alpha must be in (0, 1).")
-    ranks = np.apply_along_axis(stats.rankdata, 1, -x if higher_is_better else x)
+    ranks = stats.rankdata(-x if higher_is_better else x, axis=1)
     avg = ranks.mean(axis=0)
     se = math.sqrt(k * (k + 1) / (6.0 * n))
-    q = float(stats.studentized_range.ppf(1 - alpha, k, np.inf)) / math.sqrt(2)
+    q = _studentized_range_ppf(1 - alpha, k) / math.sqrt(2)
     cd = q * se
     z = np.abs(avg[:, None] - avg[None, :]) / se
-    p = np.asarray(stats.studentized_range.sf(z * math.sqrt(2), k, np.inf))
-    np.fill_diagonal(p, 1.0)
+    # the matrix is symmetric: evaluate the (numerically integrated) tail once per pair
+    iu = np.triu_indices(k, 1)
+    p = np.ones((k, k))
+    p[iu] = np.asarray(stats.studentized_range.sf(z[iu] * math.sqrt(2), k, np.inf))
+    p[iu[1], iu[0]] = p[iu]
     friedman = friedman_test(*[x[:, j] for j in range(k)]) if k >= 3 else None
     if friedman is None:
         w = stats.wilcoxon(x[:, 0], x[:, 1]) if np.any(x[:, 0] != x[:, 1]) else None
@@ -388,13 +399,13 @@ def ipw_metric(
         weighted = fn(yy, ss, sample_weight=ww, **metric_kwargs)
         naive = fn(yy, ss, **metric_kwargs)
     ess = float(ww.sum() ** 2 / np.sum(ww**2))
-    value = float(getattr(weighted, "value", weighted))
+    value = float(cast(Any, getattr(weighted, "value", weighted)))
     return MetricResult(
         name=f"{name} (inverse probability weighted)",
         value=value,
         metric=f"ipw_{name}",
         params={
-            "complete_case": float(getattr(naive, "value", naive)),
+            "complete_case": float(cast(Any, getattr(naive, "value", naive))),
             "n_labelled": int(idx.size),
             "n_total": int(obs.size),
             "effective_sample_size": ess,

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from evalsuite.benchmarks import run_benchmarks
+from evalsuite.benchmarks import benchmark_group, run_benchmarks
 
 
 def test_benchmarks_agree_with_sklearn_and_export(tmp_path) -> None:
@@ -90,7 +90,9 @@ def test_every_metric_has_a_benchmark_row_that_agrees_with_its_reference() -> No
     b = run_benchmarks(sizes=(3_000,), repeat=1, suite="metrics")
     cases = {r["case"] for r in b.rows}
     stats_fns = {f"statistics.{n}" for n in st.__all__ if n[0].islower()}
-    assert set(es.list_metrics()) | stats_fns == cases
+    extra = "Forecasting, multi-label, comparisons and data quality"  # 1.3 / 2.0 functions outside the registry
+    assert set(es.list_metrics()) | stats_fns == {c for c in cases if benchmark_group(c) != extra}
+    assert any(benchmark_group(c) == extra for c in cases)
     for row in b.rows:
         assert row["evalsuite_ms"] > 0
         if row["max_abs_diff"] is not None:

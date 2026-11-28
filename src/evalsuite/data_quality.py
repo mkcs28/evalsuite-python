@@ -160,11 +160,11 @@ class LeakageReport:
     findings: tuple[dict[str, Any], ...]
     settings: Mapping[str, Any]
 
-    @property
     def _repr_html_(self) -> str:
         """Rich display in Jupyter and other notebooks."""
         return str(self.to_html())
 
+    @property
     def leaked_rows(self) -> list[int]:
         """Test rows affected by any duplicate or shared-identifier finding (sorted)."""
         rows: set[int] = set()
@@ -282,9 +282,9 @@ def leakage_report(
                 tree = cKDTree((xtr[ok_tr] - mu) / sd)
                 dist, idx = tree.query((xte[ok_te] - mu) / sd, k=1)
                 tr_index = np.flatnonzero(ok_tr)
-                for i, dd, j in zip(np.flatnonzero(ok_te), dist, idx):
-                    if dd <= near_tol * math.sqrt(len(num)) and int(i) not in exact_rows:
-                        near.append((int(i), int(tr_index[j]), float(dd)))
+                for ti, dd, j in zip(np.flatnonzero(ok_te).tolist(), dist, idx):
+                    if dd <= near_tol * math.sqrt(len(num)) and ti not in exact_rows:
+                        near.append((ti, int(tr_index[j]), float(dd)))
             findings.append(
                 {
                     "kind": "near duplicate",
@@ -445,13 +445,16 @@ def label_issues(y: Any, pred_probs: Any, *, classes: Any = None) -> LabelIssues
         raise InputValidationError(f"y has {yi.size} labels for {p.shape[0]} probability rows.")
     k = p.shape[1]
     thresholds = np.array([p[yi == j, j].mean() if np.any(yi == j) else np.inf for j in range(k)])
-    above = p >= thresholds[None, :] - 1e-6 * np.abs(thresholds[None, :])
-    masked = np.where(above, p, -1.0)
-    has = above.any(axis=1)
-    pred = np.argmax(masked, axis=1)
+    # as cleanlab: confident in a class when p >= its threshold - 1e-6; with two or more confident classes the
+    # guess is the overall argmax; an example whose overall argmax is its given label is never flagged
+    above = p >= thresholds[None, :] - 1e-6
+    n_conf = above.sum(axis=1)
+    has = n_conf > 0
+    argmax = np.argmax(p, axis=1)
+    pred = np.where(n_conf > 1, argmax, np.argmax(above, axis=1))
     cj = np.zeros((k, k), dtype=np.int64)
     np.add.at(cj, (yi[has], pred[has]), 1)
-    flagged = np.flatnonzero(has & (pred != yi))
+    flagged = np.flatnonzero(has & (pred != yi) & (argmax != yi))
     sc = p[np.arange(yi.size), yi]
     order_idx = flagged[np.argsort(sc[flagged], kind="stable")]
     noise = float(cj.sum() - np.trace(cj)) / max(1, int(cj.sum()))
@@ -563,18 +566,18 @@ def dataset_card(
         if target not in cols:
             raise InputValidationError(f"target {target!r} is not a column.")
         v = cols[target]
-        vals, counts = np.unique([str(x) for x in v], return_counts=True)
-        order = np.argsort(-counts, kind="stable")
+        tvals, tcounts = np.unique([str(x) for x in v], return_counts=True)
+        order = np.argsort(-tcounts, kind="stable")
         tgt = {
             "name": target,
-            "type": "numeric" if _is_numeric(v) and vals.size > 20 else "classes",
-            "counts": {str(vals[i]): int(counts[i]) for i in order[:50]},
+            "type": "numeric" if _is_numeric(v) and tvals.size > 20 else "classes",
+            "counts": {str(tvals[i]): int(tcounts[i]) for i in order[:50]},
         }
     gtab: dict[str, dict[str, int]] = {}
     for g in groups or ():
         if g not in cols:
             raise InputValidationError(f"Group column {g!r} is not a column.")
-        vals, counts = np.unique([str(x) for x in cols[g]], return_counts=True)
-        gtab[g] = {str(a): int(b) for a, b in zip(vals, counts)}
+        gvals, gcounts = np.unique([str(x) for x in cols[g]], return_counts=True)
+        gtab[g] = {str(a): int(b) for a, b in zip(gvals, gcounts)}
     hashes = _row_hashes(cols, list(cols))
     return DatasetCard(n, tuple(info), tgt, gtab, n - len(set(hashes)))

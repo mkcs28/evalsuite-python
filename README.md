@@ -13,11 +13,20 @@ evaluation into one consistent, validated, documented framework.
 > **On an older version? Upgrade once:** `pip install -U evalsuite-python`. From 1.1.2 on, EvalSuite tells you
 > when a newer release is out (`evalsuite upgrade`).
 
-> **Status: stable (1.4.0).** [Example notebooks](notebooks/README.md) (Colab) ·
+> **Status: stable (2.0.0).** [Example notebooks](notebooks/README.md) (Colab) ·
 > [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
 
 **What's new**
 
+- **2.0** — conformal prediction (LAC / APS / RAPS sets, absolute / normalized / CQR intervals, per-group
+  coverage); `evalsuite report data.csv` works out the task and writes a full HTML report; leakage checks
+  (exact and near duplicates, shared IDs, text near-duplicates, target leakage), label-issue finding
+  (cleanlab-exact) and dataset cards; STARD and CONSORT-AI checklists next to TRIPOD+AI; non-inferiority,
+  equivalence (TOST), Nemenyi with critical-difference plots, NRI / IDI, external validation, forest plots and
+  IPW metrics; LLM runs with caching (`run_model`), agent, conversation and cost–quality reports and a
+  contamination check; MLflow / W&B logging, an evaluation history with regression checks, `evalsuite serve`,
+  `df.evalsuite`; did-you-mean errors and notebook display for every report; a docs site, conda recipe, signed
+  build provenance and an SBOM.
 - **1.4** — a cache you can see and clear (`evalsuite cache info` / `clear`), cleared automatically (unused for
   90 days or beyond 2 GB); a package-wide fuzz: non-numeric input now raises a clear `InputValidationError`
   naming the argument in every function, and wrong argument types are explained; every feature area loads
@@ -527,7 +536,7 @@ scripts, no external requests).
 ## Evaluation in pull requests
 
 ```yaml
-- uses: mkcs28/evalsuite-python@v1.4.0
+- uses: mkcs28/evalsuite-python@v2.0.0
   with:
     predictions: predictions.csv
     y-true: label
@@ -648,11 +657,11 @@ metric calls. At 1,000,000 samples (pixels for segmentation; 1,000 images for de
 | text: ROUGE-1, ROUGE-2, ROUGE-L (10000 sentences) | rouge-score | 219.5 | 889.0 | **4.05×** |
 | text: corpus BLEU and chrF (10000 sentences) | sacreBLEU | 266.7 | 2399.8 | **9.00×** |
 
-**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`, re-run on 1.2.0): all 225 registered
-metrics and statistics functions at 10,000 and 100,000 samples. 82 are compared with a reference library, 118
-with an independent textbook formula and 25 (learned, judge-dependent, randomised, or whose reference library was
-not installed) are timed alone; **all 200 comparisons agree**, and against the libraries the geometric-mean
-speed-up is **5.50×** (164 of 164 measurements faster). Per-metric table in BENCHMARKS.md.
+**Every metric is benchmarked too** (`evalsuite benchmark --suite metrics`, re-run on 2.0.0, now including the
+1.3 and 2.0 functions): all 238 registered metrics and statistics functions at 10,000 and 100,000 samples. 90 are
+compared with a reference library (now also pingouin, cleanlab, scikit-posthocs, baycomp and properscoring), 120
+with an independent textbook formula and 28 are timed alone; **all 210 comparisons agree**, and against the
+libraries the geometric-mean speed-up is **5.88×** (169 of 180 measurements faster). Per-metric table in BENCHMARKS.md.
 
 **Nearly every workload is faster than its reference.** The text metrics (BLEU, chrF, TER, ROUGE, METEOR, CIDEr,
 CodeBLEU's n-gram terms, distinct-n), the whole COCO evaluation (IoU, score sort, matching, accumulation),

@@ -85,6 +85,36 @@ class AutoReport:
     def __repr__(self) -> str:
         return self.summary()
 
+    def to_dict(self) -> dict[str, Any]:
+        def conv(v: Any) -> Any:
+            if hasattr(v, "to_dict"):
+                return v.to_dict()
+            if isinstance(v, dict):
+                return {str(k): conv(x) for k, x in v.items()}
+            return v
+
+        return {
+            "task": self.task,
+            "columns": dict(self.columns),
+            "sections": conv(self.sections),
+            "path": self.path,
+        }
+
+    def to_json(self, *, indent: Optional[int] = 2) -> str:
+        import json
+
+        return json.dumps(self.to_dict(), indent=indent, default=str)
+
+    def to_markdown(self) -> str:
+        return "```\n" + self.summary() + "\n```"
+
+    def to_html(self) -> str:
+        return self.html
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return self.html
+
 
 def _load(data: Any) -> Any:
     import pandas as pd

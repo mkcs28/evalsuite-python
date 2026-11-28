@@ -639,6 +639,19 @@ _GROUPS = (
     ("Classification and regression", ("binary", "10 classes", "regression", "classification")),
     ("Clinical, calibration and statistics", ("clinical", "calibration", "decision", "statistics", "multiple")),
     ("Segmentation and object detection", ("segmentation", "detection")),
+    (
+        "Forecasting, multi-label, comparisons and data quality",
+        (
+            "forecasting.",
+            "multilabel.",
+            "method_agreement.",
+            "recalibration.",
+            "bayes.",
+            "conformal.",
+            "comparisons.",
+            "data_quality.",
+        ),
+    ),
     ("LLM evaluation", ("text", "retrieval", "agreement", "structured", "qa.", "rag.", "reasoning.")),
     (
         "LLM systems",
