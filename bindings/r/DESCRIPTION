@@ -1,6 +1,6 @@
 Package: evalsuite
 Title: Evaluation Metrics with Confidence Intervals (EvalSuite Engine)
-Version: 1.3.0
+Version: 1.3.5
 Authors@R: c(person("Manoj Kumar", "C S", email = "cs.manojkumar18@gmail.com", role = c("aut", "cre")),
              person("Nikhil D", "Bharadwaj", role = "aut"))
 Description: R interface to the EvalSuite Rust engine: the same classification, regression, text and drift

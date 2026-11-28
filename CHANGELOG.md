@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-11-28
+
+A deep clean of the 1.3 modules and bounded-memory resampling. Results are unchanged except where a bug is
+fixed below.
+
+### Fixed
+
+- `ranking_report` counted a document listed more than once in a run once per listing (AP and recall could
+  exceed 1); a document now counts once, at its best rank. NaN document scores are rejected.
+- `recalibrate(..., method="temperature")` with string labels mapped labels to columns by the labels present in
+  `y_true`, which is wrong when a class is missing; it now requires `classes=` (the label of each column) when
+  the labels and columns do not line up, and rejects unknown labels.
+- `multilabel_report` no longer reports undefined metrics (e.g. ROC AUC when no label is positive) as NaN rows;
+  they are listed in `settings["undefined"]` and in the summary.
+- `diebold_mariano` gives a clear error when the loss differential overflows instead of a NumPy warning;
+  `icc` explains when subjects do not differ in their mean rating.
+- Every report (`JudgeReport`, `RubricReport`, `RAGReport`, `ICCResult`, `BlandAltman`, `BayesComparison`,
+  `ForecastReport`, `MultilabelReport`, `RankingReport`) now has `to_html`; `RubricReport` gains `to_json`.
+
+### Changed
+
+- Bootstrap resamples in `bootstrap_ci`, `compare` and `paired_bootstrap_test` are drawn in chunks: peak memory
+  on 100,000 observations falls from about 1.6 GB to about 90 MB (and the interval is about 30% faster), with
+  bit-identical results.
+
 ## [1.3.0] - 2026-11-28
 
 ### Added
