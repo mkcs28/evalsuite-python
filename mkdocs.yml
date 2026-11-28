@@ -1,0 +1,39 @@
+site_name: EvalSuite
+site_url: https://mkcs28.github.io/evalsuite-python/
+repo_url: https://github.com/mkcs28/evalsuite-python
+edit_uri: ""
+theme:
+  name: material
+  features: [navigation.sections, search.suggest, content.code.copy]
+  palette:
+    - scheme: default
+      toggle: {icon: material/brightness-7, name: Dark mode}
+    - scheme: slate
+      toggle: {icon: material/brightness-4, name: Light mode}
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: sphinx
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            filters: ["!^_"]
+extra:
+  version:
+    provider: mike
+nav:
+  - Home: index.md
+  - Deprecation policy: deprecation.md
+  - API reference:
+      - Evaluate, compare, intervals: api/core.md
+      - Classification and regression metrics: api/classification.md
+      - Calibration and recalibration: api/calibration.md
+      - Clinical and survival: api/clinical.md
+      - Comparisons, agreement and Bayesian: api/comparisons.md
+      - Data quality, drift and forecasting: api/data.md
+      - LLM and AI systems: api/llm.md
+      - Reports, workflow and cache: api/reports.md

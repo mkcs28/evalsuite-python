@@ -121,6 +121,7 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         conformal_regression,
     )
     from .core.exceptions import (
+        EvalSuiteDeprecationWarning,
         EvalSuiteError,
         InputValidationError,
         MetricInputError,
@@ -390,6 +391,7 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "youden_j",
     ),
     ".core.exceptions": (
+        "EvalSuiteDeprecationWarning",
         "EvalSuiteError",
         "InputValidationError",
         "MetricInputError",
@@ -792,6 +794,7 @@ _LAZY: dict[str, str] = {name: mod for mod, names in _EXPORTS.items() for name i
 _LAZY.update({"UpdateInfo": "._update", "check_for_update": "._update", "upgrade": "._update"})
 
 __all__ = [
+    "EvalSuiteDeprecationWarning",
     "AgentReport",
     "Alert",
     "AutoReport",

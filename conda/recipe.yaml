@@ -1,0 +1,65 @@
+# conda-forge recipe (rattler-build format) for evalsuite-python, ready for a pull request to
+# https://github.com/conda-forge/staged-recipes (copy this folder to recipes/evalsuite-python/).
+# Before submitting: set `version` to the release and `sha256` to the sdist's hash from
+#   https://pypi.org/project/evalsuite-python/#files  (or: pip download --no-binary :all: evalsuite-python==VERSION)
+context:
+  version: "2.0.0"
+  name: evalsuite-python
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  url: https://pypi.org/packages/source/e/evalsuite-python/evalsuite_python-${{ version }}.tar.gz
+  sha256: REPLACE_WITH_SDIST_SHA256
+
+build:
+  number: 0
+  skip: match(python, "<3.9")
+  script: ${{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  python:
+    entry_points:
+      - evalsuite = evalsuite.cli.main:main
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('rust') }}
+    - ${{ stdlib('c') }}
+    - if: build_platform != target_platform
+      then:
+        - python
+        - cross-python_${{ target_platform }}
+        - maturin >=1.5,<2
+  host:
+    - python
+    - pip
+    - maturin >=1.5,<2
+  run:
+    - python
+    - numpy >=1.22
+    - scipy >=1.8
+    - pandas >=1.4
+
+tests:
+  - python:
+      imports:
+        - evalsuite
+      pip_check: true
+  - script:
+      - evalsuite --version
+      - python -c "import evalsuite as es; from evalsuite._native import core; assert core is not None; print(es.accuracy([0, 1], [0, 1]).value)"
+
+about:
+  homepage: https://github.com/mkcs28/evalsuite-python
+  summary: Unified, reproducible evaluation for machine learning and research, with confidence intervals everywhere
+  license: MIT OR Apache-2.0
+  license_file:
+    - LICENSE
+    - LICENSE-APACHE
+  repository: https://github.com/mkcs28/evalsuite-python
+
+extra:
+  recipe-maintainers:
+    - mkcs28

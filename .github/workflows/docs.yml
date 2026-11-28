@@ -1,0 +1,33 @@
+# API reference: built (strictly) on every pull request; published to GitHub Pages per release with `mike`
+# (one folder per version plus "latest"). One-time setup: Settings → Pages → Source: "Deploy from a branch",
+# branch gh-pages, folder / (root).
+name: Docs
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # pushes the gh-pages branch on releases only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: ${{ startsWith(github.ref, 'refs/tags/') }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install "mkdocs>=1.6,<2" "mkdocs-material>=9,<10" "mkdocstrings[python]>=0.26" "mike>=2,<3"
+      - run: mkdocs build --strict
+      - name: Publish this version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          v="${GITHUB_REF_NAME#v}"
+          mike deploy --push --update-aliases "${v%.*}" latest
+          mike set-default --push latest
