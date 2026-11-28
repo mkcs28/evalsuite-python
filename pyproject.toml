@@ -111,6 +111,11 @@ exclude = [
   { path = "**/__pycache__/**", format = "sdist" },
   { path = "**/*.pyc", format = "sdist" },
   { path = "rust/target/**", format = "sdist" },
+  # wheels carry only the package: never caches or a stray local build of the compiled core
+  { path = "**/__pycache__/**", format = "wheel" },
+  { path = "**/*.pyc", format = "wheel" },
+  { path = "src/evalsuite/_core*.so", format = "wheel" },
+  { path = "src/evalsuite/_core*.pyd", format = "wheel" },
 ]
 
 [tool.hatch.build.targets.sdist]
