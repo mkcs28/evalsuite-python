@@ -1,0 +1,15 @@
+[package]
+name = "evalsuite-core"
+description = "Compiled kernels of EvalSuite: edit distances, TER, n-gram statistics, LCS, COCO matching and bootstrap counting."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["evaluation", "metrics", "nlp", "statistics", "machine-learning"]
+categories = ["science", "algorithms"]
+
+[dependencies]
+rayon = "1.12"
