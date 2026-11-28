@@ -169,7 +169,8 @@ def bayes_compare(
         if w is not None:
             kw["sample_weight"] = w
         res = fn(y, y_prob=pred, **kw) if prob else fn(y, pred, **kw)
-        return float(getattr(res, "value", res))
+        value: Any = getattr(res, "value", res)
+        return float(value)
 
     est_a, est_b = score(a, None), score(b, None)
     if higher_is_better is None:

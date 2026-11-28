@@ -153,7 +153,7 @@ class DriftReport:
 
     @property
     def share_drifted(self) -> float:
-        return sum(f["drifted"] for f in self.features) / len(self.features)
+        return float(sum(bool(f["drifted"]) for f in self.features)) / len(self.features)
 
     def summary(self, *, digits: int = 3) -> str:
         d = digits

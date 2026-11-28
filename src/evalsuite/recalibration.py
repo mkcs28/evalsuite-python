@@ -29,16 +29,16 @@ _METHODS = ("platt", "isotonic", "temperature", "beta", "histogram")
 
 
 def _clip(p: np.ndarray) -> np.ndarray:
-    return np.clip(p, _EPS, 1 - _EPS)
+    return np.asarray(np.clip(p, _EPS, 1 - _EPS), dtype=np.float64)
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
     q = _clip(p)
-    return np.log(q / (1 - q))
+    return np.asarray(np.log(q / (1 - q)), dtype=np.float64)
 
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
-    return 1.0 / (1.0 + np.exp(-np.clip(x, -700, 700)))
+    return np.asarray(1.0 / (1.0 + np.exp(-np.clip(x, -700, 700))), dtype=np.float64)
 
 
 def _newton_logistic(x: np.ndarray, t: np.ndarray, w: np.ndarray, max_iter: int = 200) -> np.ndarray:

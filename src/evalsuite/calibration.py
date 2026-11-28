@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -410,7 +410,7 @@ def calibration_report(
             raise InputValidationError("n_resamples must be at least 50 and level in (0, 1).")
         yt, yp = np.asarray(y_true), np.asarray(y_prob, dtype=np.float64)
         rng = np.random.default_rng(random_state)
-        fns = {
+        fns: dict[str, Callable[[Any, Any], Any]] = {
             "brier_score": lambda a, b: brier_score(a, b, pos_label=pos_label),
             "expected_calibration_error": lambda a, b: expected_calibration_error(a, b, **kw),
             "maximum_calibration_error": lambda a, b: maximum_calibration_error(a, b, **kw),
