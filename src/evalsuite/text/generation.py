@@ -21,6 +21,7 @@ from .._native import PY_SUM_COMPENSATED, Vocab, core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import as_references, as_texts, check_positive_int, per_item, word_ngrams
 
 __all__ = [
@@ -1020,7 +1021,7 @@ def _logprob_arrays(token_logprobs: Any) -> list[np.ndarray]:
         raise InputValidationError("token_logprobs must be a non-empty list of per-token log-probabilities.")
     if all(isinstance(v, (int, float, np.floating)) for v in seqs):
         seqs = [seqs]
-    out = [np.asarray(s, dtype=np.float64).ravel() for s in seqs]
+    out = [numeric(s, "token_logprobs").ravel() for s in seqs]
     flat = np.concatenate(out)
     if np.all(np.isfinite(flat)) and not np.any(flat > 1e-9) and all(a.size for a in out):
         return out  # validated once over all tokens; the loop below only locates the offending sequence

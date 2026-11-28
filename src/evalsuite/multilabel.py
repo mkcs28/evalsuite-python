@@ -416,6 +416,10 @@ def ranking_report(
     0. ``primary`` (ndcg, ap, rr, precision, recall) is the measure tested against ``baseline`` (first run)."""
     if k < 1:
         raise InputValidationError("k must be at least 1.")
+    if not isinstance(qrels, Mapping) or not isinstance(runs, Mapping):
+        raise InputValidationError(
+            "qrels must map query → {doc: relevance} and runs must map system name → run (query → ranked docs)."
+        )
     if not runs:
         raise InputValidationError("runs must map system names to runs.")
     metrics = ["ndcg", "ap", "rr", "precision", "recall"]

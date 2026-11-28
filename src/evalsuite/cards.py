@@ -228,7 +228,7 @@ class ReportCard:
     def to_docx(self, path: str, *, digits: int = 3) -> None:
         """Write a Word document with the paragraph, the table and (model card) the narrative sections."""
         try:
-            import docx  # type: ignore[import-not-found]
+            import docx  # type: ignore[import-not-found, unused-ignore]
         except ImportError as exc:
             raise OptionalDependencyError("python-docx", "docx", "ReportCard.to_docx") from exc
         doc = docx.Document()

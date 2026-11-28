@@ -27,7 +27,7 @@ else:
 
 from ..core.exceptions import InputValidationError, StatisticalTestError
 from ..core.types import ArrayLike
-from ..core.validation import check_finite, to_numpy
+from ..core.validation import check_finite, numeric, to_numpy
 from .intervals import _check_level
 from .results import ConfidenceInterval, TestResult
 
@@ -48,7 +48,7 @@ _ALTS = ("two-sided", "greater", "less")
 
 
 def _vec(x: ArrayLike, name: str, min_n: int = 2) -> NDArray[np.float64]:
-    a = to_numpy(x, name).astype(np.float64, copy=False)
+    a = numeric(to_numpy(x, name), name)
     check_finite(a, name)
     if a.ndim != 1:
         raise InputValidationError(f"{name} must be one-dimensional.")
@@ -488,7 +488,7 @@ def _shapiro_fast(x: NDArray[np.float64]) -> Optional[tuple[float, float]]:
 
 
 def _table(table: ArrayLike) -> NDArray[np.float64]:
-    t = np.asarray(table, dtype=np.float64)
+    t = numeric(table, "table")
     if t.ndim != 2 or t.shape[0] < 2 or t.shape[1] < 2:
         raise InputValidationError("Give a contingency table with at least 2 rows and 2 columns.")
     if np.any(~np.isfinite(t)) or np.any(t < 0):

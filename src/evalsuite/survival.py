@@ -25,6 +25,7 @@ import numpy as np
 
 from .core.exceptions import InputValidationError
 from .core.result import MetricResult
+from .core.validation import numeric
 
 __all__ = [
     "SurvivalCurve",
@@ -42,7 +43,7 @@ def _trapezoid(y: np.ndarray, x: np.ndarray) -> float:
 
 
 def _survival_inputs(time: Any, event: Any) -> tuple[np.ndarray, np.ndarray]:
-    t = np.asarray(time, dtype=float).ravel()
+    t = numeric(time, "time").ravel()
     e = np.asarray(event).ravel()
     if t.size == 0 or t.shape != e.shape:
         raise InputValidationError(

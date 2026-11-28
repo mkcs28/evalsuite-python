@@ -42,6 +42,8 @@ class BenchmarkSpec:
 
 def format_multiple_choice(question: str, choices: list[str], *, instruction: Optional[str] = None) -> str:
     """A standard multiple-choice prompt: the question, lettered options and "Answer:"."""
+    if not isinstance(question, str) or isinstance(choices, str):
+        raise InputValidationError("format_multiple_choice takes a question string and a list of option strings.")
     if len(choices) > 26:
         raise InputValidationError("At most 26 options are supported.")
     lines = [question.strip(), ""]

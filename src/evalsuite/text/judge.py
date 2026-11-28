@@ -24,6 +24,7 @@ from .._native import core
 from ..core.exceptions import InputValidationError
 from ..core.registry import register
 from ..core.result import MetricResult
+from ..core.validation import numeric
 from ._common import per_item
 
 __all__ = [
@@ -257,7 +258,7 @@ def elo_ratings(
 
 # ---------------------------------------------------------------- agreement
 def _reliability_matrix(ratings: Any) -> np.ndarray:
-    a = np.array(ratings, dtype=float)
+    a = numeric(ratings, "ratings").copy()
     if a.ndim != 2 or a.shape[0] < 2 or a.shape[1] < 1:
         raise InputValidationError(
             "ratings must be a 2-D array: one row per rater, one column per item (NaN = missing)."
@@ -550,7 +551,7 @@ def rubric_score(
 ) -> MetricResult:
     """Rubric ratings as an ``(n, n_criteria)`` array (or one column). Returns the overall normalised mean;
     ``params["per_criterion"]`` maps each criterion to its normalised mean."""
-    a = np.asarray(scores, dtype=float)
+    a = numeric(scores, "scores")
     if a.ndim == 1:
         a = a[:, None]
     if a.ndim != 2 or a.size == 0:

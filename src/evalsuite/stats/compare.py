@@ -292,6 +292,12 @@ def compare(
     level = _check_level(level)
     n_resamples = _check_resamples(n_resamples)
     resampling = check_resampling(resampling)
+    for what, given in (("predictions", predictions), ("probabilities", probabilities)):
+        if given is not None and not isinstance(given, Mapping):
+            raise InputValidationError(
+                f"{what} must map model names to that model's outputs, "
+                "e.g. {'model_a': preds_a, 'model_b': preds_b}."
+            )
     predictions = dict(predictions or {})
     probabilities = dict(probabilities or {})
     names = list(dict.fromkeys([*predictions, *probabilities]))
@@ -338,9 +344,10 @@ def compare(
             )
         # identical label set for every model of this metric
         labs = [calls[(m, metric)].kwargs.get("labels") for m in names]
-        if all(lab is not None for lab in labs):
-            shared = labs[0]
-            for lab in labs[1:]:
+        present = [lab for lab in labs if lab is not None]
+        if len(present) == len(labs):
+            shared = present[0]
+            for lab in present[1:]:
                 shared = np.union1d(shared, lab)
             for m in names:
                 calls[(m, metric)].kwargs["labels"] = shared

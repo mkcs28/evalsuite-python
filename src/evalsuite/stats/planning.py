@@ -76,8 +76,15 @@ class SampleSize:
         return self.summary()
 
 
+def _number(name: str, x: Any) -> float:
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        raise InputValidationError(f"{name} must be a single number; got {x!r}.") from None
+
+
 def _check_prob(name: str, p: float, *, open_: bool = True) -> float:
-    p = float(p)
+    p = _number(name, p)
     lo_ok = p > 0 if open_ else p >= 0
     hi_ok = p < 1 if open_ else p <= 1
     if not (math.isfinite(p) and lo_ok and hi_ok):
@@ -300,7 +307,7 @@ def sample_size_mean_difference(
     ``paired=True``: ``sd`` is the standard deviation of the per-item differences; n = ((z_α + z_β) σ / δ)²,
     refined with the t distribution. ``paired=False``: ``sd`` is the per-group standard deviation; n per group =
     2 ((z_α + z_β) σ / δ)², refined likewise."""
-    delta, sd = float(delta), float(sd)
+    delta, sd = _number("delta", delta), _number("sd", sd)
     if not (math.isfinite(delta) and delta != 0 and math.isfinite(sd) and sd > 0):
         raise InputValidationError("delta must be a non-zero number and sd a positive number.")
     za, zb = _z_alpha(alpha, two_sided), _z_power(power)

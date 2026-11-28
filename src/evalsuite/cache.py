@@ -161,12 +161,12 @@ def cache_info() -> CacheInfo:
     root = cache_dir()
     auto, age, size = _settings()
     now = time.time()
-    entries = tuple(
+    entries: tuple[dict[str, Any], ...] = tuple(
         {"name": str(p.relative_to(root)), "size_bytes": s, "days_unused": max(0.0, (now - last) / 86400)}
         for p, s, last in _entries(root)
     )
     return CacheInfo(
-        str(root), root.is_dir(), sum(e["size_bytes"] for e in entries), entries, auto, age / 86400, size
+        str(root), root.is_dir(), sum(int(e["size_bytes"]) for e in entries), entries, auto, age / 86400, size
     )
 
 

@@ -23,6 +23,7 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 
 from .core.exceptions import EvalSuiteError, InputValidationError
+from .core.validation import numeric
 
 __all__ = ["BayesComparison", "bayes_compare", "bayes_correlated_ttest"]
 
@@ -277,8 +278,8 @@ def bayes_correlated_ttest(
     Student t with n − 1 degrees of freedom; probabilities are exact and the draws only feed ``samples``."""
     from scipy import stats
 
-    sa = np.asarray(scores_a, dtype=np.float64).ravel()
-    sb = np.asarray(scores_b, dtype=np.float64).ravel()
+    sa = numeric(scores_a, "scores_a").ravel()
+    sb = numeric(scores_b, "scores_b").ravel()
     if sa.size != sb.size:
         raise InputValidationError(f"Both models need a score per fold; got {sa.size} and {sb.size}.")
     if sa.size < 2 or not (np.all(np.isfinite(sa)) and np.all(np.isfinite(sb))):
