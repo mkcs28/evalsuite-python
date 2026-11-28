@@ -24,7 +24,8 @@ Each record is a mapping with an ``id`` and either a ``correct`` / ``score`` val
 ...     "model-b": [{"id": i, "prediction": "4" if i % 3 else "5", "reference": "4"} for i in range(30)],
 ... }
 >>> lb = es.leaderboard(runs, scorer="exact_match")
->>> lb.rows[0]["model"], lb.rows[0]["rank"]
+>>> best = lb.rows[0]
+>>> best.get("model"), best.get("rank")
 ('model-a', 1)
 """
 
