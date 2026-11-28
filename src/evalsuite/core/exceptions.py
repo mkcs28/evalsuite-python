@@ -6,6 +6,7 @@ Every message says what failed, why, and how to fix it.
 from __future__ import annotations
 
 __all__ = [
+    "EvalSuiteDeprecationWarning",
     "EvalSuiteError",
     "InputValidationError",
     "MetricInputError",
@@ -50,3 +51,19 @@ class StatisticalTestError(EvalSuiteError, ValueError):
 
 class UndefinedMetricWarning(UserWarning):
     """A metric is undefined for the input (for example a zero denominator)."""
+
+
+class EvalSuiteDeprecationWarning(DeprecationWarning):
+    """A public name or argument that will be removed in the next major version (see the deprecation policy)."""
+
+
+def deprecated(old: str, new: str, *, since: str, stacklevel: int = 3) -> None:
+    """Warn that ``old`` is deprecated in favour of ``new`` (used by EvalSuite itself; part of the policy in
+    ``docs/deprecation.md``)."""
+    import warnings
+
+    warnings.warn(
+        f"{old} is deprecated since EvalSuite {since} and will be removed in the next major version; use {new}.",
+        EvalSuiteDeprecationWarning,
+        stacklevel=stacklevel,
+    )

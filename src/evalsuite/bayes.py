@@ -45,7 +45,19 @@ class BayesComparison:
     level: float
     method: str
     higher_is_better: bool
-    samples: np.ndarray = field(repr=False)
+    _draws: Any = field(repr=False, compare=False)
+
+    @property
+    def samples(self) -> np.ndarray:
+        """Posterior draws of the difference (drawn on first access for the t-test, whose probabilities are
+        exact)."""
+        if callable(self._draws):
+            object.__setattr__(self, "_draws", np.asarray(self._draws()))
+        return np.asarray(self._draws)
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     @property
     def p_rope_or_better(self) -> float:
@@ -85,7 +97,7 @@ class BayesComparison:
         from .core.result import _json_safe
 
         out: dict[str, Any] = _json_safe(
-            {k: v for k, v in self.__dict__.items() if k != "samples"} | {"decision": self.decision()}
+            {k: v for k, v in self.__dict__.items() if k != "_draws"} | {"decision": self.decision()}
         )
         return out
 
@@ -256,7 +268,7 @@ def bayes_compare(
         level=level,
         method="Bayesian bootstrap (Rubin 1981)",
         higher_is_better=bool(higher_is_better),
-        samples=diff,
+        _draws=diff,
     )
 
 
@@ -296,7 +308,7 @@ def bayes_correlated_ttest(
     rp = _rope(rope)
     sign = 1.0 if higher_is_better else -1.0
     if var == 0:
-        draws = np.full(1000, mean)
+        draws: Any = np.full(1000, mean)
         pa, pr, pb = _decide(draws, rp, sign)
         lo = hi = mean
     else:
@@ -313,7 +325,12 @@ def bayes_correlated_ttest(
         pr = float(1.0 - pa - pb)
         a_ = (1 - level) / 2
         lo, hi = float(post.ppf(a_)), float(post.ppf(1 - a_))
-        draws = post.rvs(size=n_samples, random_state=np.random.default_rng(random_state))
+
+        def _later(post: Any = post) -> Any:  # only feeds ``samples`` (plots): drawn on first access, same draws
+            return post.rvs(size=n_samples, random_state=np.random.default_rng(random_state))
+
+        draws = _later
+
     return BayesComparison(
         metric=metric,
         estimate_a=float(sa.mean()),
@@ -328,5 +345,5 @@ def bayes_correlated_ttest(
         level=level,
         method="correlated Bayesian t-test (Benavoli et al. 2017)",
         higher_is_better=higher_is_better,
-        samples=np.asarray(draws),
+        _draws=draws,
     )

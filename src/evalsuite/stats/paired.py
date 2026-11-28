@@ -124,6 +124,46 @@ def delong_test(
     )
 
 
+def _paired_differences(
+    metric: Any,
+    y_true: ArrayLike,
+    y_pred_a: Optional[ArrayLike],
+    y_pred_b: Optional[ArrayLike],
+    y_prob_a: Optional[ArrayLike],
+    y_prob_b: Optional[ArrayLike],
+    sample_weight: Optional[ArrayLike],
+    n_resamples: int,
+    random_state: Optional[int],
+    stratify: Optional[bool],
+    resampling: str,
+    metric_kwargs: dict[str, Any],
+) -> tuple[str, float, np.ndarray, Any, Any, bool, int, int]:
+    """(metric name, observed A − B, bootstrap differences, call A, call B, stratified, failures A, failures B):
+    both models scored on the same resamples."""
+    fn, name = resolve_metric(metric)
+    by_prob = y_prob_a is not None or y_prob_b is not None
+    if by_prob and (y_prob_a is None or y_prob_b is None or y_pred_a is not None or y_pred_b is not None):
+        raise InputValidationError("Give either y_pred_a and y_pred_b, or y_prob_a and y_prob_b.")
+    if not by_prob and (y_pred_a is None or y_pred_b is None):
+        raise InputValidationError("Give either y_pred_a and y_pred_b, or y_prob_a and y_prob_b.")
+    if by_prob:
+        call_a = MetricCall(fn, y_true, None, y_prob_a, sample_weight, metric_kwargs)
+        call_b = MetricCall(fn, y_true, None, y_prob_b, sample_weight, metric_kwargs)
+    else:
+        call_a = MetricCall(fn, y_true, y_pred_a, None, sample_weight, metric_kwargs)
+        call_b = MetricCall(fn, y_true, y_pred_b, None, sample_weight, metric_kwargs)
+    if call_a.kwargs.get("labels") is not None and call_b.kwargs.get("labels") is not None:
+        shared = np.union1d(call_a.kwargs["labels"], call_b.kwargs["labels"])
+        call_a.kwargs["labels"] = call_b.kwargs["labels"] = shared
+    observed = call_a() - call_b()
+    rng = np.random.default_rng(random_state)
+    use_strata = call_a.categorical if stratify is None else bool(stratify)
+    (da, fa), (db, fb) = resampled_distributions(
+        [call_a, call_b], call_a.n, n_resamples, rng, call_a.y_true if use_strata else None, resampling
+    )
+    return name, float(observed), da - db, call_a, call_b, use_strata, int(fa), int(fb)
+
+
 def paired_bootstrap_test(
     metric: Any,
     y_true: ArrayLike,
@@ -156,28 +196,20 @@ def paired_bootstrap_test(
     resampling = check_resampling(resampling)
     if alternative not in ("two-sided", "greater", "less"):
         raise InputValidationError("alternative must be 'two-sided', 'greater' or 'less'.")
-    fn, name = resolve_metric(metric)
-    by_prob = y_prob_a is not None or y_prob_b is not None
-    if by_prob and (y_prob_a is None or y_prob_b is None or y_pred_a is not None or y_pred_b is not None):
-        raise InputValidationError("Give either y_pred_a and y_pred_b, or y_prob_a and y_prob_b.")
-    if not by_prob and (y_pred_a is None or y_pred_b is None):
-        raise InputValidationError("Give either y_pred_a and y_pred_b, or y_prob_a and y_prob_b.")
-    if by_prob:
-        call_a = MetricCall(fn, y_true, None, y_prob_a, sample_weight, metric_kwargs)
-        call_b = MetricCall(fn, y_true, None, y_prob_b, sample_weight, metric_kwargs)
-    else:
-        call_a = MetricCall(fn, y_true, y_pred_a, None, sample_weight, metric_kwargs)
-        call_b = MetricCall(fn, y_true, y_pred_b, None, sample_weight, metric_kwargs)
-    if call_a.kwargs.get("labels") is not None and call_b.kwargs.get("labels") is not None:
-        shared = np.union1d(call_a.kwargs["labels"], call_b.kwargs["labels"])
-        call_a.kwargs["labels"] = call_b.kwargs["labels"] = shared
-    observed = call_a() - call_b()
-    rng = np.random.default_rng(random_state)
-    use_strata = call_a.categorical if stratify is None else bool(stratify)
-    (da, fa), (db, fb) = resampled_distributions(
-        [call_a, call_b], call_a.n, n_resamples, rng, call_a.y_true if use_strata else None, resampling
+    name, observed, diff, call_a, call_b, use_strata, fa, fb = _paired_differences(
+        metric,
+        y_true,
+        y_pred_a,
+        y_pred_b,
+        y_prob_a,
+        y_prob_b,
+        sample_weight,
+        n_resamples,
+        random_state,
+        stratify,
+        resampling,
+        metric_kwargs,
     )
-    diff = da - db
     diff = diff[~np.isnan(diff)]
     centred = diff - observed
     if alternative == "two-sided":

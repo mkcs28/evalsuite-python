@@ -2068,6 +2068,123 @@ def _llmsys(c: _Cases, n: int, rng: np.random.Generator) -> None:
     c.add("text.spice", lambda: _f(es.spice(sp_r, sp_c)), "Python stdlib", spice_ref)
 
 
+def _v13(c: _Cases, n: int, rng: np.random.Generator) -> None:
+    """1.3 / 2.0 functions: recalibration, multi-label, forecasting, agreement, Bayes, conformal, data quality."""
+    import evalsuite as es
+
+    skm = _opt("sklearn.metrics")
+    iso = _opt("sklearn.isotonic")
+    # recalibration
+    p = rng.random(n)
+    y = (rng.random(n) < p**1.5).astype(int)
+    if iso is not None:
+        c.add(
+            "recalibration.isotonic",
+            lambda: es.recalibrate(y, p, method="isotonic")(p),
+            "scikit-learn",
+            lambda: iso.IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1).fit(p, y).predict(p),
+        )
+    else:
+        c.add("recalibration.isotonic", lambda: es.recalibrate(y, p, method="isotonic")(p))
+    c.add("recalibration.platt", lambda: es.recalibrate(y, p, method="platt")(p))
+    # multi-label (n / 10 examples × 10 labels)
+    m = max(20, n // 10)
+    Y = (rng.random((m, 10)) < 0.3).astype(int)
+    S = np.clip(0.4 * Y + rng.random((m, 10)), 0, 1)
+    if skm is not None:
+        c.add(
+            "multilabel.label_ranking_average_precision",
+            lambda: es.multilabel_report(Y, y_score=S, n_resamples=1)["label_ranking_average_precision"],
+            "scikit-learn",
+            lambda: skm.label_ranking_average_precision_score(Y, S),
+        )
+        c.add(
+            "multilabel.coverage_error",
+            lambda: es.multilabel_report(Y, y_score=S, n_resamples=1)["coverage_error"],
+            "scikit-learn",
+            lambda: skm.coverage_error(Y, S),
+        )
+    # forecasting
+    yt, ya, yb = rng.normal(size=n), rng.normal(size=n), rng.normal(size=n)
+    train = np.cumsum(rng.normal(size=n))
+    c.add(
+        "forecasting.mase",
+        lambda: es.mase(yt, ya, y_train=train, m=1),
+        "NumPy formula",
+        lambda: float(np.mean(np.abs(yt - ya)) / np.mean(np.abs(np.diff(train)))),
+    )
+    ens = yt[:, None] + rng.normal(size=(n, 20))
+    ps = _opt("properscoring")
+    c.add(
+        "forecasting.crps",
+        lambda: es.crps(yt, ensemble=ens),
+        "properscoring" if ps is not None else "",
+        (lambda: float(ps.crps_ensemble(yt, ens).mean())) if ps is not None else None,
+    )
+    c.add("forecasting.diebold_mariano", lambda: es.diebold_mariano(yt, ya, yb, h=1))
+    # agreement
+    ratings = rng.normal(size=(max(10, n // 10), 1)) + rng.normal(0, 0.5, size=(max(10, n // 10), 4))
+    pg = _opt("pingouin")
+
+    def icc_ref() -> Any:
+        import pandas as pd
+
+        r, k = ratings.shape
+        df = pd.DataFrame({"t": np.repeat(np.arange(r), k), "r": np.tile(np.arange(k), r), "s": ratings.ravel()})
+        return pg.intraclass_corr(df, "t", "r", "s")["ICC"].to_numpy()
+
+    c.add(
+        "method_agreement.icc",
+        lambda: [f.value for f in es.icc(ratings).forms],
+        "pingouin" if pg is not None else "",
+        icc_ref if pg is not None else None,
+    )
+    a, b = rng.normal(size=n), rng.normal(size=n)
+    c.add(
+        "method_agreement.bland_altman",
+        lambda: es.bland_altman(a, b).bias,
+        "NumPy formula",
+        lambda: float(np.mean(a - b)),
+    )
+    # Bayesian
+    folds_a, folds_b = rng.normal(0.8, 0.02, 10), rng.normal(0.79, 0.02, 10)
+    bc = _opt("baycomp")
+    c.add(
+        "bayes.correlated_ttest",
+        lambda: [(r := es.bayes_correlated_ttest(folds_a, folds_b, rope=0.01)).p_a_better, r.p_rope, r.p_b_better],
+        "baycomp" if bc is not None else "",
+        (lambda: list(bc.CorrelatedTTest.probs(folds_a, folds_b, rope=0.01, runs=1))) if bc is not None else None,
+    )
+    # conformal
+    k = 5
+    P = rng.dirichlet(np.ones(k), n)
+    yc = np.array([rng.choice(k, p=q) for q in P[: min(n, 2000)]])
+    c.add(
+        "conformal.classification_sets",
+        lambda: es.conformal_classification(yc, P[: yc.size], P, alpha=0.1, method="lac").mean_size,
+    )
+    # data quality
+    cl = _opt("cleanlab.filter")
+    yn = yc.copy()
+    yn[: yc.size // 10] = (yn[: yc.size // 10] + 1) % k
+    c.add(
+        "data_quality.label_issues",
+        lambda: sorted(es.label_issues(yn, P[: yc.size]).indices.tolist()),
+        "cleanlab" if cl is not None else "",
+        (lambda: np.flatnonzero(cl.find_label_issues(yn, P[: yc.size], filter_by="confident_learning")).tolist())
+        if cl is not None
+        else None,
+    )
+    sp = _opt("scikit_posthocs")
+    scores = rng.random((20, 5)) + np.linspace(0, 0.3, 5)
+    c.add(
+        "comparisons.nemenyi",
+        lambda: es.nemenyi_test(scores).p_values.ravel(),
+        "scikit-posthocs" if sp is not None else "",
+        (lambda: sp.posthoc_nemenyi_friedman(scores).to_numpy().ravel()) if sp is not None else None,
+    )
+
+
 def _numeric_params(r: Any, keys: tuple[str, ...]) -> list[float]:
     return [float(r.params[k]) for k in keys]
 
@@ -2075,6 +2192,6 @@ def _numeric_params(r: Any, keys: tuple[str, ...]) -> list[float]:
 def metric_cases(n: int, rng: np.random.Generator) -> list[Case]:
     """One benchmark case for every registered metric and every statistics function."""
     c = _Cases()
-    for build in (_classification, _regression, _clinical, _statistics, _vision, _llm, _llmsys):
+    for build in (_classification, _regression, _clinical, _statistics, _vision, _llm, _llmsys, _v13):
         build(c, n, rng)
     return sorted(c.rows, key=lambda r: r[0])

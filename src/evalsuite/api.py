@@ -23,6 +23,17 @@ __all__ = ["evaluate"]
 CtxMetric = Callable[[ClassificationContext], MetricResult]
 
 
+def _did_you_mean(unknown: Any, known: Any) -> str:
+    import difflib
+
+    tips = []
+    for u in unknown:
+        close = difflib.get_close_matches(str(u), [str(k) for k in known], n=1, cutoff=0.6)
+        if close:
+            tips.append(f"{u!r} → {close[0]!r}")
+    return f" Did you mean {', '.join(tips)}?" if tips else ""
+
+
 def _classification_registry(
     average: Optional[str], pos_label: Any, zero_division: ZeroDivision
 ) -> dict[str, tuple[CtxMetric, bool]]:
@@ -270,7 +281,8 @@ def _evaluate_classification(
         unknown = [m for m in names if m not in registry]
         if unknown:
             raise InputValidationError(
-                f"Unknown classification metric(s): {', '.join(unknown)}. Available: {', '.join(registry)}."
+                f"Unknown classification metric(s): {', '.join(unknown)}.{_did_you_mean(unknown, registry)} "
+                f"Available: {', '.join(registry)}."
             )
     out: dict[str, MetricResult] = {}
     for name in names:
@@ -304,7 +316,8 @@ def _evaluate_regression(
         unknown = [m for m in names if m not in _REGRESSION]
         if unknown:
             raise InputValidationError(
-                f"Unknown regression metric(s): {', '.join(unknown)}. Available: {', '.join(_REGRESSION)}."
+                f"Unknown regression metric(s): {', '.join(unknown)}.{_did_you_mean(unknown, _REGRESSION)} "
+                f"Available: {', '.join(_REGRESSION)}."
             )
     out: dict[str, MetricResult] = {}
     shared = reg._Inputs(y_true, y_pred, sample_weight)  # validate once for every metric

@@ -52,6 +52,10 @@ class RAGReport:
     examples: Mapping[str, tuple[Any, ...]]
     settings: Mapping[str, Any]
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def summary(self, *, digits: int = 3) -> str:
         d = digits
         pct = f"{self.settings['level'] * 100:g}%"

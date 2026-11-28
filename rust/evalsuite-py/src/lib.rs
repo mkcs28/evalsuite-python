@@ -396,6 +396,39 @@ fn coco_evaluate<'py>(
     ))
 }
 
+/// Pool-adjacent-violators on per-x means `y` with weights `w` (float64 views of `n` elements): the pooled block
+/// values and block lengths. The same operations in the same order as `evalsuite.recalibration._pava`, so results
+/// are identical bit for bit.
+#[pyfunction]
+fn pava(py: Python<'_>, y: (usize, usize), w: (usize, usize)) -> PyResult<(Vec<f64>, Vec<u64>)> {
+    let ys: &[f64] = view(y.0, y.1)?;
+    let ws: &[f64] = view(w.0, w.1)?;
+    if ys.len() != ws.len() {
+        return Err(PyValueError::new_err("y and w must have the same length"));
+    }
+    Ok(py.detach(|| {
+        let mut vals: Vec<f64> = Vec::with_capacity(ys.len());
+        let mut wts: Vec<f64> = Vec::with_capacity(ys.len());
+        let mut lens: Vec<u64> = Vec::with_capacity(ys.len());
+        for (&v, &wt) in ys.iter().zip(ws) {
+            vals.push(v);
+            wts.push(wt);
+            lens.push(1);
+            while vals.len() > 1 && vals[vals.len() - 2] > vals[vals.len() - 1] {
+                let v2 = vals.pop().unwrap();
+                let w2 = wts.pop().unwrap();
+                let l2 = lens.pop().unwrap();
+                let last = vals.len() - 1;
+                let tot = wts[last] + w2;
+                vals[last] = (vals[last] * wts[last] + v2 * w2) / tot;
+                wts[last] = tot;
+                lens[last] += l2;
+            }
+        }
+        (vals, lens)
+    }))
+}
+
 /// Harrell's concordance sums `(numerator, denominator, comparable pairs)`. `time`, `risk` and `weight` are float64
 /// views and `event` a uint8 view, all of `n` elements, kept alive and unchanged by the caller during the call.
 #[pyfunction]
@@ -1163,6 +1196,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(codebleu_stats, m)?)?;
     m.add_function(wrap_pyfunction!(distinct_ngrams, m)?)?;
     m.add_function(wrap_pyfunction!(num_threads, m)?)?;
+    m.add_function(wrap_pyfunction!(pava, m)?)?;
     m.add_function(wrap_pyfunction!(retrieval_scores, m)?)?;
     Ok(())
 }

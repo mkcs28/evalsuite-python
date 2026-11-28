@@ -136,246 +136,260 @@ CodeBLEU's n-gram terms are timed alone in this run (the `codebleu` reference li
 
 ## Every metric
 
-One row for each of the 225 registered metrics and statistics functions (`evalsuite benchmark --suite metrics --sizes 10000 100000`; EvalSuite 1.2.0, Python 3.13.18, NumPy 2.5.3, SciPy 1.18.1, scikit-learn 1.9.1, Linux x86_64, fastest of 5 runs). n is observations for classification, regression, clinical and statistics; pixels for segmentation; n / 1000 images for detection; n / 100 examples for text, retrieval, RAG, judge and structured-output metrics; n / 1000 examples for BERTScore, MoverScore and MAUVE; n / 100 examples for the v0.5.0 LLM-systems metrics (n / 10 for uncertainty, n / 1000 sentence pairs for bitext mining).
+One row for each of the 238 registered metrics and statistics functions (`evalsuite benchmark --suite metrics --sizes 10000 100000`; EvalSuite 2.0.0, Python 3.13.18, NumPy 2.5.5, SciPy 1.18.1, scikit-learn 1.9.1, Linux x86_64, fastest of 5 runs). n is observations for classification, regression, clinical and statistics; pixels for segmentation; n / 1000 images for detection; n / 100 examples for text, retrieval, RAG, judge and structured-output metrics; n / 1000 examples for BERTScore, MoverScore and MAUVE; n / 100 examples for the v0.5.0 LLM-systems metrics (n / 10 for uncertainty, n / 1000 sentence pairs for bitext mining).
 
-Each metric is compared with a reference library where one exists, otherwise with an independent implementation of its textbook formula in NumPy or the Python standard library. A bare formula skips input validation, so it is a lower bound on time rather than a competitor; speed-ups are summarised over library comparisons only. Metrics with neither (learned or judge-dependent scores, randomised resampling) are timed alone.
+Each metric is compared with a reference library where one exists, otherwise with an independent implementation of its textbook formula in NumPy or the Python standard library. A bare formula skips input validation, so it is a lower bound on time rather than a competitor; speed-ups are summarised over library comparisons only. Metrics with neither (learned or judge-dependent scores, randomised resampling) are timed alone. The two `multilabel.*` rows time the whole `multilabel_report` (about 30 metrics and per-label curves in one call) against a single scikit-learn function.
 
 | Suite | Metrics | vs library | vs formula | Timed alone | Match | Faster than library | Geo-mean speed-up (library) | Range |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Classification and regression | 35 | 26 | 9 | 0 | 35/35 | 52/52 | 4.06× | 1.10×–18.62× |
-| Clinical, calibration and statistics | 32 | 21 | 6 | 5 | 27/27 | 42/42 | 5.12× | 1.01×–17.71× |
-| LLM evaluation | 70 | 20 | 34 | 16 | 54/54 | 40/40 | 9.26× | 1.39×–34.59× |
-| LLM systems | 77 | 6 | 68 | 3 | 74/74 | 12/12 | 3.34× | 1.05×–8.98× |
-| Segmentation and object detection | 11 | 9 | 1 | 1 | 10/10 | 18/18 | 6.82× | 2.23×–47.99× |
-| **All metrics** | 225 | 82 | 118 | 25 | 200/200 | 164/164 | 5.50× | 1.01×–47.99× |
+| Classification and regression | 35 | 26 | 9 | 0 | 35/35 | 52/52 | 5.93× | 1.19×–28.08× |
+| Clinical, calibration and statistics | 32 | 21 | 6 | 5 | 27/27 | 41/42 | 5.77× | 0.99×–30.94× |
+| Forecasting, multi-label, comparisons and data quality | 13 | 8 | 2 | 3 | 10/10 | 6/16 | 1.32× | 0.06×–29.56× |
+| LLM evaluation | 70 | 20 | 34 | 16 | 54/54 | 40/40 | 10.09× | 1.07×–47.98× |
+| LLM systems | 77 | 6 | 68 | 3 | 74/74 | 12/12 | 3.30× | 1.08×–7.85× |
+| Segmentation and object detection | 11 | 9 | 1 | 1 | 10/10 | 18/18 | 9.96× | 2.20×–43.65× |
+| **All metrics** | 238 | 90 | 120 | 28 | 210/210 | 169/180 | 5.88× | 0.06×–47.98× |
 
 | Metric | Compared with | EvalSuite ms (n=10,000) | Reference ms (n=10,000) | Speed-up (n=10,000) | EvalSuite ms (n=100,000) | Reference ms (n=100,000) | Speed-up (n=100,000) | Max |difference| |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `agents.agent_cost_per_task` | NumPy formula | 0.013 | 0.004 | 0.28× | 0.011 | 0.004 | 0.38× | 0.0e+00 |
-| `agents.human_intervention_rate` | NumPy formula | 0.013 | 0.007 | 0.53× | 0.014 | 0.007 | 0.49× | 0.0e+00 |
-| `agents.invalid_tool_call_rate` | jsonschema | 2.040 | 5.266 | 2.58× | 24.247 | 44.130 | 1.82× | 0.0e+00 |
-| `agents.plan_adherence` | timed alone | 0.485 | – | – | 2.397 | – | – | – |
-| `agents.state_tracking_accuracy` | Python stdlib | 0.237 | 0.021 | 0.09× | 1.292 | 0.078 | 0.06× | 0.0e+00 |
-| `agents.steps_per_task` | NumPy formula | 0.029 | 0.004 | 0.14× | 0.023 | 0.002 | 0.10× | 0.0e+00 |
-| `agents.task_completion_rate` | NumPy formula | 0.006 | 0.005 | 0.77× | 0.004 | 0.003 | 0.78× | 0.0e+00 |
-| `agents.tool_failure_recovery_rate` | timed alone | 0.335 | – | – | 2.176 | – | – | – |
-| `agents.tool_use_efficiency` | NumPy formula | 0.020 | 0.004 | 0.20× | 0.018 | 0.004 | 0.20× | 0.0e+00 |
-| `agents.unnecessary_tool_call_rate` | Python stdlib | 0.656 | 0.618 | 0.94× | 6.801 | 7.674 | 1.13× | 0.0e+00 |
-| `calibration.calibration_intercept` | statsmodels | 0.589 | 5.667 | 9.63× | 5.340 | 71.120 | 13.32× | 3.3e-16 |
-| `calibration.calibration_slope` | statsmodels | 1.269 | 10.777 | 8.49× | 8.876 | 82.096 | 9.25× | 3.3e-16 |
-| `calibration.maximum_calibration_error` | NumPy formula | 0.201 | 0.179 | 0.89× | 1.300 | 2.414 | 1.86× | 3.1e-16 |
-| `classification.accuracy` | scikit-learn | 0.097 | 0.398 | 4.10× | 0.560 | 1.130 | 2.02× | 0.0e+00 |
-| `classification.average_precision` | scikit-learn | 0.509 | 1.778 | 3.49× | 7.162 | 17.901 | 2.50× | 1.1e-16 |
-| `classification.balanced_accuracy` | scikit-learn | 0.456 | 1.323 | 2.90× | 5.600 | 7.227 | 1.29× | 0.0e+00 |
-| `classification.brier_score` | scikit-learn | 0.072 | 0.755 | 10.48× | 0.561 | 3.480 | 6.21× | 0.0e+00 |
-| `classification.cohen_kappa` | scikit-learn | 0.087 | 0.819 | 9.43× | 0.451 | 2.041 | 4.53× | 0.0e+00 |
-| `classification.expected_calibration_error` | NumPy formula | 0.129 | 0.205 | 1.59× | 0.794 | 1.742 | 2.19× | 1.9e-16 |
-| `classification.f1` | scikit-learn | 0.473 | 1.945 | 4.12× | 4.232 | 7.693 | 1.82× | 0.0e+00 |
-| `classification.fbeta` | scikit-learn | 0.089 | 1.547 | 17.33× | 0.445 | 3.461 | 7.77× | 0.0e+00 |
-| `classification.hamming_loss` | scikit-learn | 0.556 | 2.429 | 4.37× | 6.472 | 18.274 | 2.82× | 0.0e+00 |
-| `classification.jaccard` | scikit-learn | 0.092 | 1.411 | 15.37× | 0.508 | 3.291 | 6.49× | 0.0e+00 |
-| `classification.log_loss` | scikit-learn | 0.495 | 3.886 | 7.86× | 5.527 | 18.143 | 3.28× | 0.0e+00 |
-| `classification.mcc` | scikit-learn | 0.713 | 3.232 | 4.53× | 5.585 | 10.002 | 1.79× | 0.0e+00 |
-| `classification.npv` | scikit-learn | 0.117 | 2.182 | 18.62× | 0.534 | 4.303 | 8.07× | 0.0e+00 |
-| `classification.precision` | scikit-learn | 0.711 | 2.903 | 4.09× | 4.347 | 11.246 | 2.59× | 0.0e+00 |
-| `classification.recall` | scikit-learn | 0.681 | 2.880 | 4.23× | 4.441 | 10.546 | 2.37× | 0.0e+00 |
-| `classification.roc_auc` | scikit-learn | 6.820 | 26.202 | 3.84× | 72.321 | 174.2 | 2.41× | 0.0e+00 |
-| `classification.specificity` | scikit-learn | 0.125 | 2.230 | 17.80× | 0.448 | 3.499 | 7.81× | 0.0e+00 |
-| `classification.top_k_accuracy` | scikit-learn | 0.884 | 3.522 | 3.98× | 5.978 | 22.238 | 3.72× | 0.0e+00 |
-| `clinical.diagnostic_odds_ratio` | NumPy formula | 0.102 | 0.072 | 0.70× | 0.433 | 0.367 | 0.85× | 0.0e+00 |
-| `clinical.lr_negative` | scikit-learn | 0.104 | 1.573 | 15.06× | 0.432 | 2.665 | 6.17× | 8.3e-17 |
-| `clinical.lr_positive` | scikit-learn | 0.098 | 1.584 | 16.19× | 0.433 | 2.582 | 5.97× | 8.9e-16 |
-| `clinical.net_benefit` | NumPy formula | 0.230 | 0.035 | 0.15× | 1.471 | 0.176 | 0.12× | 0.0e+00 |
-| `clinical.ppv` | scikit-learn | 0.121 | 2.143 | 17.71× | 0.496 | 3.351 | 6.76× | 0.0e+00 |
-| `clinical.sensitivity` | scikit-learn | 0.123 | 1.483 | 12.10× | 0.440 | 3.329 | 7.56× | 0.0e+00 |
-| `clinical.youden_j` | NumPy formula | 0.074 | 0.048 | 0.65× | 0.436 | 0.374 | 0.86× | 0.0e+00 |
-| `code.code_complexity` | radon | 1.043 | 1.093 | 1.05× | 9.821 | 10.900 | 1.11× | 0.0e+00 |
-| `code.codebleu` | timed alone | 4.888 | – | – | 47.315 | – | – | – |
-| `code.coverage_rate` | NumPy formula | 0.012 | 0.001 | 0.08× | 0.016 | 0.001 | 0.09× | 0.0e+00 |
-| `code.execution_success_rate` | NumPy formula | 0.023 | 0.018 | 0.80× | 0.177 | 0.135 | 0.77× | 0.0e+00 |
-| `code.patch_acceptance_rate` | NumPy formula | 0.003 | 0.003 | 0.76× | 0.004 | 0.003 | 0.82× | 0.0e+00 |
-| `code.resolved_rate` | Python stdlib | 0.085 | 0.016 | 0.19× | 0.992 | 0.140 | 0.14× | 0.0e+00 |
-| `code.runtime_efficiency` | NumPy formula | 0.029 | 0.002 | 0.08× | 0.041 | 0.004 | 0.09× | 0.0e+00 |
-| `code.security_vulnerability_rate` | Python stdlib | 0.099 | 0.008 | 0.08× | 0.997 | 0.055 | 0.06× | 0.0e+00 |
-| `code.static_analysis_violation_rate` | NumPy formula | 0.010 | 0.001 | 0.10× | 0.013 | 0.002 | 0.12× | 0.0e+00 |
-| `code.syntax_validity_rate` | Python stdlib | 2.382 | 1.482 | 0.62× | 31.188 | 17.153 | 0.55× | 0.0e+00 |
-| `code.unit_test_pass_rate` | NumPy formula | 0.428 | 0.313 | 0.73× | 4.112 | 3.233 | 0.79× | 0.0e+00 |
-| `detection.average_precision_detection` | pycocotools | 0.352 | 16.895 | 47.99× | 4.518 | 117.9 | 26.10× | 0.0e+00 |
-| `detection.box_iou` | NumPy formula | 0.045 | 0.023 | 0.51× | 8.421 | 5.501 | 0.65× | 0.0e+00 |
-| `detection.mean_average_precision` | pycocotools | 0.380 | 15.914 | 41.91× | 3.405 | 105.1 | 30.88× | 0.0e+00 |
-| `efficiency.availability` | NumPy formula | 0.015 | 0.003 | 0.16× | 0.075 | 0.003 | 0.04× | 0.0e+00 |
-| `efficiency.energy_per_request` | NumPy formula | 0.006 | 0.003 | 0.47× | 0.013 | 0.007 | 0.58× | 0.0e+00 |
-| `efficiency.inference_cost` | NumPy formula | 0.011 | 0.003 | 0.32× | 0.017 | 0.007 | 0.44× | 0.0e+00 |
-| `efficiency.latency_percentiles` | NumPy formula | 0.018 | 0.028 | 1.61× | 0.035 | 0.040 | 1.14× | 0.0e+00 |
-| `efficiency.requests_per_second` | NumPy formula | 0.005 | 0.002 | 0.39× | 0.009 | 0.004 | 0.40× | 0.0e+00 |
-| `efficiency.resource_utilization` | NumPy formula | 0.073 | 0.001 | 0.02× | 0.099 | 0.003 | 0.03× | 0.0e+00 |
-| `efficiency.throughput` | NumPy formula | 0.016 | 0.003 | 0.17× | 0.037 | 0.004 | 0.11× | 0.0e+00 |
-| `efficiency.time_per_output_token` | NumPy formula | 0.029 | 0.003 | 0.11× | 0.054 | 0.006 | 0.11× | 0.0e+00 |
-| `efficiency.time_to_first_token` | NumPy formula | 0.023 | 0.002 | 0.10× | 0.038 | 0.004 | 0.10× | 0.0e+00 |
-| `efficiency.token_usage` | NumPy formula | 0.029 | 0.002 | 0.08× | 0.058 | 0.005 | 0.09× | 0.0e+00 |
-| `long_context.citation_coverage` | NumPy formula | 0.066 | 0.112 | 1.69× | 0.681 | 1.247 | 1.83× | 0.0e+00 |
-| `long_context.compression_ratio` | Python stdlib | 0.537 | 0.525 | 0.98× | 7.037 | 6.490 | 0.92× | 0.0e+00 |
-| `long_context.context_utilization` | Python stdlib | 0.112 | 0.006 | 0.05× | 1.301 | 0.054 | 0.04× | 0.0e+00 |
-| `long_context.cross_document_consistency` | Python stdlib | 0.178 | 0.020 | 0.11× | 1.674 | 0.154 | 0.09× | 0.0e+00 |
-| `long_context.lost_in_the_middle` | NumPy formula | 0.018 | 0.009 | 0.49× | 0.047 | 0.010 | 0.22× | 0.0e+00 |
-| `long_context.needle_in_haystack` | NumPy formula | 0.261 | 0.003 | 0.01× | 0.366 | 0.003 | 0.01× | 0.0e+00 |
-| `long_context.position_accuracy` | NumPy formula | 0.048 | 0.022 | 0.45× | 0.075 | 0.027 | 0.36× | 0.0e+00 |
-| `long_context.retrieval_accuracy_by_length` | NumPy formula | 0.034 | 0.002 | 0.07× | 0.041 | 0.003 | 0.08× | 0.0e+00 |
-| `long_context.summary_coverage` | NumPy formula | 0.474 | 0.306 | 0.64× | 5.134 | 3.252 | 0.63× | 0.0e+00 |
-| `multilingual.bitext_mining_accuracy` | NumPy formula | 0.038 | 0.016 | 0.43× | 0.091 | 0.059 | 0.65× | 0.0e+00 |
-| `multilingual.code_switching_robustness` | NumPy formula | 0.010 | 0.003 | 0.26× | 0.013 | 0.003 | 0.26× | 0.0e+00 |
-| `multilingual.cross_lingual_consistency` | Python stdlib | 0.150 | 0.022 | 0.15× | 1.426 | 0.181 | 0.13× | 0.0e+00 |
-| `multilingual.cultural_appropriateness` | NumPy formula | 0.006 | 0.004 | 0.56× | 0.008 | 0.005 | 0.62× | 0.0e+00 |
-| `multilingual.direct_assessment` | SciPy | 0.096 | 0.864 | 8.98× | 0.397 | 1.245 | 3.14× | 1.0e-17 |
-| `multilingual.language_consistency` | NumPy formula | 0.069 | 0.003 | 0.05× | 0.501 | 0.006 | 0.01× | 0.0e+00 |
-| `multilingual.language_id_accuracy` | scikit-learn | 0.039 | 0.333 | 8.49× | 0.117 | 0.390 | 3.34× | 0.0e+00 |
-| `multilingual.language_parity` | NumPy formula | 0.027 | 0.017 | 0.62× | 0.031 | 0.018 | 0.59× | 0.0e+00 |
-| `qa.exact_match` | SQuAD formula | 0.355 | 8.074 | 22.77× | 3.901 | 77.508 | 19.87× | 0.0e+00 |
-| `qa.token_f1` | SQuAD formula | 0.504 | 8.822 | 17.49× | 5.515 | 90.028 | 16.32× | 0.0e+00 |
-| `rag.context_precision` | NumPy formula | 0.444 | 0.517 | 1.17× | 8.108 | 9.480 | 1.17× | 0.0e+00 |
-| `rag.context_recall` | NumPy formula | 0.352 | 0.636 | 1.81× | 6.351 | 5.740 | 0.90× | 0.0e+00 |
-| `rag.context_relevance` | NumPy formula | 0.715 | 0.663 | 0.93× | 6.307 | 3.458 | 0.55× | 0.0e+00 |
-| `rag.failure_attribution` | timed alone | 0.058 | – | – | 0.228 | – | – | – |
-| `rag.latency_summary` | NumPy formula | 0.262 | 0.056 | 0.21× | 0.141 | 0.029 | 0.20× | 0.0e+00 |
-| `rag.task_success_rate` | NumPy formula | 0.012 | 0.006 | 0.47× | 0.007 | 0.003 | 0.44× | 0.0e+00 |
-| `reasoning.benchmark_accuracy` | timed alone | 0.557 | – | – | 2.423 | – | – | – |
-| `reasoning.majority_vote_accuracy` | Python stdlib | 0.636 | 0.287 | 0.45× | 4.304 | 1.513 | 0.35× | 0.0e+00 |
-| `reasoning.pass_at_k` | Python stdlib | 0.579 | 0.053 | 0.09× | 2.705 | 0.234 | 0.09× | 0.0e+00 |
-| `regression.adjusted_r2` | NumPy formula | 0.102 | 0.033 | 0.32× | 0.540 | 0.232 | 0.43× | 0.0e+00 |
-| `regression.explained_variance` | scikit-learn | 0.109 | 0.555 | 5.08× | 0.427 | 1.020 | 2.39× | 0.0e+00 |
-| `regression.huber_loss` | NumPy formula | 0.080 | 0.031 | 0.39× | 0.525 | 0.321 | 0.61× | 0.0e+00 |
-| `regression.mae` | scikit-learn | 0.053 | 0.354 | 6.63× | 0.248 | 0.487 | 1.97× | 0.0e+00 |
-| `regression.mape` | scikit-learn | 0.081 | 0.427 | 5.29× | 0.428 | 0.653 | 1.53× | 0.0e+00 |
-| `regression.max_error` | scikit-learn | 0.040 | 0.243 | 6.04× | 0.203 | 0.381 | 1.88× | 0.0e+00 |
-| `regression.mean_bias_error` | NumPy formula | 0.053 | 0.017 | 0.31× | 0.210 | 0.097 | 0.46× | 0.0e+00 |
-| `regression.median_absolute_error` | scikit-learn | 0.237 | 0.551 | 2.32× | 1.510 | 1.657 | 1.10× | 0.0e+00 |
-| `regression.mse` | scikit-learn | 0.065 | 0.376 | 5.81× | 0.266 | 0.494 | 1.86× | 0.0e+00 |
-| `regression.msle` | scikit-learn | 0.111 | 0.649 | 5.86× | 0.558 | 1.698 | 3.04× | 0.0e+00 |
-| `regression.quantile_loss` | scikit-learn | 0.067 | 0.456 | 6.82× | 0.441 | 0.859 | 1.95× | 0.0e+00 |
-| `regression.r2` | scikit-learn | 0.100 | 0.464 | 4.63× | 0.599 | 1.036 | 1.73× | 0.0e+00 |
-| `regression.rae` | NumPy formula | 0.127 | 0.033 | 0.26× | 0.929 | 0.270 | 0.29× | 0.0e+00 |
-| `regression.rmse` | NumPy formula | 0.076 | 0.011 | 0.15× | 0.375 | 0.076 | 0.20× | 0.0e+00 |
-| `regression.rmsle` | NumPy formula | 0.114 | 0.062 | 0.55× | 0.765 | 0.460 | 0.60× | 0.0e+00 |
-| `regression.rse` | NumPy formula | 0.119 | 0.032 | 0.27× | 0.648 | 0.161 | 0.25× | 0.0e+00 |
-| `regression.smape` | NumPy formula | 0.098 | 0.043 | 0.43× | 0.594 | 0.298 | 0.50× | 0.0e+00 |
-| `retrieval.hit_rate_at_k` | ranx | 0.536 | 8.087 | 15.09× | 3.104 | 70.463 | 22.70× | 0.0e+00 |
-| `retrieval.mean_average_precision_at_k` | ranx | 0.353 | 8.448 | 23.94× | 4.842 | 85.837 | 17.73× | 3.5e-18 |
-| `retrieval.mrr` | ranx | 0.347 | 7.791 | 22.44× | 4.320 | 92.596 | 21.44× | 0.0e+00 |
-| `retrieval.ndcg_at_k` | ranx | 0.319 | 7.869 | 24.68× | 3.732 | 119.7 | 32.08× | 3.5e-18 |
-| `retrieval.precision_at_k` | ranx | 0.292 | 7.577 | 25.96× | 3.227 | 75.039 | 23.25× | 0.0e+00 |
-| `retrieval.recall_at_k` | ranx | 0.517 | 8.429 | 16.29× | 4.646 | 105.7 | 22.75× | 0.0e+00 |
-| `robustness.adversarial_robustness` | NumPy formula | 0.012 | 0.002 | 0.20× | 0.014 | 0.003 | 0.22× | 0.0e+00 |
-| `robustness.contradiction_rate` | NumPy formula | 0.026 | 0.018 | 0.70× | 0.224 | 0.153 | 0.68× | 0.0e+00 |
-| `robustness.distribution_shift_drop` | SciPy | 0.089 | 0.579 | 6.47× | 0.151 | 1.084 | 7.16× | 6.9e-18 |
-| `robustness.error_rate` | NumPy formula | 0.021 | 0.017 | 0.84× | 0.155 | 0.133 | 0.86× | 0.0e+00 |
-| `robustness.invariance_violation_rate` | Python stdlib | 0.033 | 0.009 | 0.28× | 0.274 | 0.100 | 0.36× | 0.0e+00 |
-| `robustness.noise_robustness` | NumPy formula | 0.010 | 0.002 | 0.24× | 0.020 | 0.006 | 0.28× | 0.0e+00 |
-| `robustness.ood_accuracy` | NumPy formula | 0.010 | 0.002 | 0.22× | 0.019 | 0.003 | 0.14× | 0.0e+00 |
-| `robustness.paraphrase_consistency` | Python stdlib | 0.171 | 0.019 | 0.11× | 1.722 | 0.154 | 0.09× | 0.0e+00 |
-| `robustness.prompt_sensitivity` | NumPy formula | 0.046 | 0.005 | 0.10× | 0.055 | 0.006 | 0.10× | 0.0e+00 |
-| `robustness.recovery_success_rate` | NumPy formula | 0.009 | 0.002 | 0.25× | 0.009 | 0.003 | 0.28× | 0.0e+00 |
-| `robustness.response_stability` | Python stdlib | 0.220 | 0.404 | 1.84× | 2.578 | 8.113 | 3.15× | 0.0e+00 |
-| `robustness.truncation_sensitivity` | NumPy formula | 0.068 | 0.047 | 0.69× | 0.175 | 0.088 | 0.50× | 0.0e+00 |
-| `safety.attack_success_rate` | NumPy formula | 0.005 | 0.004 | 0.83× | 0.008 | 0.005 | 0.71× | 0.0e+00 |
-| `safety.exposure` | NumPy formula | 0.313 | 0.018 | 0.06× | 4.732 | 0.130 | 0.03× | 0.0e+00 |
-| `safety.harmful_response_rate` | NumPy formula | 0.005 | 0.002 | 0.46× | 0.006 | 0.003 | 0.52× | 0.0e+00 |
-| `safety.over_refusal_rate` | NumPy formula | 0.005 | 0.003 | 0.52× | 0.006 | 0.004 | 0.58× | 0.0e+00 |
-| `safety.pii_leakage_rate` | Python stdlib | 0.171 | 0.052 | 0.30× | 1.730 | 0.475 | 0.27× | 0.0e+00 |
-| `safety.policy_violation_rate` | Python stdlib | 0.104 | 0.013 | 0.12× | 0.640 | 0.056 | 0.09× | 0.0e+00 |
-| `safety.red_team_success_rate` | Python stdlib | 0.116 | 0.017 | 0.14× | 0.647 | 0.098 | 0.15× | 0.0e+00 |
-| `safety.refusal_rate` | NumPy formula | 0.019 | 0.004 | 0.20× | 0.014 | 0.003 | 0.19× | 0.0e+00 |
-| `safety.stereotype_preference` | NumPy formula | 0.019 | 0.007 | 0.37× | 0.015 | 0.007 | 0.46× | 0.0e+00 |
-| `safety.toxicity_score` | NumPy formula | 0.085 | 0.007 | 0.08× | 0.650 | 0.049 | 0.08× | 0.0e+00 |
-| `safety.weat_effect_size` | NumPy formula | 2.403 | 0.052 | 0.02× | 2.479 | 0.052 | 0.02× | 0.0e+00 |
-| `segmentation.average_surface_distance` | SciPy | 0.202 | 0.450 | 2.23× | 2.727 | 6.314 | 2.32× | 0.0e+00 |
-| `segmentation.boundary_iou` | timed alone | 0.331 | – | – | 3.340 | – | – | – |
-| `segmentation.dice` | scikit-learn | 0.233 | 2.308 | 9.92× | 1.710 | 4.416 | 2.58× | 0.0e+00 |
-| `segmentation.hausdorff_distance` | SciPy | 0.372 | 1.238 | 3.33× | 3.115 | 9.286 | 2.98× | 0.0e+00 |
-| `segmentation.iou` | scikit-learn | 0.237 | 2.178 | 9.20× | 1.743 | 4.545 | 2.61× | 0.0e+00 |
-| `segmentation.mean_pixel_accuracy` | scikit-learn | 0.168 | 1.437 | 8.58× | 1.536 | 4.154 | 2.70× | 0.0e+00 |
-| `segmentation.miou` | scikit-learn | 0.166 | 1.316 | 7.91× | 1.572 | 4.490 | 2.86× | 0.0e+00 |
-| `segmentation.pixel_accuracy` | scikit-learn | 0.029 | 0.365 | 12.61× | 0.285 | 0.868 | 3.05× | 0.0e+00 |
-| `statistics.accuracy_ci` | statsmodels | 0.013 | 0.067 | 5.21× | 0.046 | 0.066 | 1.43× | 0.0e+00 |
-| `statistics.adjust_pvalues` | statsmodels | 0.367 | 0.416 | 1.13× | 4.212 | 4.912 | 1.17× | 2.2e-16 |
-| `statistics.bootstrap_ci` | timed alone | 85.925 | – | – | 450.3 | – | – | – |
-| `statistics.chi_square_test` | SciPy | 0.026 | 0.224 | 8.78× | 0.043 | 0.326 | 7.58× | 0.0e+00 |
-| `statistics.cliffs_delta` | SciPy | 2.187 | 2.636 | 1.21× | 35.091 | 35.407 | 1.01× | 2.8e-17 |
-| `statistics.cohens_d` | NumPy formula | 0.053 | 0.039 | 0.73× | 0.680 | 0.432 | 0.64× | 0.0e+00 |
-| `statistics.compare` | timed alone | 48.408 | – | – | 398.3 | – | – | – |
-| `statistics.cramers_v` | SciPy | 0.018 | 0.235 | 13.33× | 0.026 | 0.234 | 9.06× | 0.0e+00 |
-| `statistics.delong_test` | timed alone | 1.418 | – | – | 16.135 | – | – | – |
-| `statistics.fisher_exact_test` | SciPy | 0.116 | 0.625 | 5.39× | 0.494 | 2.749 | 5.57× | 0.0e+00 |
-| `statistics.friedman_test` | SciPy | 0.616 | 1.691 | 2.75× | 7.624 | 14.147 | 1.86× | 0.0e+00 |
-| `statistics.hedges_g` | NumPy formula | 0.076 | 0.038 | 0.50× | 0.929 | 0.415 | 0.45× | 4.9e-12 |
-| `statistics.kruskal_wallis_test` | SciPy | 0.936 | 3.617 | 3.87× | 15.672 | 42.801 | 2.73× | 0.0e+00 |
-| `statistics.mann_whitney_test` | SciPy | 0.585 | 2.643 | 4.51× | 7.153 | 27.579 | 3.86× | 0.0e+00 |
-| `statistics.mcnemar_test` | statsmodels | 0.018 | 0.073 | 4.00× | 0.124 | 0.345 | 2.78× | 0.0e+00 |
-| `statistics.paired_bootstrap_test` | timed alone | 43.175 | – | – | 367.7 | – | – | – |
-| `statistics.paired_t_test` | SciPy | 0.138 | 0.516 | 3.74× | 0.403 | 1.026 | 2.54× | 1.8e-15 |
-| `statistics.proportion_ci` | statsmodels | 0.022 | 0.153 | 7.07× | 0.014 | 0.150 | 10.40× | 0.0e+00 |
-| `statistics.roc_auc_ci` | timed alone | 1.127 | – | – | 9.778 | – | – | – |
-| `statistics.shapiro_wilk_test` | SciPy | 0.069 | 0.734 | 10.71× | 0.051 | 0.606 | 11.80× | 0.0e+00 |
-| `statistics.t_test` | SciPy | 0.151 | 0.868 | 5.75× | 0.515 | 1.448 | 2.81× | 0.0e+00 |
-| `statistics.wilcoxon_test` | SciPy | 0.459 | 1.988 | 4.33× | 4.610 | 15.683 | 3.40× | 0.0e+00 |
-| `text.abstention_accuracy` | NumPy formula | 0.018 | 0.005 | 0.25× | 0.027 | 0.007 | 0.26× | 0.0e+00 |
-| `text.answer_correctness` | NumPy formula | 0.022 | 0.007 | 0.31× | 0.035 | 0.014 | 0.41× | 0.0e+00 |
-| `text.answer_relevance` | NumPy formula | 1.573 | 1.815 | 1.15× | 11.007 | 9.054 | 0.82× | 0.0e+00 |
-| `text.api_call_success_rate` | NumPy formula | 0.022 | 0.009 | 0.43× | 0.097 | 0.030 | 0.31× | 0.0e+00 |
-| `text.bertscore` | NumPy formula | 0.416 | 0.226 | 0.54× | 2.708 | 2.857 | 1.06× | 0.0e+00 |
-| `text.bleu` | sacreBLEU | 0.977 | 5.417 | 5.54× | 9.696 | 73.581 | 7.59× | 0.0e+00 |
-| `text.bradley_terry` | timed alone | 1.005 | – | – | 1.890 | – | – | – |
-| `text.chrf` | sacreBLEU | 1.704 | 13.637 | 8.00× | 25.449 | 155.2 | 6.10× | 1.4e-14 |
-| `text.cider` | timed alone | 3.414 | – | – | 41.325 | – | – | – |
-| `text.citation_precision` | timed alone | 0.170 | – | – | 1.843 | – | – | – |
-| `text.citation_recall` | timed alone | 0.120 | – | – | 1.350 | – | – | – |
-| `text.claim_verification_accuracy` | NumPy formula | 0.154 | 0.004 | 0.03× | 1.266 | 0.014 | 0.01× | 0.0e+00 |
-| `text.constraint_satisfaction_rate` | NumPy formula | 0.050 | 0.063 | 1.26× | 0.415 | 0.708 | 1.70× | 0.0e+00 |
-| `text.cross_entropy` | NumPy formula | 0.044 | 0.009 | 0.21× | 0.372 | 0.060 | 0.16× | 0.0e+00 |
-| `text.distinct_n` | Python stdlib | 0.207 | 0.222 | 1.07× | 2.285 | 2.982 | 1.31× | 0.0e+00 |
-| `text.elo_ratings` | Python stdlib | 0.120 | 0.122 | 1.02× | 0.309 | 0.284 | 0.92× | 0.0e+00 |
-| `text.embedding_similarity` | NumPy formula | 0.042 | 0.042 | 0.99× | 0.227 | 0.200 | 0.88× | 0.0e+00 |
-| `text.extra_content_rate` | timed alone | 0.324 | – | – | 2.731 | – | – | – |
-| `text.faithfulness` | NumPy formula | 0.274 | 0.422 | 1.54× | 2.459 | 4.287 | 1.74× | 0.0e+00 |
-| `text.fleiss_kappa` | statsmodels | 0.039 | 0.098 | 2.48× | 0.096 | 0.733 | 7.62× | 0.0e+00 |
-| `text.format_compliance` | Python stdlib | 0.026 | 0.020 | 0.80× | 0.192 | 0.148 | 0.77× | 0.0e+00 |
-| `text.groundedness` | NumPy formula | 0.105 | 0.144 | 1.38× | 0.893 | 1.415 | 1.58× | 0.0e+00 |
-| `text.hallucination_rate` | NumPy formula | 0.265 | 0.111 | 0.42× | 2.298 | 1.117 | 0.49× | 0.0e+00 |
-| `text.instruction_compliance_rate` | NumPy formula | 0.035 | 0.012 | 0.34× | 0.336 | 0.095 | 0.28× | 0.0e+00 |
-| `text.instruction_retention` | timed alone | 0.057 | – | – | 0.498 | – | – | – |
-| `text.json_schema_compliance` | jsonschema | 1.368 | 3.284 | 2.40× | 18.581 | 34.601 | 1.86× | 0.0e+00 |
-| `text.json_validity` | Python stdlib | 0.166 | 0.135 | 0.81× | 1.635 | 1.362 | 0.83× | 0.0e+00 |
-| `text.judge_agreement` | scikit-learn | 0.115 | 0.752 | 6.54× | 0.303 | 1.026 | 3.38× | 0.0e+00 |
-| `text.knowledge_consistency` | Python stdlib | 0.070 | 0.014 | 0.20× | 0.571 | 0.191 | 0.33× | 0.0e+00 |
-| `text.krippendorff_alpha` | krippendorff | 0.068 | 0.094 | 1.39× | 0.147 | 0.367 | 2.50× | 2.9e-15 |
-| `text.mauve` | timed alone | 3.262 | – | – | 490.8 | – | – | – |
-| `text.meteor` | NLTK | 0.782 | 5.431 | 6.95× | 7.914 | 54.297 | 6.86× | 0.0e+00 |
-| `text.model_score` | timed alone | 0.015 | – | – | 0.088 | – | – | – |
-| `text.moverscore` | timed alone | 4.629 | – | – | 74.707 | – | – | – |
-| `text.perplexity` | NumPy formula | 0.045 | 0.008 | 0.18× | 0.375 | 0.062 | 0.17× | 0.0e+00 |
-| `text.position_consistency` | NumPy formula | 0.068 | 0.003 | 0.05× | 0.638 | 0.005 | 0.01× | 0.0e+00 |
-| `text.required_field_accuracy` | timed alone | 0.345 | – | – | 3.429 | – | – | – |
-| `text.rouge_1` | rouge-score | 0.444 | 3.127 | 7.04× | 4.787 | 31.003 | 6.48× | 0.0e+00 |
-| `text.rouge_2` | rouge-score | 0.711 | 3.040 | 4.27× | 4.464 | 33.621 | 7.53× | 0.0e+00 |
-| `text.rouge_l` | rouge-score | 0.453 | 3.701 | 8.17× | 7.936 | 39.080 | 4.92× | 0.0e+00 |
-| `text.rouge_lsum` | rouge-score | 0.888 | 6.010 | 6.77× | 14.368 | 57.815 | 4.02× | 0.0e+00 |
-| `text.rubric_score` | NumPy formula | 0.016 | 0.005 | 0.29× | 0.040 | 0.009 | 0.23× | 0.0e+00 |
-| `text.self_bleu` | sacreBLEU | 0.504 | 13.239 | 26.27× | 12.224 | 422.8 | 34.59× | 0.0e+00 |
-| `text.self_preference_bias` | timed alone | 1.287 | – | – | 0.959 | – | – | – |
-| `text.sentence_bleu` | sacreBLEU | 1.151 | 12.363 | 10.74× | 10.477 | 139.0 | 13.27× | 0.0e+00 |
-| `text.spice` | Python stdlib | 1.971 | 0.094 | 0.05× | 22.114 | 1.220 | 0.06× | 0.0e+00 |
-| `text.ter` | sacreBLEU | 1.738 | 27.839 | 16.02× | 10.820 | 192.1 | 17.76× | 3.6e-15 |
-| `text.tool_argument_accuracy` | timed alone | 0.496 | – | – | 3.233 | – | – | – |
-| `text.tool_call_f1` | timed alone | 0.619 | – | – | 3.491 | – | – | – |
-| `text.tool_selection_accuracy` | Python stdlib | 0.440 | 0.040 | 0.09× | 2.597 | 0.198 | 0.08× | 0.0e+00 |
-| `text.verbosity_bias` | timed alone | 0.933 | – | – | 1.757 | – | – | – |
-| `text.win_rate` | NumPy formula | 0.071 | 0.009 | 0.13× | 0.347 | 0.014 | 0.04× | 0.0e+00 |
-| `text.xml_validity` | Python stdlib | 0.837 | 0.784 | 0.94× | 5.230 | 5.047 | 0.97× | 0.0e+00 |
-| `uncertainty.adaptive_calibration_error` | NumPy formula | 0.283 | 0.249 | 0.88× | 0.972 | 0.880 | 0.90× | 0.0e+00 |
-| `uncertainty.aurc` | NumPy formula | 0.114 | 0.066 | 0.58× | 0.901 | 0.802 | 0.89× | 0.0e+00 |
-| `uncertainty.confidence_accuracy_correlation` | scikit-learn | 0.645 | 2.418 | 3.75× | 1.255 | 3.145 | 2.51× | 1.1e-16 |
-| `uncertainty.coverage_at_risk` | NumPy formula | 0.092 | 0.041 | 0.44× | 0.918 | 0.826 | 0.90× | 0.0e+00 |
-| `uncertainty.risk_at_coverage` | NumPy formula | 0.070 | 0.032 | 0.45× | 0.901 | 0.788 | 0.87× | 0.0e+00 |
-| `uncertainty.selective_risk` | NumPy formula | 0.042 | 0.031 | 0.76× | 0.829 | 0.780 | 0.94× | 0.0e+00 |
+| `agents.agent_cost_per_task` | NumPy formula | 0.009 | 0.003 | 0.30× | 0.006 | 0.002 | 0.31× | 0.0e+00 |
+| `agents.human_intervention_rate` | NumPy formula | 0.016 | 0.004 | 0.27× | 0.009 | 0.003 | 0.39× | 0.0e+00 |
+| `agents.invalid_tool_call_rate` | jsonschema | 1.355 | 2.691 | 1.99× | 10.923 | 31.234 | 2.86× | 0.0e+00 |
+| `agents.plan_adherence` | timed alone | 0.183 | – | – | 1.731 | – | – | – |
+| `agents.state_tracking_accuracy` | Python stdlib | 0.093 | 0.010 | 0.10× | 0.915 | 0.064 | 0.07× | 0.0e+00 |
+| `agents.steps_per_task` | NumPy formula | 0.017 | 0.002 | 0.09× | 0.026 | 0.002 | 0.07× | 0.0e+00 |
+| `agents.task_completion_rate` | NumPy formula | 0.003 | 0.002 | 0.75× | 0.003 | 0.003 | 0.80× | 0.0e+00 |
+| `agents.tool_failure_recovery_rate` | timed alone | 0.134 | – | – | 1.731 | – | – | – |
+| `agents.tool_use_efficiency` | NumPy formula | 0.015 | 0.002 | 0.13× | 0.023 | 0.003 | 0.13× | 0.0e+00 |
+| `agents.unnecessary_tool_call_rate` | Python stdlib | 0.444 | 0.448 | 1.01× | 5.415 | 5.562 | 1.03× | 0.0e+00 |
+| `bayes.correlated_ttest` | baycomp | 0.439 | 0.076 | 0.17× | 0.453 | 0.075 | 0.17× | 1.1e-16 |
+| `calibration.calibration_intercept` | statsmodels | 0.463 | 3.351 | 7.23× | 4.319 | 28.447 | 6.59× | 1.1e-16 |
+| `calibration.calibration_slope` | statsmodels | 0.789 | 5.869 | 7.44× | 8.401 | 51.149 | 6.09× | 3.3e-16 |
+| `calibration.maximum_calibration_error` | NumPy formula | 0.117 | 0.461 | 3.94× | 0.699 | 4.709 | 6.74× | 5.6e-16 |
+| `classification.accuracy` | scikit-learn | 0.056 | 0.526 | 9.45× | 0.415 | 3.385 | 8.15× | 0.0e+00 |
+| `classification.average_precision` | scikit-learn | 0.352 | 1.845 | 5.24× | 4.742 | 17.400 | 3.67× | 1.1e-16 |
+| `classification.balanced_accuracy` | scikit-learn | 0.345 | 1.722 | 5.00× | 3.443 | 12.843 | 3.73× | 0.0e+00 |
+| `classification.brier_score` | scikit-learn | 0.058 | 0.825 | 14.13× | 0.592 | 5.884 | 9.93× | 0.0e+00 |
+| `classification.cohen_kappa` | scikit-learn | 0.068 | 1.385 | 20.22× | 0.422 | 9.975 | 23.66× | 0.0e+00 |
+| `classification.expected_calibration_error` | NumPy formula | 0.103 | 0.481 | 4.66× | 0.744 | 5.027 | 6.75× | 6.4e-16 |
+| `classification.f1` | scikit-learn | 0.358 | 2.267 | 6.33× | 3.392 | 14.543 | 4.29× | 0.0e+00 |
+| `classification.fbeta` | scikit-learn | 0.075 | 1.869 | 25.08× | 0.459 | 11.087 | 24.16× | 0.0e+00 |
+| `classification.hamming_loss` | scikit-learn | 0.467 | 3.083 | 6.60× | 6.144 | 27.627 | 4.50× | 0.0e+00 |
+| `classification.jaccard` | scikit-learn | 0.070 | 1.741 | 24.82× | 0.427 | 11.101 | 25.97× | 0.0e+00 |
+| `classification.log_loss` | scikit-learn | 0.426 | 2.597 | 6.10× | 5.589 | 23.017 | 4.12× | 0.0e+00 |
+| `classification.mcc` | scikit-learn | 0.360 | 3.177 | 8.82× | 3.368 | 23.185 | 6.88× | 0.0e+00 |
+| `classification.npv` | scikit-learn | 0.076 | 1.892 | 24.99× | 0.444 | 11.151 | 25.14× | 0.0e+00 |
+| `classification.precision` | scikit-learn | 0.360 | 2.240 | 6.22× | 3.385 | 14.360 | 4.24× | 0.0e+00 |
+| `classification.recall` | scikit-learn | 0.349 | 2.273 | 6.52× | 3.361 | 14.163 | 4.21× | 0.0e+00 |
+| `classification.roc_auc` | scikit-learn | 2.533 | 20.038 | 7.91× | 58.962 | 201.0 | 3.41× | 0.0e+00 |
+| `classification.specificity` | scikit-learn | 0.067 | 1.885 | 28.08× | 0.500 | 11.549 | 23.12× | 0.0e+00 |
+| `classification.top_k_accuracy` | scikit-learn | 0.592 | 2.300 | 3.89× | 7.769 | 20.266 | 2.61× | 0.0e+00 |
+| `clinical.diagnostic_odds_ratio` | NumPy formula | 0.060 | 0.035 | 0.58× | 0.482 | 0.371 | 0.77× | 0.0e+00 |
+| `clinical.lr_negative` | scikit-learn | 0.058 | 1.804 | 30.94× | 0.482 | 13.283 | 27.56× | 8.3e-17 |
+| `clinical.lr_positive` | scikit-learn | 0.059 | 1.797 | 30.71× | 0.476 | 13.233 | 27.80× | 8.9e-16 |
+| `clinical.net_benefit` | NumPy formula | 0.143 | 0.017 | 0.12× | 1.595 | 0.165 | 0.10× | 0.0e+00 |
+| `clinical.ppv` | scikit-learn | 0.068 | 1.882 | 27.72× | 0.508 | 11.546 | 22.74× | 0.0e+00 |
+| `clinical.sensitivity` | scikit-learn | 0.068 | 1.868 | 27.64× | 0.519 | 11.669 | 22.49× | 0.0e+00 |
+| `clinical.youden_j` | NumPy formula | 0.059 | 0.035 | 0.60× | 0.467 | 0.364 | 0.78× | 0.0e+00 |
+| `code.code_complexity` | radon | 0.724 | 0.799 | 1.10× | 7.065 | 7.605 | 1.08× | 0.0e+00 |
+| `code.codebleu` | timed alone | 3.369 | – | – | 31.578 | – | – | – |
+| `code.coverage_rate` | NumPy formula | 0.013 | 0.001 | 0.07× | 0.016 | 0.001 | 0.07× | 0.0e+00 |
+| `code.execution_success_rate` | NumPy formula | 0.019 | 0.015 | 0.78× | 0.135 | 0.108 | 0.80× | 0.0e+00 |
+| `code.patch_acceptance_rate` | NumPy formula | 0.003 | 0.002 | 0.77× | 0.003 | 0.003 | 0.83× | 0.0e+00 |
+| `code.resolved_rate` | Python stdlib | 0.069 | 0.013 | 0.18× | 0.697 | 0.112 | 0.16× | 0.0e+00 |
+| `code.runtime_efficiency` | NumPy formula | 0.024 | 0.002 | 0.08× | 0.034 | 0.003 | 0.09× | 0.0e+00 |
+| `code.security_vulnerability_rate` | Python stdlib | 0.080 | 0.007 | 0.09× | 0.686 | 0.046 | 0.07× | 0.0e+00 |
+| `code.static_analysis_violation_rate` | NumPy formula | 0.010 | 0.001 | 0.10× | 0.014 | 0.001 | 0.09× | 0.0e+00 |
+| `code.syntax_validity_rate` | Python stdlib | 1.743 | 1.064 | 0.61× | 17.922 | 11.024 | 0.62× | 0.0e+00 |
+| `code.unit_test_pass_rate` | NumPy formula | 0.337 | 0.268 | 0.79× | 3.436 | 2.725 | 0.79× | 0.0e+00 |
+| `comparisons.nemenyi` | scikit-posthocs | 0.565 | 0.551 | 0.97× | 0.582 | 0.540 | 0.93× | 0.0e+00 |
+| `conformal.classification_sets` | timed alone | 0.301 | – | – | 3.366 | – | – | – |
+| `data_quality.label_issues` | cleanlab | 0.526 | 1.735 | 3.30× | 0.981 | 3.108 | 3.17× | 0.0e+00 |
+| `detection.average_precision_detection` | pycocotools | 0.311 | 13.575 | 43.65× | 4.406 | 71.536 | 16.24× | 0.0e+00 |
+| `detection.box_iou` | NumPy formula | 0.043 | 0.021 | 0.49× | 8.151 | 4.700 | 0.58× | 0.0e+00 |
+| `detection.mean_average_precision` | pycocotools | 0.317 | 13.646 | 43.07× | 2.643 | 69.149 | 26.16× | 0.0e+00 |
+| `efficiency.availability` | NumPy formula | 0.013 | 0.002 | 0.17× | 0.058 | 0.003 | 0.05× | 0.0e+00 |
+| `efficiency.energy_per_request` | NumPy formula | 0.007 | 0.002 | 0.33× | 0.007 | 0.004 | 0.50× | 0.0e+00 |
+| `efficiency.inference_cost` | NumPy formula | 0.011 | 0.003 | 0.28× | 0.014 | 0.004 | 0.32× | 0.0e+00 |
+| `efficiency.latency_percentiles` | NumPy formula | 0.016 | 0.024 | 1.47× | 0.023 | 0.029 | 1.26× | 0.0e+00 |
+| `efficiency.requests_per_second` | NumPy formula | 0.004 | 0.002 | 0.42× | 0.007 | 0.002 | 0.28× | 0.0e+00 |
+| `efficiency.resource_utilization` | NumPy formula | 0.067 | 0.001 | 0.02× | 0.086 | 0.001 | 0.02× | 0.0e+00 |
+| `efficiency.throughput` | NumPy formula | 0.016 | 0.003 | 0.16× | 0.021 | 0.003 | 0.15× | 0.0e+00 |
+| `efficiency.time_per_output_token` | NumPy formula | 0.030 | 0.003 | 0.10× | 0.047 | 0.005 | 0.10× | 0.0e+00 |
+| `efficiency.time_to_first_token` | NumPy formula | 0.021 | 0.002 | 0.10× | 0.030 | 0.003 | 0.09× | 0.0e+00 |
+| `efficiency.token_usage` | NumPy formula | 0.026 | 0.002 | 0.08× | 0.051 | 0.003 | 0.05× | 0.0e+00 |
+| `forecasting.crps` | properscoring | 1.692 | 1.161 | 0.69× | 21.584 | 13.458 | 0.62× | 5.6e-17 |
+| `forecasting.diebold_mariano` | timed alone | 0.358 | – | – | 1.282 | – | – | – |
+| `forecasting.mase` | NumPy formula | 0.030 | 0.017 | 0.56× | 0.488 | 0.305 | 0.63× | 0.0e+00 |
+| `long_context.citation_coverage` | NumPy formula | 0.050 | 0.094 | 1.90× | 0.428 | 0.964 | 2.25× | 0.0e+00 |
+| `long_context.compression_ratio` | Python stdlib | 0.439 | 0.406 | 0.92× | 4.452 | 4.407 | 0.99× | 0.0e+00 |
+| `long_context.context_utilization` | Python stdlib | 0.086 | 0.004 | 0.05× | 1.217 | 0.076 | 0.06× | 0.0e+00 |
+| `long_context.cross_document_consistency` | Python stdlib | 0.131 | 0.015 | 0.11× | 2.359 | 0.121 | 0.05× | 0.0e+00 |
+| `long_context.lost_in_the_middle` | NumPy formula | 0.017 | 0.008 | 0.49× | 0.043 | 0.015 | 0.35× | 0.0e+00 |
+| `long_context.needle_in_haystack` | NumPy formula | 0.241 | 0.003 | 0.01× | 0.382 | 0.003 | 0.01× | 0.0e+00 |
+| `long_context.position_accuracy` | NumPy formula | 0.042 | 0.021 | 0.50× | 0.076 | 0.032 | 0.42× | 0.0e+00 |
+| `long_context.retrieval_accuracy_by_length` | NumPy formula | 0.030 | 0.002 | 0.07× | 0.051 | 0.003 | 0.05× | 0.0e+00 |
+| `long_context.summary_coverage` | NumPy formula | 0.406 | 0.264 | 0.65× | 4.163 | 2.628 | 0.63× | 0.0e+00 |
+| `method_agreement.bland_altman` | NumPy formula | 0.506 | 0.008 | 0.02× | 1.389 | 0.080 | 0.06× | 0.0e+00 |
+| `method_agreement.icc` | pingouin | 0.365 | 10.148 | 27.82× | 0.788 | 23.288 | 29.56× | 1.1e-16 |
+| `multilabel.coverage_error` | scikit-learn | 6.459 | 0.547 | 0.08× | 61.149 | 3.619 | 0.06× | 0.0e+00 |
+| `multilabel.label_ranking_average_precision` | scikit-learn | 6.613 | 101.9 | 15.41× | 62.556 | 1,047.6 | 16.75× | 8.4e-15 |
+| `multilingual.bitext_mining_accuracy` | NumPy formula | 0.031 | 0.015 | 0.49× | 0.066 | 0.045 | 0.69× | 0.0e+00 |
+| `multilingual.code_switching_robustness` | NumPy formula | 0.009 | 0.002 | 0.28× | 0.011 | 0.003 | 0.26× | 0.0e+00 |
+| `multilingual.cross_lingual_consistency` | Python stdlib | 0.108 | 0.017 | 0.15× | 1.237 | 0.136 | 0.11× | 0.0e+00 |
+| `multilingual.cultural_appropriateness` | NumPy formula | 0.007 | 0.003 | 0.42× | 0.008 | 0.004 | 0.51× | 0.0e+00 |
+| `multilingual.direct_assessment` | SciPy | 0.089 | 0.700 | 7.85× | 0.366 | 1.037 | 2.83× | 1.0e-17 |
+| `multilingual.language_consistency` | NumPy formula | 0.057 | 0.003 | 0.05× | 0.407 | 0.005 | 0.01× | 0.0e+00 |
+| `multilingual.language_id_accuracy` | scikit-learn | 0.034 | 0.260 | 7.75× | 0.103 | 0.276 | 2.68× | 0.0e+00 |
+| `multilingual.language_parity` | NumPy formula | 0.030 | 0.012 | 0.40× | 0.030 | 0.015 | 0.50× | 0.0e+00 |
+| `qa.exact_match` | SQuAD formula | 0.277 | 6.295 | 22.75× | 3.323 | 60.861 | 18.32× | 0.0e+00 |
+| `qa.token_f1` | SQuAD formula | 0.393 | 8.871 | 22.60× | 4.431 | 66.959 | 15.11× | 0.0e+00 |
+| `rag.context_precision` | NumPy formula | 0.623 | 0.647 | 1.04× | 3.863 | 4.528 | 1.17× | 0.0e+00 |
+| `rag.context_recall` | NumPy formula | 0.475 | 0.303 | 0.64× | 2.893 | 2.637 | 0.91× | 0.0e+00 |
+| `rag.context_relevance` | NumPy formula | 0.292 | 0.431 | 1.48× | 2.951 | 2.623 | 0.89× | 0.0e+00 |
+| `rag.failure_attribution` | timed alone | 0.035 | – | – | 0.162 | – | – | – |
+| `rag.latency_summary` | NumPy formula | 0.226 | 0.029 | 0.13× | 0.127 | 0.025 | 0.19× | 0.0e+00 |
+| `rag.task_success_rate` | NumPy formula | 0.005 | 0.002 | 0.39× | 0.006 | 0.003 | 0.44× | 0.0e+00 |
+| `reasoning.benchmark_accuracy` | timed alone | 0.195 | – | – | 1.756 | – | – | – |
+| `reasoning.majority_vote_accuracy` | Python stdlib | 0.257 | 0.113 | 0.44× | 3.181 | 1.122 | 0.35× | 0.0e+00 |
+| `reasoning.pass_at_k` | Python stdlib | 0.242 | 0.021 | 0.09× | 2.337 | 0.182 | 0.08× | 0.0e+00 |
+| `recalibration.isotonic` | scikit-learn | 1.957 | 1.818 | 0.93× | 24.354 | 17.919 | 0.74× | 2.2e-16 |
+| `recalibration.platt` | timed alone | 2.941 | – | – | 32.463 | – | – | – |
+| `regression.adjusted_r2` | NumPy formula | 0.046 | 0.015 | 0.33× | 0.597 | 0.177 | 0.30× | 0.0e+00 |
+| `regression.explained_variance` | scikit-learn | 0.046 | 0.235 | 5.13× | 0.531 | 1.110 | 2.09× | 0.0e+00 |
+| `regression.huber_loss` | NumPy formula | 0.057 | 0.031 | 0.54× | 0.866 | 0.608 | 0.70× | 0.0e+00 |
+| `regression.mae` | scikit-learn | 0.021 | 0.157 | 7.45× | 0.365 | 0.648 | 1.78× | 0.0e+00 |
+| `regression.mape` | scikit-learn | 0.036 | 0.178 | 5.01× | 0.578 | 0.821 | 1.42× | 0.0e+00 |
+| `regression.max_error` | scikit-learn | 0.019 | 0.112 | 5.80× | 0.332 | 0.557 | 1.68× | 0.0e+00 |
+| `regression.mean_bias_error` | NumPy formula | 0.019 | 0.006 | 0.30× | 0.286 | 0.119 | 0.42× | 0.0e+00 |
+| `regression.median_absolute_error` | scikit-learn | 0.122 | 0.252 | 2.07× | 1.188 | 1.419 | 1.19× | 0.0e+00 |
+| `regression.mse` | scikit-learn | 0.025 | 0.158 | 6.21× | 0.390 | 0.608 | 1.56× | 0.0e+00 |
+| `regression.msle` | scikit-learn | 0.054 | 0.289 | 5.35× | 0.573 | 1.295 | 2.26× | 0.0e+00 |
+| `regression.quantile_loss` | scikit-learn | 0.030 | 0.210 | 6.97× | 0.545 | 1.020 | 1.87× | 0.0e+00 |
+| `regression.r2` | scikit-learn | 0.043 | 0.198 | 4.57× | 0.655 | 0.863 | 1.32× | 0.0e+00 |
+| `regression.rae` | NumPy formula | 0.058 | 0.015 | 0.26× | 0.872 | 0.236 | 0.27× | 0.0e+00 |
+| `regression.rmse` | NumPy formula | 0.029 | 0.006 | 0.19× | 0.384 | 0.038 | 0.10× | 0.0e+00 |
+| `regression.rmsle` | NumPy formula | 0.055 | 0.036 | 0.65× | 0.582 | 0.368 | 0.63× | 0.0e+00 |
+| `regression.rse` | NumPy formula | 0.052 | 0.015 | 0.29× | 0.790 | 0.187 | 0.24× | 0.0e+00 |
+| `regression.smape` | NumPy formula | 0.047 | 0.020 | 0.43× | 0.823 | 0.373 | 0.45× | 0.0e+00 |
+| `retrieval.hit_rate_at_k` | ranx | 0.218 | 5.818 | 26.64× | 2.334 | 56.034 | 24.01× | 0.0e+00 |
+| `retrieval.mean_average_precision_at_k` | ranx | 0.249 | 5.913 | 23.73× | 2.468 | 53.925 | 21.85× | 0.0e+00 |
+| `retrieval.mrr` | ranx | 0.229 | 5.489 | 23.99× | 2.439 | 55.609 | 22.80× | 0.0e+00 |
+| `retrieval.ndcg_at_k` | ranx | 0.239 | 5.539 | 23.16× | 2.586 | 55.756 | 21.56× | 0.0e+00 |
+| `retrieval.precision_at_k` | ranx | 0.219 | 5.489 | 25.06× | 2.391 | 55.695 | 23.29× | 0.0e+00 |
+| `retrieval.recall_at_k` | ranx | 0.220 | 7.165 | 32.49× | 2.304 | 56.499 | 24.52× | 0.0e+00 |
+| `robustness.adversarial_robustness` | NumPy formula | 0.013 | 0.002 | 0.16× | 0.012 | 0.003 | 0.21× | 0.0e+00 |
+| `robustness.contradiction_rate` | NumPy formula | 0.022 | 0.017 | 0.79× | 0.169 | 0.107 | 0.63× | 0.0e+00 |
+| `robustness.distribution_shift_drop` | SciPy | 0.111 | 0.770 | 6.92× | 0.077 | 0.460 | 5.96× | 0.0e+00 |
+| `robustness.error_rate` | NumPy formula | 0.022 | 0.014 | 0.61× | 0.113 | 0.092 | 0.82× | 0.0e+00 |
+| `robustness.invariance_violation_rate` | Python stdlib | 0.041 | 0.008 | 0.19× | 0.200 | 0.049 | 0.25× | 0.0e+00 |
+| `robustness.noise_robustness` | NumPy formula | 0.009 | 0.002 | 0.24× | 0.011 | 0.003 | 0.24× | 0.0e+00 |
+| `robustness.ood_accuracy` | NumPy formula | 0.010 | 0.002 | 0.23× | 0.016 | 0.004 | 0.26× | 0.0e+00 |
+| `robustness.paraphrase_consistency` | Python stdlib | 0.177 | 0.021 | 0.12× | 1.424 | 0.120 | 0.08× | 0.0e+00 |
+| `robustness.prompt_sensitivity` | NumPy formula | 0.057 | 0.005 | 0.09× | 0.051 | 0.005 | 0.09× | 0.0e+00 |
+| `robustness.recovery_success_rate` | NumPy formula | 0.007 | 0.002 | 0.31× | 0.009 | 0.004 | 0.39× | 0.0e+00 |
+| `robustness.response_stability` | Python stdlib | 0.236 | 0.502 | 2.12× | 1.917 | 3.410 | 1.78× | 0.0e+00 |
+| `robustness.truncation_sensitivity` | NumPy formula | 0.102 | 0.072 | 0.70× | 0.111 | 0.072 | 0.65× | 0.0e+00 |
+| `safety.attack_success_rate` | NumPy formula | 0.004 | 0.003 | 0.81× | 0.003 | 0.003 | 0.81× | 0.0e+00 |
+| `safety.exposure` | NumPy formula | 0.315 | 0.022 | 0.07× | 3.014 | 0.104 | 0.03× | 0.0e+00 |
+| `safety.harmful_response_rate` | NumPy formula | 0.005 | 0.003 | 0.74× | 0.007 | 0.004 | 0.63× | 0.0e+00 |
+| `safety.over_refusal_rate` | NumPy formula | 0.006 | 0.004 | 0.62× | 0.007 | 0.004 | 0.66× | 0.0e+00 |
+| `safety.pii_leakage_rate` | Python stdlib | 0.182 | 0.058 | 0.32× | 1.202 | 0.340 | 0.28× | 0.0e+00 |
+| `safety.policy_violation_rate` | Python stdlib | 0.064 | 0.009 | 0.15× | 0.425 | 0.043 | 0.10× | 0.0e+00 |
+| `safety.red_team_success_rate` | Python stdlib | 0.063 | 0.013 | 0.20× | 0.535 | 0.074 | 0.14× | 0.0e+00 |
+| `safety.refusal_rate` | NumPy formula | 0.015 | 0.004 | 0.25× | 0.014 | 0.004 | 0.27× | 0.0e+00 |
+| `safety.stereotype_preference` | NumPy formula | 0.016 | 0.005 | 0.32× | 0.014 | 0.005 | 0.38× | 0.0e+00 |
+| `safety.toxicity_score` | NumPy formula | 0.056 | 0.007 | 0.13× | 0.413 | 0.038 | 0.09× | 0.0e+00 |
+| `safety.weat_effect_size` | NumPy formula | 3.123 | 0.055 | 0.02× | 2.071 | 0.049 | 0.02× | 0.0e+00 |
+| `segmentation.average_surface_distance` | SciPy | 0.144 | 0.322 | 2.24× | 1.831 | 4.025 | 2.20× | 0.0e+00 |
+| `segmentation.boundary_iou` | timed alone | 0.219 | – | – | 2.370 | – | – | – |
+| `segmentation.dice` | scikit-learn | 0.139 | 1.656 | 11.90× | 1.541 | 11.716 | 7.60× | 0.0e+00 |
+| `segmentation.hausdorff_distance` | SciPy | 0.151 | 0.502 | 3.33× | 2.036 | 6.293 | 3.09× | 0.0e+00 |
+| `segmentation.iou` | scikit-learn | 0.136 | 1.553 | 11.44× | 1.499 | 11.582 | 7.73× | 0.0e+00 |
+| `segmentation.mean_pixel_accuracy` | scikit-learn | 0.123 | 1.646 | 13.36× | 1.438 | 11.604 | 8.07× | 0.0e+00 |
+| `segmentation.miou` | scikit-learn | 0.144 | 1.577 | 10.98× | 1.451 | 11.556 | 7.96× | 0.0e+00 |
+| `segmentation.pixel_accuracy` | scikit-learn | 0.022 | 0.470 | 20.94× | 0.236 | 3.424 | 14.50× | 0.0e+00 |
+| `statistics.accuracy_ci` | statsmodels | 0.010 | 0.054 | 5.49× | 0.043 | 0.056 | 1.28× | 0.0e+00 |
+| `statistics.adjust_pvalues` | statsmodels | 0.319 | 0.316 | 0.99× | 3.811 | 4.234 | 1.11× | 2.2e-16 |
+| `statistics.bootstrap_ci` | timed alone | 64.831 | – | – | 279.3 | – | – | – |
+| `statistics.chi_square_test` | SciPy | 0.022 | 0.182 | 8.10× | 0.023 | 0.172 | 7.36× | 0.0e+00 |
+| `statistics.cliffs_delta` | SciPy | 1.586 | 2.053 | 1.29× | 21.518 | 24.224 | 1.13× | 2.8e-17 |
+| `statistics.cohens_d` | NumPy formula | 0.041 | 0.029 | 0.70× | 0.630 | 0.317 | 0.50× | 0.0e+00 |
+| `statistics.compare` | timed alone | 34.358 | – | – | 278.4 | – | – | – |
+| `statistics.cramers_v` | SciPy | 0.016 | 0.188 | 11.89× | 0.016 | 0.191 | 12.18× | 0.0e+00 |
+| `statistics.delong_test` | timed alone | 1.548 | – | – | 17.322 | – | – | – |
+| `statistics.fisher_exact_test` | SciPy | 0.092 | 0.482 | 5.26× | 0.242 | 1.981 | 8.19× | 0.0e+00 |
+| `statistics.friedman_test` | SciPy | 0.479 | 1.396 | 2.92× | 7.156 | 14.098 | 1.97× | 0.0e+00 |
+| `statistics.hedges_g` | NumPy formula | 0.058 | 0.029 | 0.50× | 1.005 | 0.326 | 0.32× | 4.9e-12 |
+| `statistics.kruskal_wallis_test` | SciPy | 0.816 | 2.837 | 3.47× | 14.329 | 38.069 | 2.66× | 0.0e+00 |
+| `statistics.mann_whitney_test` | SciPy | 0.512 | 1.979 | 3.87× | 8.601 | 24.384 | 2.83× | 0.0e+00 |
+| `statistics.mcnemar_test` | statsmodels | 0.014 | 0.055 | 4.04× | 0.149 | 0.427 | 2.86× | 0.0e+00 |
+| `statistics.paired_bootstrap_test` | timed alone | 32.759 | – | – | 237.1 | – | – | – |
+| `statistics.paired_t_test` | SciPy | 0.075 | 0.268 | 3.58× | 0.286 | 0.675 | 2.36× | 8.9e-16 |
+| `statistics.proportion_ci` | statsmodels | 0.013 | 0.086 | 6.84× | 0.015 | 0.090 | 5.89× | 0.0e+00 |
+| `statistics.roc_auc_ci` | timed alone | 0.762 | – | – | 8.017 | – | – | – |
+| `statistics.shapiro_wilk_test` | SciPy | 0.046 | 0.432 | 9.33× | 0.047 | 0.441 | 9.39× | 0.0e+00 |
+| `statistics.t_test` | SciPy | 0.092 | 0.463 | 5.03× | 0.389 | 1.049 | 2.70× | 8.8e-47 |
+| `statistics.wilcoxon_test` | SciPy | 0.308 | 1.214 | 3.94× | 3.217 | 11.137 | 3.46× | 0.0e+00 |
+| `text.abstention_accuracy` | NumPy formula | 0.011 | 0.002 | 0.22× | 0.015 | 0.003 | 0.21× | 0.0e+00 |
+| `text.answer_correctness` | NumPy formula | 0.014 | 0.004 | 0.27× | 0.018 | 0.006 | 0.35× | 0.0e+00 |
+| `text.answer_relevance` | NumPy formula | 0.986 | 0.751 | 0.76× | 10.156 | 7.744 | 0.76× | 0.0e+00 |
+| `text.api_call_success_rate` | NumPy formula | 0.011 | 0.005 | 0.49× | 0.072 | 0.026 | 0.36× | 0.0e+00 |
+| `text.bertscore` | NumPy formula | 0.249 | 0.139 | 0.56× | 2.398 | 1.495 | 0.62× | 0.0e+00 |
+| `text.bleu` | sacreBLEU | 0.474 | 3.946 | 8.33× | 4.974 | 44.646 | 8.98× | 0.0e+00 |
+| `text.bradley_terry` | timed alone | 1.061 | – | – | 3.565 | – | – | – |
+| `text.chrf` | sacreBLEU | 1.302 | 9.635 | 7.40× | 9.078 | 111.8 | 12.32× | 1.4e-14 |
+| `text.cider` | timed alone | 2.443 | – | – | 23.242 | – | – | – |
+| `text.citation_precision` | timed alone | 0.121 | – | – | 1.546 | – | – | – |
+| `text.citation_recall` | timed alone | 0.118 | – | – | 1.221 | – | – | – |
+| `text.claim_verification_accuracy` | NumPy formula | 0.135 | 0.003 | 0.02× | 0.941 | 0.010 | 0.01× | 0.0e+00 |
+| `text.constraint_satisfaction_rate` | NumPy formula | 0.034 | 0.052 | 1.53× | 0.318 | 0.548 | 1.72× | 0.0e+00 |
+| `text.cross_entropy` | NumPy formula | 0.041 | 0.011 | 0.27× | 0.348 | 0.065 | 0.19× | 0.0e+00 |
+| `text.distinct_n` | Python stdlib | 0.153 | 0.155 | 1.01× | 1.707 | 3.214 | 1.88× | 0.0e+00 |
+| `text.elo_ratings` | Python stdlib | 0.089 | 0.080 | 0.89× | 0.221 | 0.199 | 0.90× | 0.0e+00 |
+| `text.embedding_similarity` | NumPy formula | 0.035 | 0.023 | 0.66× | 0.194 | 0.150 | 0.78× | 0.0e+00 |
+| `text.extra_content_rate` | timed alone | 0.231 | – | – | 2.054 | – | – | – |
+| `text.faithfulness` | NumPy formula | 0.190 | 0.338 | 1.78× | 1.832 | 3.466 | 1.89× | 0.0e+00 |
+| `text.fleiss_kappa` | statsmodels | 0.033 | 0.083 | 2.53× | 0.086 | 0.647 | 7.54× | 0.0e+00 |
+| `text.format_compliance` | Python stdlib | 0.019 | 0.016 | 0.83× | 0.148 | 0.116 | 0.79× | 0.0e+00 |
+| `text.groundedness` | NumPy formula | 0.076 | 0.116 | 1.53× | 0.771 | 1.161 | 1.51× | 0.0e+00 |
+| `text.hallucination_rate` | NumPy formula | 0.177 | 0.079 | 0.45× | 1.765 | 0.893 | 0.51× | 0.0e+00 |
+| `text.instruction_compliance_rate` | NumPy formula | 0.026 | 0.009 | 0.36× | 0.247 | 0.073 | 0.30× | 0.0e+00 |
+| `text.instruction_retention` | timed alone | 0.044 | – | – | 0.386 | – | – | – |
+| `text.json_schema_compliance` | jsonschema | 0.954 | 2.293 | 2.40× | 9.460 | 22.367 | 2.36× | 0.0e+00 |
+| `text.json_validity` | Python stdlib | 0.121 | 0.098 | 0.81× | 1.150 | 0.935 | 0.81× | 0.0e+00 |
+| `text.judge_agreement` | scikit-learn | 0.086 | 0.535 | 6.22× | 0.221 | 0.823 | 3.72× | 0.0e+00 |
+| `text.knowledge_consistency` | Python stdlib | 0.042 | 0.011 | 0.27× | 0.405 | 0.156 | 0.39× | 0.0e+00 |
+| `text.krippendorff_alpha` | krippendorff | 0.073 | 0.078 | 1.07× | 0.158 | 0.327 | 2.06× | 3.2e-15 |
+| `text.mauve` | timed alone | 2.883 | – | – | 463.3 | – | – | – |
+| `text.meteor` | NLTK | 0.566 | 3.870 | 6.84× | 6.355 | 41.523 | 6.53× | 0.0e+00 |
+| `text.model_score` | timed alone | 0.012 | – | – | 0.069 | – | – | – |
+| `text.moverscore` | timed alone | 3.728 | – | – | 50.479 | – | – | – |
+| `text.perplexity` | NumPy formula | 0.043 | 0.011 | 0.25× | 0.351 | 0.064 | 0.18× | 0.0e+00 |
+| `text.position_consistency` | NumPy formula | 0.052 | 0.003 | 0.06× | 0.419 | 0.005 | 0.01× | 0.0e+00 |
+| `text.required_field_accuracy` | timed alone | 0.262 | – | – | 2.628 | – | – | – |
+| `text.rouge_1` | rouge-score | 0.311 | 2.304 | 7.40× | 3.731 | 22.762 | 6.10× | 0.0e+00 |
+| `text.rouge_2` | rouge-score | 0.320 | 2.334 | 7.28× | 3.605 | 22.977 | 6.37× | 0.0e+00 |
+| `text.rouge_l` | rouge-score | 0.351 | 2.783 | 7.93× | 5.577 | 29.480 | 5.29× | 0.0e+00 |
+| `text.rouge_lsum` | rouge-score | 0.577 | 4.133 | 7.16× | 6.125 | 44.194 | 7.22× | 0.0e+00 |
+| `text.rubric_score` | NumPy formula | 0.014 | 0.006 | 0.39× | 0.030 | 0.008 | 0.25× | 0.0e+00 |
+| `text.self_bleu` | sacreBLEU | 0.344 | 9.247 | 26.89× | 5.268 | 252.8 | 47.98× | 0.0e+00 |
+| `text.self_preference_bias` | timed alone | 0.384 | – | – | 0.428 | – | – | – |
+| `text.sentence_bleu` | sacreBLEU | 0.572 | 5.427 | 9.50× | 6.358 | 57.355 | 9.02× | 0.0e+00 |
+| `text.spice` | Python stdlib | 0.984 | 0.046 | 0.05× | 8.635 | 0.508 | 0.06× | 0.0e+00 |
+| `text.ter` | sacreBLEU | 0.807 | 13.616 | 16.88× | 6.256 | 146.1 | 23.36× | 0.0e+00 |
+| `text.tool_argument_accuracy` | timed alone | 0.209 | – | – | 2.758 | – | – | – |
+| `text.tool_call_f1` | timed alone | 0.233 | – | – | 3.134 | – | – | – |
+| `text.tool_selection_accuracy` | Python stdlib | 0.176 | 0.019 | 0.11× | 2.340 | 0.152 | 0.06× | 0.0e+00 |
+| `text.verbosity_bias` | timed alone | 0.434 | – | – | 1.361 | – | – | – |
+| `text.win_rate` | NumPy formula | 0.030 | 0.005 | 0.16× | 0.234 | 0.011 | 0.05× | 0.0e+00 |
+| `text.xml_validity` | Python stdlib | 0.369 | 0.353 | 0.95× | 3.881 | 3.681 | 0.95× | 0.0e+00 |
+| `uncertainty.adaptive_calibration_error` | NumPy formula | 0.107 | 0.089 | 0.83× | 0.676 | 0.662 | 0.98× | 0.0e+00 |
+| `uncertainty.aurc` | NumPy formula | 0.049 | 0.032 | 0.65× | 0.969 | 0.618 | 0.64× | 0.0e+00 |
+| `uncertainty.confidence_accuracy_correlation` | scikit-learn | 0.219 | 1.084 | 4.96× | 1.109 | 2.961 | 2.67× | 1.1e-16 |
+| `uncertainty.coverage_at_risk` | NumPy formula | 0.058 | 0.033 | 0.57× | 0.687 | 0.612 | 0.89× | 0.0e+00 |
+| `uncertainty.risk_at_coverage` | NumPy formula | 0.059 | 0.023 | 0.39× | 0.710 | 0.603 | 0.85× | 0.0e+00 |
+| `uncertainty.selective_risk` | NumPy formula | 0.036 | 0.021 | 0.60× | 0.602 | 0.580 | 0.96× | 0.0e+00 |
 
 ## Rust crate (0.8.5)
 

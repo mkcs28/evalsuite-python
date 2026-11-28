@@ -41,6 +41,11 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
     from .api import (
         evaluate,
     )
+    from .auto_report import (
+        AutoReport,
+        auto_report,
+        detect_columns,
+    )
     from .bayes import (
         BayesComparison,
         bayes_compare,
@@ -101,7 +106,22 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         sensitivity,
         youden_j,
     )
+    from .comparisons import (
+        NemenyiResult,
+        equivalence_test,
+        ipw_metric,
+        nemenyi_test,
+        noninferiority_test,
+    )
+    from .conformal import (
+        ConformalIntervals,
+        ConformalSets,
+        conformal_classification,
+        conformal_quantile,
+        conformal_regression,
+    )
     from .core.exceptions import (
+        EvalSuiteDeprecationWarning,
         EvalSuiteError,
         InputValidationError,
         MetricInputError,
@@ -118,6 +138,17 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
     from .core.result import (
         EvaluationResult,
         MetricResult,
+    )
+    from .data_quality import (
+        DatasetCard,
+        LabelIssues,
+        LeakageReport,
+        dataset_card,
+        label_issues,
+        leakage_report,
+    )
+    from .dataframe import (
+        register_accessors,
     )
     from .drift import (
         DriftReport,
@@ -157,6 +188,17 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         format_multiple_choice,
         load_benchmark,
     )
+    from .llm_eval import (
+        AgentReport,
+        ContaminationReport,
+        ConversationReport,
+        CostQualityReport,
+        agent_report,
+        contamination_check,
+        conversation_report,
+        cost_quality_report,
+        run_model,
+    )
     from .llmsys import *
     from .monitor import (
         Alert,
@@ -177,6 +219,12 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
     from .recalibration import (
         Calibrator,
         recalibrate,
+    )
+    from .reclassification import (
+        ExternalValidation,
+        ReclassificationResult,
+        external_validation,
+        reclassification,
     )
     from .regression import (
         adjusted_r2,
@@ -267,6 +315,15 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         segmentation_confusion,
         segmentation_report,
     )
+    from .workflow import (
+        check_regression,
+        load_history,
+        log_to_mlflow,
+        log_to_wandb,
+        metrics_dict,
+        record_history,
+        serve,
+    )
 
 # Submodules available as attributes (``es.stats``, ``es.plot``, ...).
 _SUBMODULES = (
@@ -334,6 +391,7 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "youden_j",
     ),
     ".core.exceptions": (
+        "EvalSuiteDeprecationWarning",
         "EvalSuiteError",
         "InputValidationError",
         "MetricInputError",
@@ -395,6 +453,60 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "cache_dir",
         "cache_info",
         "clear_cache",
+    ),
+    ".auto_report": (
+        "AutoReport",
+        "auto_report",
+        "detect_columns",
+    ),
+    ".comparisons": (
+        "NemenyiResult",
+        "equivalence_test",
+        "ipw_metric",
+        "nemenyi_test",
+        "noninferiority_test",
+    ),
+    ".conformal": (
+        "ConformalIntervals",
+        "ConformalSets",
+        "conformal_classification",
+        "conformal_quantile",
+        "conformal_regression",
+    ),
+    ".data_quality": (
+        "DatasetCard",
+        "LabelIssues",
+        "LeakageReport",
+        "dataset_card",
+        "label_issues",
+        "leakage_report",
+    ),
+    ".reclassification": (
+        "ExternalValidation",
+        "ReclassificationResult",
+        "external_validation",
+        "reclassification",
+    ),
+    ".llm_eval": (
+        "AgentReport",
+        "ContaminationReport",
+        "ConversationReport",
+        "CostQualityReport",
+        "agent_report",
+        "contamination_check",
+        "conversation_report",
+        "cost_quality_report",
+        "run_model",
+    ),
+    ".dataframe": ("register_accessors",),
+    ".workflow": (
+        "check_regression",
+        "load_history",
+        "log_to_mlflow",
+        "log_to_wandb",
+        "metrics_dict",
+        "record_history",
+        "serve",
     ),
     ".fairness": (
         "FairnessReport",
@@ -682,7 +794,10 @@ _LAZY: dict[str, str] = {name: mod for mod, names in _EXPORTS.items() for name i
 _LAZY.update({"UpdateInfo": "._update", "check_for_update": "._update", "upgrade": "._update"})
 
 __all__ = [
+    "EvalSuiteDeprecationWarning",
+    "AgentReport",
     "Alert",
+    "AutoReport",
     "BENCHMARKS",
     "BayesComparison",
     "BlandAltman",
@@ -692,29 +807,40 @@ __all__ = [
     "ClassificationReport",
     "ComparisonResult",
     "ConfidenceInterval",
+    "ConformalIntervals",
+    "ConformalSets",
+    "ContaminationReport",
+    "ConversationReport",
+    "CostQualityReport",
+    "DatasetCard",
     "DecisionCurve",
     "DetectionReport",
     "DiagnosticReport",
     "DriftReport",
     "EvalSuiteError",
     "EvaluationResult",
+    "ExternalValidation",
     "FairnessReport",
     "ForecastReport",
     "ICCForm",
     "ICCResult",
     "InputValidationError",
     "JudgeReport",
+    "LabelIssues",
     "Leaderboard",
+    "LeakageReport",
     "MetricInfo",
     "MetricInputError",
     "MetricResult",
     "Monitor",
     "MultilabelReport",
+    "NemenyiResult",
     "OptionalDependencyError",
     "PII_PATTERNS",
     "PYTHON_KEYWORDS",
     "RAGReport",
     "RankingReport",
+    "ReclassificationResult",
     "ReportCard",
     "RubricReport",
     "SampleSize",
@@ -735,11 +861,13 @@ __all__ = [
     "adjusted_r2",
     "adversarial_robustness",
     "agent_cost_per_task",
+    "agent_report",
     "answer_correctness",
     "answer_relevance",
     "api_call_success_rate",
     "attack_success_rate",
     "aurc",
+    "auto_report",
     "availability",
     "average_precision",
     "average_precision_detection",
@@ -766,6 +894,7 @@ __all__ = [
     "calibration_report",
     "calibration_slope",
     "check_for_update",
+    "check_regression",
     "chi_square_test",
     "chrf",
     "cider",
@@ -787,13 +916,19 @@ __all__ = [
     "compression_ratio",
     "concordance_index",
     "confidence_accuracy_correlation",
+    "conformal_classification",
+    "conformal_quantile",
+    "conformal_regression",
     "confusion_matrix",
     "constraint_satisfaction_rate",
+    "contamination_check",
     "context_precision",
     "context_recall",
     "context_relevance",
     "context_utilization",
     "contradiction_rate",
+    "conversation_report",
+    "cost_quality_report",
     "coverage_at_risk",
     "coverage_rate",
     "cramers_v",
@@ -802,8 +937,10 @@ __all__ = [
     "cross_lingual_consistency",
     "crps",
     "cultural_appropriateness",
+    "dataset_card",
     "decision_curve",
     "delong_test",
+    "detect_columns",
     "detect_pii",
     "detection_pr_curve",
     "detection_report",
@@ -818,6 +955,7 @@ __all__ = [
     "elo_ratings",
     "embedding_similarity",
     "energy_per_request",
+    "equivalence_test",
     "error_rate",
     "evaluate",
     "exact_match",
@@ -825,6 +963,7 @@ __all__ = [
     "expected_calibration_error",
     "explained_variance",
     "exposure",
+    "external_validation",
     "extra_content_rate",
     "extract_answer",
     "extract_json",
@@ -861,6 +1000,7 @@ __all__ = [
     "invalid_tool_call_rate",
     "invariance_violation_rate",
     "iou",
+    "ipw_metric",
     "jaccard",
     "json_schema_compliance",
     "json_validity",
@@ -871,17 +1011,22 @@ __all__ = [
     "krippendorff_alpha",
     "kruskal_wallis_test",
     "ks_drift",
+    "label_issues",
     "language_consistency",
     "language_id_accuracy",
     "language_parity",
     "latency_percentiles",
     "latency_summary",
     "leaderboard",
+    "leakage_report",
     "lins_ccc",
     "list_metrics",
     "llmsys",
     "load_benchmark",
+    "load_history",
     "log_loss",
+    "log_to_mlflow",
+    "log_to_wandb",
     "lost_in_the_middle",
     "lr_negative",
     "lr_positive",
@@ -902,6 +1047,7 @@ __all__ = [
     "median_absolute_error",
     "meteor",
     "metric_info",
+    "metrics_dict",
     "miou",
     "model_score",
     "moverscore",
@@ -912,8 +1058,10 @@ __all__ = [
     "multilabel_report",
     "ndcg_at_k",
     "needle_in_haystack",
+    "nemenyi_test",
     "net_benefit",
     "noise_robustness",
+    "noninferiority_test",
     "normalize_answer",
     "npv",
     "ood_accuracy",
@@ -951,9 +1099,12 @@ __all__ = [
     "recalibrate",
     "recall",
     "recall_at_k",
+    "reclassification",
+    "record_history",
     "recovery_success_rate",
     "red_team_success_rate",
     "refusal_rate",
+    "register_accessors",
     "regression",
     "report_card",
     "requests_per_second",
@@ -977,6 +1128,7 @@ __all__ = [
     "rse",
     "rubric_report",
     "rubric_score",
+    "run_model",
     "runtime_efficiency",
     "sample_size_auc",
     "sample_size_mean_difference",
@@ -990,6 +1142,7 @@ __all__ = [
     "self_preference_bias",
     "sensitivity",
     "sentence_bleu",
+    "serve",
     "shapiro_wilk_test",
     "smape",
     "specificity",
@@ -1041,7 +1194,11 @@ def __getattr__(name: str) -> Any:
     elif name in _LAZY:
         value = getattr(_importlib.import_module(_LAZY[name], __name__), name)
     else:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        import difflib
+
+        close = difflib.get_close_matches(name, __all__, n=3, cutoff=0.75)
+        hint = f" Did you mean {', '.join(repr(c) for c in close)}?" if close else ""
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}.{hint}")
     globals()[name] = value  # cache: later look-ups are plain attribute access
     return value
 

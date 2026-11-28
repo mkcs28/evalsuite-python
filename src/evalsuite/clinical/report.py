@@ -58,6 +58,10 @@ class DiagnosticReport:
     level: float
     params: Any = field(default_factory=dict)
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "estimates", MappingProxyType(dict(self.estimates)))
         object.__setattr__(self, "counts", MappingProxyType(dict(self.counts)))

@@ -24,7 +24,8 @@ Each record is a mapping with an ``id`` and either a ``correct`` / ``score`` val
 ...     "model-b": [{"id": i, "prediction": "4" if i % 3 else "5", "reference": "4"} for i in range(30)],
 ... }
 >>> lb = es.leaderboard(runs, scorer="exact_match")
->>> lb.rows[0]["model"], lb.rows[0]["rank"]
+>>> best = lb.rows[0]
+>>> best.get("model"), best.get("rank")
 ('model-a', 1)
 """
 
@@ -141,6 +142,10 @@ class Leaderboard:
     categories: Mapping[str, tuple[dict[str, Any], ...]]
     checks: Mapping[str, Any]
     settings: Mapping[str, Any] = field(default_factory=dict)
+
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
 
     def summary(self, *, digits: int = 3) -> str:
         pct = f"{self.settings['level'] * 100:g}%"

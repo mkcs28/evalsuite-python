@@ -84,6 +84,13 @@ def _pava(x: np.ndarray, y: np.ndarray, w: np.ndarray) -> tuple[np.ndarray, np.n
     wsum = np.add.reduceat(ws, start)
     ymean = np.add.reduceat(ws * ys, start) / wsum
     # pool adjacent violators on the unique-x means
+    from ._native import array_view, core
+
+    if core is not None and hasattr(core, "pava"):
+        _ya, yv = array_view(ymean, np.float64)  # keep the arrays referenced during the call
+        _wa, wv = array_view(wsum, np.float64)
+        cv, cl = core.pava(yv, wv)
+        return ux, np.repeat(np.asarray(cv, dtype=np.float64), np.asarray(cl, dtype=np.int64))
     vals: list[float] = []
     wts: list[float] = []
     lens: list[int] = []

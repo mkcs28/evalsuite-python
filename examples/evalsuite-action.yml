@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # ... produce predictions.csv with columns label, pred, prob, base_pred, base_prob ...
-      - uses: mkcs28/evalsuite-python@v1.4.0
+      - uses: mkcs28/evalsuite-python@v2.0.0
         with:
           predictions: predictions.csv
           y-true: label

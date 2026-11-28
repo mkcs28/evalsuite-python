@@ -203,6 +203,28 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     import evalsuite as es
 
+    if (
+        not (args.y_true and args.y_pred)
+        or args.y_prob
+        or args.groups
+        or (args.output and args.output.endswith(".html"))
+    ):
+        if args.file == "-":
+            raise CLIError("The automatic report needs a file path, not standard input.")
+        rep = es.auto_report(
+            args.file,
+            target=args.y_true,
+            pred=args.y_pred,
+            prob=args.y_prob[0] if args.y_prob and len(args.y_prob) == 1 else args.y_prob,
+            groups=args.groups,
+            clusters=args.clusters,
+            task=args.task,
+            threshold=args.threshold,
+            path=args.output,
+            title=args.title,
+        )
+        print(rep.summary())
+        return 0
     df = read_table(args.file)
     report = es.classification_report(
         column(df, args.y_true, "--y-true"),
@@ -488,6 +510,46 @@ def cmd_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_history(args: argparse.Namespace) -> int:
+    from ..workflow import check_regression, load_history
+
+    entries = load_history(model=args.model, dataset=args.dataset, path=args.file)
+    if args.action == "list":
+        if not entries:
+            print("No evaluations recorded yet (es.record_history(result, model=...)).")
+            return 0
+        for e in entries[-args.last :]:
+            shown = {k: v for k, v in e["metrics"].items() if not k.endswith(("_ci_low", "_ci_high"))}
+            vals = ", ".join(f"{k}={v:.4g}" for k, v in list(shown.items())[:6])
+            print(f"{e['time']}  {e['model']:<16} {e['dataset']:<14} {vals}")
+        return 0
+    if len(entries) < 2:
+        print("Need at least two recorded evaluations to check for a regression.")
+        return 0
+
+    class _Latest:
+        def __init__(self, m: dict) -> None:  # type: ignore[type-arg]
+            self.metrics = {
+                k: {"value": v, "low": m.get(f"{k}_ci_low"), "high": m.get(f"{k}_ci_high")}
+                for k, v in m.items()
+                if not k.endswith(("_ci_low", "_ci_high"))
+            }
+
+    out = check_regression(_Latest(entries[-1]["metrics"]), baseline=entries[-2], tolerance=args.tolerance)
+    for r in out["regressed"]:
+        print(f"REGRESSION {r['metric']}: {r['previous']:.4g} → {r['current']:.4g}", file=sys.stderr)
+    for r in out["improved"]:
+        print(f"improved   {r['metric']}: {r['previous']:.4g} → {r['current']:.4g}")
+    return 1 if out["regressed"] else 0
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    from ..workflow import serve
+
+    serve(args.host, args.port)
+    return 0
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     from .._update import check_for_update
 
@@ -574,9 +636,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser(
-        "report", help="per-class classification report (precision, recall, F1, specificity, support)"
+        "report",
+        help="full HTML evaluation report from a predictions file (columns and task detected automatically); "
+        "with --y-true and --y-pred, the per-class classification report",
     )
-    add_targets(p, pred_required=True)
+    p.add_argument("file", help="CSV/TSV/Parquet/JSON file with one row per observation")
+    p.add_argument("--y-true", metavar="COL", help="outcome column (detected when omitted)")
+    p.add_argument("--y-pred", metavar="COL", help="predicted labels or values (detected when omitted)")
+    p.add_argument("--y-prob", nargs="+", metavar="COL", help="probability column(s) (detected when omitted)")
+    p.add_argument("--groups", nargs="+", metavar="COL", help="subgroup columns for the fairness section")
+    p.add_argument("--clusters", metavar="COL", help="cluster column (e.g. patient id) for clustered intervals")
+    p.add_argument("--task", choices=["binary", "multiclass", "regression"], help="override the detected task")
+    p.add_argument("--threshold", type=float, default=0.5, help="risk threshold for binary classification")
+    p.add_argument("--title", help="report title")
+    p.add_argument("--weight", metavar="COL", help="column with sample weights (per-class report only)")
     add_output(p)
     p.set_defaults(func=cmd_report)
 
@@ -698,6 +771,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--check", action="store_true", help="only report whether a newer release exists")
     p.add_argument("--force", action="store_true", help="run pip even if this is already the latest release")
     p.set_defaults(func=cmd_upgrade)
+
+    p = sub.add_parser("history", help="list recorded evaluations, or check the latest one for regressions")
+    p.add_argument("action", choices=["list", "check"])
+    p.add_argument("--model", help="only this model")
+    p.add_argument("--dataset", help="only this data set")
+    p.add_argument("--file", help="history file (default .evalsuite/history.jsonl or $EVALSUITE_HISTORY)")
+    p.add_argument("--last", type=int, default=20, help="how many entries to list (default 20)")
+    p.add_argument("--tolerance", type=float, default=0.0, help="ignore regressions smaller than this")
+    p.set_defaults(func=cmd_history)
+
+    p = sub.add_parser("serve", help="run a small JSON HTTP service: POST /evaluate, GET /metrics, GET /health")
+    p.add_argument("--host", default="127.0.0.1", help="interface to bind (default 127.0.0.1; 0.0.0.0 in Docker)")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_serve)
 
     p = sub.add_parser(
         "cache", help="show or clear EvalSuite's cache of downloaded data (cleared automatically too)"

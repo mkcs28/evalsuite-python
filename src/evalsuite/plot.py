@@ -649,3 +649,95 @@ def text_scores(
     ax.set(ylabel=f"{res.name} per example", title=f"{res.name} by system (diamond = mean)")
     ax.grid(axis="y", alpha=0.3)
     return ax
+
+
+def critical_difference(result: Any, *, ax: Optional[Axes] = None, title: Optional[str] = None) -> Axes:
+    """Critical-difference diagram (Demšar 2006) from :func:`evalsuite.nemenyi_test`: models on an average-rank
+    axis (1 = best, on the left), with bars joining groups whose ranks differ by less than the critical
+    difference (not significantly different)."""
+    models, ranks, cd = list(result.models), np.asarray(result.average_ranks), float(result.critical_difference)
+    k = len(models)
+    order = np.argsort(ranks)
+    ax = _axes(ax, (max(5.0, 1.1 * k), 2.6 + 0.18 * k))
+    ax.set_xlim(1, k)
+    ax.set_ylim(0, 1)
+    ax.spines[["left", "right", "bottom"]].set_visible(False)
+    ax.xaxis.set_ticks_position("top")
+    ax.set_xticks(range(1, k + 1))
+    ax.set_yticks([])
+    ax.set_xlabel("Average rank (1 = best)")
+    ax.xaxis.set_label_position("top")
+    # critical-difference scale bar
+    ax.plot([1, 1 + cd], [0.93, 0.93], color="0.2", lw=1.5)
+    ax.text(1 + cd + 0.05, 0.93, f"CD = {cd:.2f}", ha="left", va="center", fontsize=8)
+    half = (k + 1) // 2
+    for pos, idx in enumerate(order):
+        r = ranks[idx]
+        left = pos < half
+        y = 0.75 - 0.6 * (pos if left else k - 1 - pos) / max(1, half)
+        x_text = 1 - 0.15 if left else k + 0.15
+        ax.plot([r, r, x_text], [0.88, y, y], color="0.3", lw=0.9)
+        ax.text(x_text, y, f"{models[idx]} ({r:.2f})", ha="right" if left else "left", va="center", fontsize=9)
+    # cliques of models not significantly different
+    cliques: list[tuple[float, float]] = []
+    for i in range(k):
+        j = i
+        while j + 1 < k and ranks[order[j + 1]] - ranks[order[i]] <= cd:
+            j += 1
+        if j > i:
+            span = (ranks[order[i]], ranks[order[j]])
+            if not any(a <= span[0] and span[1] <= b for a, b in cliques):
+                cliques.append(span)
+    for c, (a, b) in enumerate(cliques):
+        yb = 0.86 - 0.05 * (c + 1)
+        ax.plot([a - 0.03, b + 0.03], [yb, yb], color="0.1", lw=3)
+    if title:
+        ax.set_title(title, pad=28)
+    return ax
+
+
+def forest(
+    rows: Any,
+    *,
+    reference: Optional[float] = None,
+    ax: Optional[Axes] = None,
+    title: Optional[str] = None,
+    xlabel: str = "Estimate",
+    metric: Optional[str] = None,
+) -> Axes:
+    """Forest plot: one estimate with its confidence interval per row (subgroups, sites, models).
+
+    ``rows`` is a mapping label → (estimate, low, high), a list of dicts with ``label`` / ``value`` / ``low`` /
+    ``high``, or a :class:`~evalsuite.FairnessReport` (``metric=`` picks the per-group measure: ``"tpr"``, the
+    default, ``"fpr"``, ``"ppv"``, ``"selection_rate"``, ``"accuracy"`` or ``"roc_auc"``). ``reference`` draws a
+    vertical line (e.g. the overall value, or a null of 0 / 1)."""
+    items: list[tuple[str, float, float, float]] = []
+    if isinstance(rows, Mapping):
+        for k, v in rows.items():
+            est, lo, hi = (float(x) for x in v)
+            items.append((str(k), est, lo, hi))
+    elif hasattr(rows, "groups") and isinstance(getattr(rows, "groups", None), (list, tuple)):
+        key = metric or "tpr"
+        for g in rows.groups:
+            if g.get(key) is not None and g.get(f"{key}_low") is not None:
+                items.append((str(g["group"]), float(g[key]), float(g[f"{key}_low"]), float(g[f"{key}_high"])))
+        xlabel = key.replace("_", " ")
+    else:
+        for r in rows:
+            items.append((str(r["label"]), float(r["value"]), float(r["low"]), float(r["high"])))
+    if not items:
+        raise InputValidationError("forest() needs at least one row with an estimate and a confidence interval.")
+    ax = _axes(ax, (6.0, 0.45 * len(items) + 1.2))
+    ys = np.arange(len(items))[::-1]
+    for y, (_label, est, lo, hi) in zip(ys, items):
+        ax.plot([lo, hi], [y, y], color="0.25", lw=1.4)
+        ax.plot([est], [y], marker="s", color="0.1", ms=6)
+    ax.set_yticks(ys)
+    ax.set_yticklabels([f"{lab}  {est:.3g} ({lo:.3g}–{hi:.3g})" for lab, est, lo, hi in items])
+    if reference is not None:
+        ax.axvline(reference, color="0.5", ls="--", lw=1)
+    ax.set_xlabel(xlabel)
+    ax.spines[["top", "right"]].set_visible(False)
+    if title:
+        ax.set_title(title)
+    return ax

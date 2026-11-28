@@ -142,6 +142,10 @@ class DriftReport:
     features: tuple[dict[str, Any], ...]
     settings: Mapping[str, Any]
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def drifted(self) -> list[str]:
         """Names of the drifted features, largest PSI first."""
         rows = sorted((f for f in self.features if f["drifted"]), key=lambda f: -f["psi"])

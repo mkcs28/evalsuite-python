@@ -58,6 +58,10 @@ class ComparisonResult:
     tests: tuple[Mapping[str, Any], ...]
     settings: Mapping[str, Any] = field(default_factory=dict)
 
+    def _repr_html_(self) -> str:
+        """Rich display in Jupyter and other notebooks."""
+        return str(self.to_html())
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "estimates", tuple(MappingProxyType(dict(r)) for r in self.estimates))
         object.__setattr__(self, "tests", tuple(MappingProxyType(dict(r)) for r in self.tests))
