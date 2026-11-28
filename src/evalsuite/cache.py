@@ -162,7 +162,7 @@ def cache_info() -> CacheInfo:
     auto, age, size = _settings()
     now = time.time()
     entries: tuple[dict[str, Any], ...] = tuple(
-        {"name": str(p.relative_to(root)), "size_bytes": s, "days_unused": max(0.0, (now - last) / 86400)}
+        {"name": p.relative_to(root).as_posix(), "size_bytes": s, "days_unused": max(0.0, (now - last) / 86400)}
         for p, s, last in _entries(root)
     )
     return CacheInfo(
@@ -235,7 +235,7 @@ def clear_cache(
                 top.rmdir()
     return {
         "path": str(root),
-        "removed": [str(p.relative_to(root)) for p, _ in doomed],
+        "removed": [p.relative_to(root).as_posix() for p, _ in doomed],
         "freed_bytes": sum(s for _, s in doomed),
         "dry_run": dry_run,
     }

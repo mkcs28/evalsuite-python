@@ -29,7 +29,7 @@ __all__ = [
 TargetType = Literal["binary", "multiclass", "multilabel", "continuous"]
 
 
-def numeric(x: Any, name: str) -> NDArray[np.float64]:
+def numeric(x: Any, name: str) -> NDArray[Any]:
     """``np.asarray(x, dtype=float64)`` with an :class:`InputValidationError` naming ``name`` when ``x`` holds
     values that are not numbers (strings, None, objects)."""
     try:
