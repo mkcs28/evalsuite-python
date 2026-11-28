@@ -183,11 +183,12 @@ def recalibrate(
     n_bins: int = 10,
     pos_label: Any = None,
     sample_weight: Any = None,
+    classes: Any = None,
 ) -> Calibrator:
     """Fit a recalibration map on held-out labels and probabilities (see the module docstring for methods).
 
-    For ``method="temperature"`` ``y_prob`` may be an n × k probability matrix with class labels ``y_true``
-    (classes sorted, as columns)."""
+    For ``method="temperature"`` ``y_prob`` may be an n × k probability matrix: integer labels index the columns,
+    other labels map to the sorted labels unless ``classes=`` gives the label of each column."""
     from scipy import optimize
 
     if method not in _METHODS:
@@ -197,11 +198,25 @@ def recalibrate(
         y = np.asarray(y_true)
         if p_all.shape[0] != y.size or not np.all(np.isfinite(p_all)):
             raise InputValidationError("y_prob must be a finite n × k matrix with one row per label.")
-        classes = np.unique(y)
         k = p_all.shape[1]
-        if classes.size > k:
-            raise InputValidationError(f"{classes.size} classes in y_true but {k} probability columns.")
-        cols = np.searchsorted(np.arange(k) if np.issubdtype(y.dtype, np.integer) else classes, y)
+        if classes is not None:
+            order = list(np.asarray(classes).tolist())
+            if len(order) != k:
+                raise InputValidationError(f"classes has {len(order)} entries for {k} probability columns.")
+        elif np.issubdtype(y.dtype, np.integer):
+            order = list(range(k))
+        else:
+            order = sorted(set(y.tolist()))
+            if len(order) != k:
+                raise InputValidationError(
+                    f"y_true has {len(order)} distinct labels but y_prob has {k} columns; pass classes= with the "
+                    "label of each column."
+                )
+        pos = {c: i for i, c in enumerate(order)}
+        unknown = sorted({str(v) for v in y.tolist() if v not in pos})
+        if unknown:
+            raise InputValidationError(f"Labels not among the probability columns: {', '.join(unknown[:5])}.")
+        cols = np.array([pos[v] for v in y.tolist()])
         logp = np.log(_clip(p_all))
 
         def nll_k(log_t: float) -> float:

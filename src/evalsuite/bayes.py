@@ -91,6 +91,12 @@ class BayesComparison:
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
 
+    def to_html(self, *, digits: int = 3) -> str:
+        """The Markdown tables as an HTML fragment (escaped), e.g. for :func:`evalsuite.html_report`."""
+        from .html_report import _markdown_tables
+
+        return _markdown_tables(self.to_markdown(digits=digits))
+
     def to_markdown(self, *, digits: int = 3) -> str:
         d = digits
         rows = ["| Quantity | Value |", "| --- | ---: |"]
