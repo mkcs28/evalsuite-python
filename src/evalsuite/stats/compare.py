@@ -17,7 +17,7 @@ from ..core.result import _json_safe, _latex_escape, _latex_table
 from ..core.types import ArrayLike
 from ._resolve import MetricCall, as_items, as_observations, is_categorical, resolve_metric
 from .effect import adjust_pvalues
-from .intervals import _check_level, _check_resamples, bootstrap_distribution, check_resampling, resample_indices
+from .intervals import _check_level, _check_resamples, check_resampling, resampled_distributions
 from .paired import delong_test, mcnemar_test
 
 if TYPE_CHECKING:
@@ -347,26 +347,27 @@ def compare(
 
     rng = np.random.default_rng(random_state)
     use_strata = categorical if stratify is None else bool(stratify)
-    idx = resample_indices(yt.shape[0], n_resamples, rng, yt if use_strata else None, resampling)
+    order = [(model, metric) for metric in metric_names for model in names]
+    dists = resampled_distributions(
+        [calls[k] for k in order], yt.shape[0], n_resamples, rng, yt if use_strata else None, resampling
+    )
     a = (1 - level) / 2
     boot: dict[tuple[str, str], np.ndarray] = {}
     estimates: list[dict[str, Any]] = []
-    for metric in metric_names:
-        for model in names:
-            call = calls[(model, metric)]
-            dist, failed = bootstrap_distribution(call, idx)
-            boot[(model, metric)] = dist
-            low, high = np.nanquantile(dist, [a, 1 - a])
-            estimates.append(
-                {
-                    "model": model,
-                    "metric": metric,
-                    "estimate": call(),
-                    "low": float(low),
-                    "high": float(high),
-                    "failed_resamples": int(failed),
-                }
-            )
+    for (model, metric), (dist, failed) in zip(order, dists):
+        call = calls[(model, metric)]
+        boot[(model, metric)] = dist
+        low, high = np.nanquantile(dist, [a, 1 - a])
+        estimates.append(
+            {
+                "model": model,
+                "metric": metric,
+                "estimate": call(),
+                "low": float(low),
+                "high": float(high),
+                "failed_resamples": int(failed),
+            }
+        )
 
     pairs = (
         [(m, baseline) for m in names if m != baseline]

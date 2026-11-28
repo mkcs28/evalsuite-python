@@ -22,11 +22,10 @@ from .intervals import (
     _check_level,
     _check_resamples,
     binary_scores,
-    bootstrap_distribution,
     check_resampling,
     delong_covariance,
     delong_placements,
-    resample_indices,
+    resampled_distributions,
 )
 from .results import ConfidenceInterval, TestResult
 
@@ -175,9 +174,9 @@ def paired_bootstrap_test(
     observed = call_a() - call_b()
     rng = np.random.default_rng(random_state)
     use_strata = call_a.categorical if stratify is None else bool(stratify)
-    idx = resample_indices(call_a.n, n_resamples, rng, call_a.y_true if use_strata else None, resampling)
-    da, fa = bootstrap_distribution(call_a, idx)
-    db, fb = bootstrap_distribution(call_b, idx)
+    (da, fa), (db, fb) = resampled_distributions(
+        [call_a, call_b], call_a.n, n_resamples, rng, call_a.y_true if use_strata else None, resampling
+    )
     diff = da - db
     diff = diff[~np.isnan(diff)]
     centred = diff - observed

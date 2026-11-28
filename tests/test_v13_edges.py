@@ -210,7 +210,7 @@ def test_recalibration_edges():
     assert np.allclose(hist([0.1, 0.9]), y.mean())
     with pytest.raises(E, match="n × k"):
         es.recalibrate([0, 1], np.ones((3, 2)) / 2, method="temperature")
-    with pytest.raises(E, match="classes"):
+    with pytest.raises(E, match="not among"):
         es.recalibrate([0, 1, 2], np.ones((3, 2)) / 2, method="temperature")
     temp = es.recalibrate([0, 1, 1], np.array([[0.6, 0.4], [0.3, 0.7], [0.2, 0.8]]), method="temperature")
     with pytest.raises(E, match="probability columns"):

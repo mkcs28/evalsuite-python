@@ -99,6 +99,38 @@ def resample_indices(
     return out
 
 
+_CHUNK_ELEMENTS = 4_000_000  # resample indices held at once (32 MB of int64)
+
+
+def resampled_distributions(
+    calls: list[MetricCall],
+    n: int,
+    n_resamples: int,
+    rng: np.random.Generator,
+    strata: Optional[NDArray[Any]],
+    resampling: str,
+) -> list[tuple[NDArray[np.float64], int]]:
+    """:func:`bootstrap_distribution` of every call over the same :func:`resample_indices` (paired resamples).
+    Plain NumPy resamples are drawn in chunks so memory stays bounded; the draws, and so every result, are
+    identical to drawing them all at once."""
+    if strata is not None or resampling != "numpy":
+        idx = resample_indices(n, n_resamples, rng, strata, resampling)
+        return [bootstrap_distribution(c, idx) for c in calls]
+    step = max(1, min(n_resamples, _CHUNK_ELEMENTS // max(1, n)))
+    parts: list[list[NDArray[np.float64]]] = [[] for _ in calls]
+    failed = [0] * len(calls)
+    done = 0
+    while done < n_resamples:
+        rows = min(step, n_resamples - done)
+        idx = rng.integers(0, n, size=(rows, n))
+        for k, c in enumerate(calls):
+            vals, bad = bootstrap_distribution(c, idx)
+            parts[k].append(vals)
+            failed[k] += bad
+        done += rows
+    return [(np.concatenate(p), f) for p, f in zip(parts, failed)]
+
+
 def bootstrap_distribution(call: MetricCall, indices: NDArray[np.int64]) -> tuple[NDArray[np.float64], int]:
     """Metric value on each resample; resamples where the metric is undefined become NaN."""
     # Binary ROC AUC / average precision: every resample's curve in one parallel compiled call.
@@ -209,8 +241,9 @@ def bootstrap_ci(
             metric_kwargs,
         )
     use_strata = call.categorical if stratify is None else bool(stratify)
-    idx = resample_indices(call.n, n_resamples, rng, call.y_true if use_strata else None, resampling)
-    boot, failed = bootstrap_distribution(call, idx)
+    ((boot, failed),) = resampled_distributions(
+        [call], call.n, n_resamples, rng, call.y_true if use_strata else None, resampling
+    )
     if failed > MAX_FAILED_FRACTION * n_resamples:
         raise StatisticalTestError(
             f"The metric was undefined on {failed} of {n_resamples} bootstrap resamples. The sample is probably "

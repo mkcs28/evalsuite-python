@@ -165,6 +165,8 @@ class MultilabelReport:
         ]
         for k, m in self.metrics.items():
             lines.append(f"  {k:<34} {m['value']:.{d}f} ({m['low']:.{d}f}–{m['high']:.{d}f})")
+        if s.get("undefined"):
+            lines.append(f"  Undefined on these data (left out): {', '.join(s['undefined'])}")
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -180,6 +182,12 @@ class MultilabelReport:
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
+
+    def to_html(self, *, digits: int = 3) -> str:
+        """The Markdown tables as an HTML fragment (escaped), e.g. for :func:`evalsuite.html_report`."""
+        from .html_report import _markdown_tables
+
+        return _markdown_tables(self.to_markdown(digits=digits))
 
     def to_markdown(self, *, digits: int = 3) -> str:
         d = digits
@@ -253,7 +261,12 @@ def multilabel_report(
             draws[k].append(v)
         done += chunk
     boot = {k: np.concatenate(v) for k, v in draws.items()}
-    metrics = {k: {"value": v, **dict(zip(("low", "high"), _ci(boot[k], level)))} for k, v in point.items()}
+    undefined = [k for k, v in point.items() if not math.isfinite(v)]
+    metrics = {
+        k: {"value": v, **dict(zip(("low", "high"), _ci(boot[k], level)))}
+        for k, v in point.items()
+        if k not in undefined
+    }
     tp = (Y & P).sum(axis=0).astype(float)
     fp = (~Y & P).sum(axis=0).astype(float)
     fn = (Y & ~P).sum(axis=0).astype(float)
@@ -268,7 +281,8 @@ def multilabel_report(
         }
         for j in range(L)
     )
-    return MultilabelReport(metrics, rows, {"n": n, "n_labels": L, "level": level, "n_resamples": n_resamples})
+    settings = {"n": n, "n_labels": L, "level": level, "n_resamples": n_resamples, "undefined": undefined}
+    return MultilabelReport(metrics, rows, settings)
 
 
 # ------------------------------------------------------------------------------------------------- ranking
@@ -278,10 +292,13 @@ def _run_lists(run: Mapping[Any, Any]) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for q, r in run.items():
         if isinstance(r, Mapping):  # doc -> score: by score, ties by document id descending (as trec_eval)
-            items = sorted(((float(s), str(d)) for d, s in r.items()), reverse=True)
-            out[str(q)] = [d for _, d in items]
+            scored = [(float(s), str(d)) for d, s in r.items()]
+            if any(not math.isfinite(s) for s, _ in scored):
+                raise InputValidationError(f"Query {q!r}: document scores must be finite.")
+            ranked = [d for _, d in sorted(scored, reverse=True)]
         else:
-            out[str(q)] = [str(d) for d in r]
+            ranked = [str(d) for d in r]
+        out[str(q)] = list(dict.fromkeys(ranked))  # a document counts once, at its first (best) rank
     return out
 
 
@@ -351,6 +368,12 @@ class RankingReport:
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
+
+    def to_html(self, *, digits: int = 3) -> str:
+        """The Markdown tables as an HTML fragment (escaped), e.g. for :func:`evalsuite.html_report`."""
+        from .html_report import _markdown_tables
+
+        return _markdown_tables(self.to_markdown(digits=digits))
 
     def to_markdown(self, *, digits: int = 3) -> str:
         d = digits

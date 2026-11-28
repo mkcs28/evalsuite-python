@@ -13,11 +13,15 @@ evaluation into one consistent, validated, documented framework.
 > **On an older version? Upgrade once:** `pip install -U evalsuite-python`. From 1.1.2 on, EvalSuite tells you
 > when a newer release is out (`evalsuite upgrade`).
 
-> **Status: stable (1.3.0).** [Example notebooks](notebooks/README.md) (Colab) ·
+> **Status: stable (1.3.5).** [Example notebooks](notebooks/README.md) (Colab) ·
 > [in-browser tools](https://evalsuite-nine.vercel.app/tools) · [changelog](CHANGELOG.md)
 
 **What's new**
 
+- **1.3.5** — a deep clean of the 1.3 modules (ranking counts a document once and rejects NaN scores, temperature
+  scaling maps string labels to the right columns, clearer errors on degenerate data, `to_html` on every report)
+  and bounded memory: bootstrap intervals on 100,000 rows peak at about 90 MB instead of 1.6 GB, with identical
+  results.
 - **1.3** — a calibration suite (Platt, isotonic, temperature, beta and histogram recalibration; bootstrap
   intervals in `calibration_report`), multi-label and ranking reports (trec_eval-exact nDCG, AP, MRR with
   intervals and randomization tests), forecasting (MASE, RMSSE, pinball loss, interval score, CRPS,
@@ -519,7 +523,7 @@ scripts, no external requests).
 ## Evaluation in pull requests
 
 ```yaml
-- uses: mkcs28/evalsuite-python@v1.3.0
+- uses: mkcs28/evalsuite-python@v1.3.5
   with:
     predictions: predictions.csv
     y-true: label

@@ -229,11 +229,14 @@ def diebold_mariano(
     if h < 1:
         raise InputValidationError("h must be at least 1.")
     if loss == "squared":
-        d = (y - a) ** 2 - (y - b) ** 2
+        with np.errstate(over="ignore", invalid="ignore"):
+            d = (y - a) ** 2 - (y - b) ** 2
     elif loss == "absolute":
         d = np.abs(y - a) - np.abs(y - b)
     else:
         raise InputValidationError("loss must be 'squared' or 'absolute'.")
+    if not np.all(np.isfinite(d)):
+        raise InputValidationError("The loss differential overflows; rescale the series before testing.")
     n = d.size
     if n < 3 or h >= n:
         raise InputValidationError("The Diebold–Mariano test needs more observations than the horizon (and ≥ 3).")
@@ -315,6 +318,12 @@ class ForecastReport:
 
     def to_json(self, *, indent: Optional[int] = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
+
+    def to_html(self, *, digits: int = 3) -> str:
+        """The Markdown tables as an HTML fragment (escaped), e.g. for :func:`evalsuite.html_report`."""
+        from .html_report import _markdown_tables
+
+        return _markdown_tables(self.to_markdown(digits=digits))
 
     def to_markdown(self, *, digits: int = 3) -> str:
         d = digits
