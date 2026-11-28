@@ -146,6 +146,9 @@ if TYPE_CHECKING:  # static analysers and IDEs see the full eager API
         label_issues,
         leakage_report,
     )
+    from .dataframe import (
+        register_accessors,
+    )
     from .drift import (
         DriftReport,
         drift_report,
@@ -484,6 +487,7 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "cost_quality_report",
         "run_model",
     ),
+    ".dataframe": ("register_accessors",),
     ".fairness": (
         "FairnessReport",
         "fairness_report",
@@ -1073,6 +1077,7 @@ __all__ = [
     "recovery_success_rate",
     "red_team_success_rate",
     "refusal_rate",
+    "register_accessors",
     "regression",
     "report_card",
     "requests_per_second",
@@ -1161,7 +1166,11 @@ def __getattr__(name: str) -> Any:
     elif name in _LAZY:
         value = getattr(_importlib.import_module(_LAZY[name], __name__), name)
     else:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        import difflib
+
+        close = difflib.get_close_matches(name, __all__, n=3, cutoff=0.75)
+        hint = f" Did you mean {', '.join(repr(c) for c in close)}?" if close else ""
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}.{hint}")
     globals()[name] = value  # cache: later look-ups are plain attribute access
     return value
 

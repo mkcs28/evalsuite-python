@@ -48,8 +48,13 @@ def resolve_metric(metric: Any) -> tuple[MetricFn, str]:
         fn = getattr(evalsuite, name, None)
         if callable(fn) and name in {m.split(".")[-1] for m in evalsuite.list_metrics()}:
             return fn, name
+        import difflib
+
+        names = sorted({m.split(".")[-1] for m in evalsuite.list_metrics()})
+        close = difflib.get_close_matches(name, names, n=3, cutoff=0.6)
+        hint = f" Did you mean {', '.join(repr(c) for c in close)}?" if close else ""
         raise InputValidationError(
-            f"Unknown metric '{metric}'. Use a metric function or a name from list_metrics()."
+            f"Unknown metric '{metric}'.{hint} Use a metric function or a name from list_metrics()."
         )
     raise InputValidationError("metric must be a metric function (e.g. es.f1) or its name (e.g. 'f1').")
 
