@@ -110,7 +110,7 @@ def register_accessors() -> list[str]:
     except ImportError:
         pass
     try:
-        import polars as pl
+        import polars as pl  # type: ignore[import-not-found, unused-ignore]
 
         if not hasattr(pl.DataFrame, "evalsuite"):
             pl.api.register_dataframe_namespace("evalsuite")(EvalSuiteAccessor)
